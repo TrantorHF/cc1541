@@ -52,8 +52,8 @@ typedef struct
 
 enum mode
 {
-	MODE_BEGINNING_SECTOR_MASK	 = 0x003f, // 6 bits
-	MODE_MIN_TRACK_MASK			 = 0x0fc0, // 6 bits
+	MODE_BEGINNING_SECTOR_MASK	 = 0x003f, /* 6 bits */
+	MODE_MIN_TRACK_MASK			 = 0x0fc0, /* 6 bits */
 	MODE_MIN_TRACK_SHIFT		 = 6,
 	MODE_SAVETOEMPTYTRACKS		 = 0x1000,
 	MODE_FITONSINGLETRACK		 = 0x2000,
@@ -899,7 +899,7 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
 			}
 			if ((!usedirtrack)
 			 && ((track == DIRTRACK) || (track == shadowdirtrack)
-			  || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + DIRTRACK))))) { // .d71 track 53 is usually empty except the extra BAM block
+			  || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + DIRTRACK))))) { /* .d71 track 53 is usually empty except the extra BAM block */
 			  ++track; /* skip dir track */
 			}
 			if ((track - lastTrack) > 1) {
