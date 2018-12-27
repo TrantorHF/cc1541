@@ -1361,43 +1361,43 @@ main(int argc, char* argv[])
     char* filename = NULL;
     int set_header = 0;
 
-    int i;
+    int i, j;
 
     if (argc == 1 || strcmp(argv[argc-1], "-h") == 0) {
         usage();
     }
-    for (int j = 1; j < argc - 1; j++) {
+    for (j = 1; j < argc - 1; j++) {
         if (strcmp(argv[j], "-n") == 0) {
-            if (argc < j + 3) {
+            if (argc < j + 2) {
                 printf("Error parsing argument for -n\n");
                 return -1;
             }
             header = argv[++j];
             set_header = 1;
         } else if (strcmp(argv[j], "-i") == 0) {
-            if (argc < j + 3) {
+            if (argc < j + 2) {
                 printf("Error parsing argument for -i\n");
                 return -1;
             }
             id = argv[++j];
             set_header = 1;
         } else if (strcmp(argv[j], "-F") == 0) {
-            if ((argc < j + 3) || !sscanf(argv[++j], "%d", &first_sector_new_track)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &first_sector_new_track)) {
                 printf("Error parsing argument for -F\n");
                 return -1;
             }
         } else if (strcmp(argv[j], "-S") == 0) {
-            if ((argc < j + 3) || !sscanf(argv[++j], "%d", &defaultSectorInterleave)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &defaultSectorInterleave)) {
                 printf("Error parsing argument for -S\n");
                 return -1;
             }
         } else if (strcmp(argv[j], "-s") == 0) {
-            if ((argc < j + 3) || !sscanf(argv[++j], "%d", &sectorInterleave)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &sectorInterleave)) {
                 printf("Error parsing argument for -s\n");
                 return -1;
             }
         } else if (strcmp(argv[j], "-f") == 0) {
-            if (argc < j + 3) {
+            if (argc < j + 2) {
                 printf("Error parsing argument for -f\n");
                 return -1;
             }
@@ -1407,7 +1407,7 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-E") == 0) {
             files[nrFiles].mode |= MODE_FITONSINGLETRACK;
         } else if (strcmp(argv[j], "-r") == 0) {
-            if ((argc < j + 3) || !sscanf(argv[++j], "%d", &i)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &i)) {
                 printf("Error parsing argument for -r\n");
                 return -1;
             }
@@ -1417,7 +1417,7 @@ main(int argc, char* argv[])
             }
             files[nrFiles].mode = (files[nrFiles].mode & ~MODE_MIN_TRACK_MASK) | (i << MODE_MIN_TRACK_SHIFT);
         } else if (strcmp(argv[j], "-b") == 0) {
-            if ((argc < j + 3) || !sscanf(argv[++j], "%d", &i)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &i)) {
                 printf("Error parsing argument for -b\n");
                 return -1;
             }
@@ -1429,7 +1429,7 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-c") == 0) {
             files[nrFiles].mode |= MODE_SAVECLUSTEROPTIMIZED;
         } else if (strcmp(argv[j], "-w") == 0 || strcmp(argv[j], "-l") == 0) {
-            if (argc < j + 3) {
+            if (argc < j + 2) {
                 printf("Error parsing argument for -w or -l\n");
                 return -1;
             }
@@ -1473,7 +1473,7 @@ main(int argc, char* argv[])
                 return -1;
             }
         } else if (strcmp(argv[j], "-u") == 0) {
-            if ((argc < j + 3) || !sscanf(argv[++j], "%d", &numdirblocks)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &numdirblocks)) {
                 printf("Error parsing argument for -u\n");
                 return -1;
             }
@@ -1490,6 +1490,10 @@ main(int argc, char* argv[])
             printf("Use -h for help.");
             return -1;
         }
+    }
+    if (j >= argc) {
+        printf("No image file provided, or misparsed last option\n");
+        return -1;
     }
     imagepath = argv[argc-1];
 
