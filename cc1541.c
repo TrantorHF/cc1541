@@ -421,7 +421,7 @@ hex2int(char hex) {
 }
 
 static char*
-asciihex2petscii(char* str) {
+evalhexescape(char* str) {
     unsigned char* ascii = (unsigned char *)str;
     int read = 0, write = 0;
 
@@ -702,7 +702,6 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         image[dirblock + entryOffset + FILETYPEOFFSET] = FILETYPE_PRG;
 
         /* set filename */
-        asciihex2petscii(file->filename); /* evaluate hex numbers */
         for (unsigned int j = 0; j < FILENAMEMAXSIZE; j++) {
             if (j < strlen(file->filename)) {
                 image[dirblock + entryOffset + FILENAMEOFFSET + j] = file->filename[j];
@@ -1447,6 +1446,7 @@ main(int argc, char* argv[])
                     strncpy(files[nrFiles].filename, files[nrFiles].localname, FILENAMEMAXSIZE);
                     ascii2petscii(files[nrFiles].filename);
                 } else {
+                    evalhexescape(filename);
                     strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);
                 }
 
