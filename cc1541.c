@@ -20,7 +20,7 @@
 * SOFTWARE.
 *******************************************************************************/
 
-#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS /* avoid security warnings for MSVC */
 
 #include <stdint.h>
 #include <stdio.h>
@@ -29,16 +29,38 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#ifdef WIN32
-	#define strdup _strdup
-#else
-	#define min(a, b) (((a) < (b)) ? (a) : (b))
-#endif
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+
+#define DIRTRACK			   18
+#define DIRENTRIESPERBLOCK	   8
+#define DIRENTRYSIZE		   32
+#define BLOCKSIZE			   256
+#define BLOCKOVERHEAD		   2
+#define TRACKLINKOFFSET		   0
+#define SECTORLINKOFFSET	   1
+#define FILETYPEOFFSET		   2
+#define FILETYPE_PRG		   0x82
+#define FILETRACKOFFSET		   3
+#define FILESECTOROFFSET	   4
+#define FILENAMEOFFSET		   5
+#define FILENAMEMAXSIZE		   16
+#define FILENAMEEMPTYCHAR	   (' ' | 0x80)
+#define FILEBLOCKSLOOFFSET	   30
+#define FILEBLOCKSHIOFFSET	   31
+#define D64NUMBLOCKS		   (664 + 19)
+#define D64SIZE				   (D64NUMBLOCKS * BLOCKSIZE)
+#define D64SIZE_EXTENDED	   (D64SIZE + 5 * 17 * BLOCKSIZE)
+#define D71SIZE				   (D64SIZE * 2)
+#define D64NUMTRACKS		   35
+#define D64NUMTRACKS_EXTENDED  (D64NUMTRACKS + 5)
+#define D71NUMTRACKS		   (D64NUMTRACKS * 2)
+#define BAM_OFFSET_SPEED_DOS   0xac
+#define BAM_OFFSET_DOLPHIN_DOS 0xc0
 
 typedef struct
 {
 	char* localname;
-	char* filename;
+	char filename[FILENAMEMAXSIZE];
 	int direntryindex;
 	int direntrysector;
 	int direntryoffset;
@@ -68,32 +90,6 @@ typedef enum
 	IMAGE_D64_EXTENDED_DOLPHIN_DOS,
 	IMAGE_D71
 } image_type;
-
-#define DIRTRACK			   18
-#define DIRENTRIESPERBLOCK	   8
-#define DIRENTRYSIZE		   32
-#define BLOCKSIZE			   256
-#define BLOCKOVERHEAD		   2
-#define TRACKLINKOFFSET		   0
-#define SECTORLINKOFFSET	   1
-#define FILETYPEOFFSET		   2
-#define FILETYPE_PRG		   0x82
-#define FILETRACKOFFSET		   3
-#define FILESECTOROFFSET	   4
-#define FILENAMEOFFSET		   5
-#define FILENAMEMAXSIZE		   16
-#define FILENAMEEMPTYCHAR	   (' ' | 0x80)
-#define FILEBLOCKSLOOFFSET	   30
-#define FILEBLOCKSHIOFFSET	   31
-#define D64NUMBLOCKS		   (664 + 19)
-#define D64SIZE				   (D64NUMBLOCKS * BLOCKSIZE)
-#define D64SIZE_EXTENDED	   (D64SIZE + 5 * 17 * BLOCKSIZE)
-#define D71SIZE				   (D64SIZE * 2)
-#define D64NUMTRACKS		   35
-#define D64NUMTRACKS_EXTENDED  (D64NUMTRACKS + 5)
-#define D71NUMTRACKS		   (D64NUMTRACKS * 2)
-#define BAM_OFFSET_SPEED_DOS   0xac
-#define BAM_OFFSET_DOLPHIN_DOS 0xc0
 
 void
 usage()
@@ -551,7 +547,7 @@ wipe_file(image_type type, unsigned char* image, unsigned int track, unsigned in
 }
 
 static int
-find_file(image_type type, unsigned char* image, char* filename, unsigned char *track, char *sector)
+find_file(image_type type, unsigned char* image, char* filename, unsigned char *track, unsigned char *sector)
 {
 	int direntryindex = 0;
 
@@ -1412,8 +1408,7 @@ main(int argc, char* argv[])
 				return -1;
 			}
 			if ((i < 1) || (((i << MODE_MIN_TRACK_SHIFT) & MODE_MIN_TRACK_MASK) != (i << MODE_MIN_TRACK_SHIFT))) {
-				printf("Invalid minimum track %d for file \"%s\" (%s) specified\n",
-					i, files[nrFiles].localname ? files[nrFiles].localname : "", files[nrFiles].filename ? files[nrFiles].filename : (filename ? filename : ""));
+				printf("Invalid minimum track %d specified\n",	i);
 				exit(-1);
 			}
 			files[nrFiles].mode = (files[nrFiles].mode & ~MODE_MIN_TRACK_MASK) | (i << MODE_MIN_TRACK_SHIFT);
@@ -1423,8 +1418,7 @@ main(int argc, char* argv[])
 				return -1;
 			}
 			if ((i < 0) || (i >= image_num_sectors_table(type)[0])) {
-				printf("Invalid beginning sector %d for file \"%s\" (%s) specified\n",
-					i, files[nrFiles].localname ? files[nrFiles].localname : "", files[nrFiles].filename ? files[nrFiles].filename : (filename ? filename : ""));
+				printf("Invalid beginning sector %d specified\n", i);
 				exit(-1);
 			}
 			files[nrFiles].mode = (files[nrFiles].mode & ~MODE_BEGINNING_SECTOR_MASK) | (i + 1);
@@ -1446,9 +1440,10 @@ main(int argc, char* argv[])
 				files[nrFiles].localname = argv[j + 1];
 
 				if (filename == NULL) {
-					files[nrFiles].filename = ascii2petscii(strdup(files[nrFiles].localname));
+                    strncpy(files[nrFiles].filename, files[nrFiles].localname, FILENAMEMAXSIZE);
+                    ascii2petscii(files[nrFiles].filename);
 				} else {
-					files[nrFiles].filename = filename;
+                    strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);
 				}
 
 				files[nrFiles].sectorInterleave = sectorInterleave;
