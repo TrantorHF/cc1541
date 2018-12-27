@@ -1362,6 +1362,9 @@ main(int argc, char* argv[])
 
 	int i;
 
+    if (argc == 1 || ((argc == 2) && (strcmp(argv[1], "-h") == 0))) {
+        usage();
+    }
 	for (int j = 1; j < argc - 1; j++) {
 		if (strcmp(argv[j], "-n") == 0) {
 			if (argc < j + 3) {
