@@ -264,6 +264,18 @@ main(int argc, char* argv[]) {
     remove("1.prg");
     remove("2.prg");
 
+    description = "File with default sector interleave 7 should fill sector 3 and 10 on track 1";
+    test++;
+    create_value_file("1.prg", 254*2, 37);
+    if (run_binary_cleanup(binary, "-S 7 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 10, 37)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
     /* clean up */
     if (image != NULL) {
         free(image);

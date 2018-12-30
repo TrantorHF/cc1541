@@ -1359,7 +1359,7 @@ main(int argc, char* argv[])
     int default_first_sector_new_track = 3;
     int first_sector_new_track = 3;
     int defaultSectorInterleave = 10;
-    int sectorInterleave = 10;
+    int sectorInterleave = 0;
     int dir_sector_interleave = 3;
     int numdirblocks = 2;
     char* filename = NULL;
@@ -1455,7 +1455,7 @@ main(int argc, char* argv[])
                     strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);
                 }
 
-                files[nrFiles].sectorInterleave = sectorInterleave;
+                files[nrFiles].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
                 files[nrFiles].first_sector_new_track = first_sector_new_track;
                 files[nrFiles].nrSectors = 0;
                 nrFiles++;
@@ -1466,7 +1466,7 @@ main(int argc, char* argv[])
 
             filename = NULL;
             first_sector_new_track = default_first_sector_new_track;
-            sectorInterleave = defaultSectorInterleave;
+            sectorInterleave = 0;
             j++;
         } else if (strcmp(argv[j], "-x") == 0) {
             dirtracksplit = 0;
