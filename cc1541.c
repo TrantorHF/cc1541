@@ -832,6 +832,11 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
     int lastSector = sector;
     int lastOffset = linear_sector(type, lastTrack, lastSector) * BLOCKSIZE;
 
+    /* make sure first file already takes first sector per track into account */
+    if (num_files > 0) {
+        sector = files[0].first_sector_new_track;
+    }
+
     for (int i = 0; i < num_files; i++) {
         imagefile *file = &(files[i]);
 
