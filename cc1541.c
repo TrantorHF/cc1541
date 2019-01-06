@@ -100,7 +100,7 @@ usage()
     printf("Usage: cc1541 -niFSsfeErbcwlxtdu45q image.[d64|d71]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
-    printf("-F            Next file first sector on a new track (default = 3).\n");
+    printf("-F            Next file first sector on a new track (default=3).\n");
     printf("              Any negative value assumes aligned tracks and uses current\n");
     printf("              sector + interleave.\n");
     printf("              After each file, the value falls back to the default.\n");
@@ -115,7 +115,7 @@ usage()
     printf("-f filename   Use filename as name when writing next file, use prefix # to\n");
     printf("              include arbitrary PETSCII characters (e.g. -f \"START#a0,8,1\").\n");
     printf("-e            Start next file on an empty track (default start sector is\n");
-    printf("              current sector plus interleave.\n");
+    printf("              current sector plus interleave).\n");
     printf("-E            Try to fit file on a single track.\n");
     printf("-r track      Restrict next file blocks to the specified track or higher.\n");
     printf("-b sector     Set next file beginning sector to the specified value.\n");
