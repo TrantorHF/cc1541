@@ -30,7 +30,7 @@ const unsigned int track_offset_b[] = {
 };
 
 /* Runs the binary with the provided commandline and returns the content of the output image file in a buffer */
-int 
+int
 run_binary(const char* binary, const char* options, const char* image_name, char **image, size_t *size) {
     struct stat st;
     char *command_line;
@@ -51,7 +51,7 @@ run_binary(const char* binary, const char* options, const char* image_name, char
     strcat(command_line, options);
     strcat(command_line, " ");
     strcat(command_line, image_name);
-#ifdef WIN32    
+#ifdef WIN32
     strcat(command_line, " > nul      ");
 #else
     strcat(command_line, " > /dev/null");
@@ -79,7 +79,7 @@ run_binary(const char* binary, const char* options, const char* image_name, char
 }
 
 /* runs the binary with a given command line and image output file, reads the output into a buffer and deletes the file then */
-int 
+int
 run_binary_cleanup(const char* binary, const char* options, const char* image_name, char **image, size_t *size) {
     int status = run_binary(binary, options, image_name, image, size);
     remove(image_name);

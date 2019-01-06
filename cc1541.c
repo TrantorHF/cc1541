@@ -101,7 +101,7 @@ usage()
     printf("              Any negative value assumes aligned tracks and uses current\n");
     printf("              sector + interleave.\n");
     printf("              After each file, the value falls back to the default.\n");
-    printf("-S value      Default sector interleave, default=10.\n"); 
+    printf("-S value      Default sector interleave, default=10.\n");
     printf("              At track end, reduces this by 1 to accomodate large tail gap.\n");
     printf("              If negative, no special treatment of tail gap.\n");
     printf("-s value      Next file sector interleave, valid after each file.\n");
@@ -857,15 +857,15 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                 /* update directory entry */
                 int entryOffset = linear_sector(type, DIRTRACK, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
                 image[entryOffset + FILETRACKOFFSET] = file->track;
-                image[entryOffset + FILESECTOROFFSET] = file->sector; 
+                image[entryOffset + FILESECTOROFFSET] = file->sector;
 
-                image[entryOffset + FILEBLOCKSLOOFFSET] = 0; 
-                image[entryOffset + FILEBLOCKSHIOFFSET] = 0; 
+                image[entryOffset + FILEBLOCKSLOOFFSET] = 0;
+                image[entryOffset + FILEBLOCKSHIOFFSET] = 0;
 
                 if (shadowdirtrack > 0) {
                     entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
                     image[entryOffset + FILETRACKOFFSET] = file->track;
-                    image[entryOffset + FILESECTOROFFSET] = file->sector; 
+                    image[entryOffset + FILESECTOROFFSET] = file->sector;
 
                     image[entryOffset + FILEBLOCKSLOOFFSET] = 0;
                     image[entryOffset + FILEBLOCKSHIOFFSET] = 0;
