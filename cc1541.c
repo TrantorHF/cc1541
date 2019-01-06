@@ -104,9 +104,11 @@ usage()
     printf("-s value      Next file sector interleave, after each file\n");
     printf("              if negative, do not consider large tail gap (unlike standard)\n");
     printf("              the interleave value falls back to the default value set by -S\n");
+    printf("              after the first sector of the next file\n");
     printf("-f filename   Use filename as name when writing next file, use prefix # to include\n");
     printf("              arbitrary PETSCII characters (e.g. -f \"AUTOSTART#a0,8,1\")\n");
-    printf("-e            Start next file on an empty track\n");
+    printf("-e            Start next file on an empty track (default start sector is current\n");
+    printf("              plus interleave, as this is similar to actual drive behavior)\n");
     printf("-E            Try to fit file on a single track\n");
     printf("-r track      Restrict next file blocks to the specified track or higher\n");
     printf("-b sector     Set next file beginning sector to the specified value\n");
@@ -563,8 +565,8 @@ find_file(image_type type, unsigned char* image, char* filename, unsigned char *
             switch (filetype) {
                 case FILETYPE_PRG:
                     if (dirstrcmp((char *) image + dirblock + entryOffset + FILENAMEOFFSET, filename) == 0) {
-                        track = &(image[dirblock + entryOffset + FILETRACKOFFSET]);
-                        sector = &(image[dirblock + entryOffset + FILESECTOROFFSET]);
+                        *track = image[dirblock + entryOffset + FILETRACKOFFSET];
+                        *sector = image[dirblock + entryOffset + FILESECTOROFFSET];
 
                         return direntryindex;
                     }
@@ -850,18 +852,18 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                 /* update directory entry */
                 int entryOffset = linear_sector(type, DIRTRACK, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
                 image[entryOffset + FILETRACKOFFSET] = file->track;
-                image[entryOffset + FILESECTOROFFSET] = direntryindex - file->direntryindex;
+                image[entryOffset + FILESECTOROFFSET] = file->sector; 
 
-                image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
-                image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
+                image[entryOffset + FILEBLOCKSLOOFFSET] = 0; 
+                image[entryOffset + FILEBLOCKSHIOFFSET] = 0; 
 
                 if (shadowdirtrack > 0) {
                     entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
                     image[entryOffset + FILETRACKOFFSET] = file->track;
-                    image[entryOffset + FILESECTOROFFSET] = direntryindex - file->direntryindex;
+                    image[entryOffset + FILESECTOROFFSET] = file->sector; 
 
-                    image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
-                    image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
+                    image[entryOffset + FILEBLOCKSLOOFFSET] = 0;
+                    image[entryOffset + FILEBLOCKSHIOFFSET] = 0;
                 }
 
                 continue;
@@ -924,7 +926,9 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                     if (is_sector_free(type, image, track, s, usedirtrack ? numdirblocks : 0, dir_sector_interleave)) {
                         if (s == num_sectors_table[track - 1] - 1) {
                             found = 1;
-                            /* in first pass, use sector as left by previous file (or as set by -b) to reach first file block quickly */
+                            /* In first pass, use sector as left by previous file (or as set by -b) to reach first file block quickly. */
+                            /* Claus: according to Krill, on real HW tracks are not aligned anyway, so it does not make a difference. */
+                            /* Emulators tend to reset the disk angle on track changes, so this should rather be 3. */
                             if (sector >= num_sectors_table[track - 1]) {
                                 if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
                                     printf("Invalid beginning sector %d on track %d for file %s (%s) specified\n", sector, track, file->localname, file->filename);
