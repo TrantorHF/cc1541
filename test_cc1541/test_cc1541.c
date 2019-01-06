@@ -276,6 +276,148 @@ main(int argc, char* argv[]) {
     }
     remove("1.prg");
 
+    description = "File with sector interleave 9 should fill sector 3 and 12 on track 1";
+    test++;
+    create_value_file("1.prg", 254 * 2, 37);
+    if (run_binary_cleanup(binary, "-s 9 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 12, 37)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
+    description = "File with sector interleave 20 should fill sector 3 and 1 on track 1";
+    test++;
+    create_value_file("1.prg", 254 * 2, 37);
+    if (run_binary_cleanup(binary, "-s 20 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 1, 37)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
+    description = "File with sector interleave -20 should fill sector 3 and 2 on track 1";
+    test++;
+    create_value_file("1.prg", 254 * 2, 37);
+    if (run_binary_cleanup(binary, "-s -20 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 2, 37)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
+    description = "Sector interleave should go back to default for next file";
+    test++;
+    create_value_file("1.prg", 254 * 2, 1);
+    create_value_file("2.prg", 254 * 2, 2);
+    if (run_binary_cleanup(binary, "-S 3 -s 2 -w 1.prg -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 7, 2) && block_is_filled(image, 10, 2)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+    remove("2.prg");
+
+    description = "Filename should be found at track 18 sector 1 offset 5";
+    test++;
+    create_value_file("1.prg", 254 * 2, 1);
+    if (run_binary_cleanup(binary, "-f 0123456789ABCDEF -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (strncmp(&image[track_offset[17] + 256 + 5], "0123456789ABCDEF", 16) == 0) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
+    description = "Filename hexvalue should be interpreted correctly";
+    test++;
+    create_value_file("1.prg", 254 * 2, 1);
+    if (run_binary_cleanup(binary, "-f 0123456789ABCDE#ef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (image[track_offset[17] + 256 + 5 + 15] == 0xef) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
+    description = "Second file should start on track 2 sector 13 for -e";
+    test++;
+    create_value_file("1.prg", 254, 1);
+    create_value_file("2.prg", 254, 2);
+    if (run_binary_cleanup(binary, "-w 1.prg -e -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 3 + 21 + 10, 2)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+    remove("2.prg");
+
+    description = "Second file should start on track 1 when it fits for -E";
+    test++;
+    create_value_file("1.prg", 20*254, 1);
+    create_value_file("2.prg", 1*254, 2);
+    if (run_binary_cleanup(binary, "-w 1.prg -E -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 19, 2)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+    remove("2.prg");
+
+    description = "Second file should not start on track 1 when it does not fit for -E";
+    test++;
+    create_value_file("1.prg", 20 * 254, 1);
+    create_value_file("2.prg", 2 * 254, 2);
+    if (run_binary_cleanup(binary, "-w 1.prg -E -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 19, 0)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+    remove("2.prg");
+
+    description = "File should start on track 13 for -r";
+    test++;
+    create_value_file("1.prg", 254, 1);
+    if (run_binary_cleanup(binary, "-r 13 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, track_offset[12]/256 + 3, 1)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
+    description = "File should start on sector 14 for -b";
+    test++;
+    create_value_file("1.prg", 254, 1);
+    create_value_file("2.prg", 254, 2);
+    if (run_binary_cleanup(binary, "-w 1.prg -b 14 -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 14, 2)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+    remove("2.prg");
+
     /* clean up */
     if (image != NULL) {
         free(image);
