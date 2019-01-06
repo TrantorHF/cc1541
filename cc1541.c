@@ -115,7 +115,8 @@ usage()
     printf("-c            Save next file cluster-optimized (d71 only)\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
     printf("              local name is used. After file written filename is unset\n");
-    printf("-l filename   Write loop file to existing file to disk, set filename with -f\n");
+    printf("-l filename   Write loop file (an additional dir entry) to existing file to disk,\n");
+    printf("              set filename with -f\n");
     printf("-x            Don't split files over dirtrack hole (default split files)\n");
     printf("-t            Use dirtrack to also store files (makes -x useless) (default no)\n");
     printf("-d track      Maintain a shadow directory (copy of the actual directory)\n");
