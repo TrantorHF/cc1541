@@ -20,6 +20,8 @@
 * SOFTWARE.
 *******************************************************************************/
 
+#define VERSION "2.0"
+
 #define _CRT_SECURE_NO_WARNINGS /* avoid security warnings for MSVC */
 
 #include <stdint.h>
@@ -94,6 +96,7 @@ typedef enum
 void
 usage()
 {
+    printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
     printf("Usage: cc1541 -niFSsfeErbcwlxtdu45q image.[d64|d71]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
