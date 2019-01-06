@@ -31,7 +31,7 @@ const unsigned int track_offset_b[] = {
 
 /* Runs the binary with the provided commandline and returns the content of the output image file in a buffer */
 int 
-run_binary(const char* binary, const char* options, const char* image_name, unsigned char **image, unsigned int *size) {
+run_binary(const char* binary, const char* options, const char* image_name, char **image, size_t *size) {
     struct stat st;
     char *command_line;
 
@@ -80,7 +80,7 @@ run_binary(const char* binary, const char* options, const char* image_name, unsi
 
 /* runs the binary with a given command line and image output file, reads the output into a buffer and deletes the file then */
 int 
-run_binary_cleanup(const char* binary, const char* options, const char* image_name, unsigned char **image, size_t *size) {
+run_binary_cleanup(const char* binary, const char* options, const char* image_name, char **image, size_t *size) {
     int status = run_binary(binary, options, image_name, image, size);
     remove(image_name);
     return status;
@@ -102,7 +102,7 @@ create_value_file(const char* name, int size, char value) {
 
 /* checks if a given block in the image is filled with a given value */
 int
-block_is_filled(unsigned char* image, int block, int value) {
+block_is_filled(char* image, int block, int value) {
     for (int i = 0; i < 254; i++) {
         if (image[block * 256 + 2 + i] != value) {
             return 0;
@@ -115,8 +115,8 @@ int
 main(int argc, char* argv[]) {
     struct stat st;
     const char* binary;
-    unsigned char *image = NULL;
-    int size;
+    char *image = NULL;
+    size_t size;
     int test = 0;
     int passed = 0;
     char *description;
@@ -178,7 +178,7 @@ main(int argc, char* argv[]) {
     create_value_file("1.prg", 254, 37);
     if (run_binary_cleanup(binary, "-w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         printf("UNRESOLVED: %s\n", description);
-    } else if (block_is_filled(image, 3, 37) && image[3 * 256] == 0 && image[3 * 256 + 1] == 255) {
+    } else if (block_is_filled(image, 3, 37) && image[3 * 256] == 0 && image[3 * 256 + 1] == (char)255) {
         passed++;
     } else {
         printf("FAIL: %s\n", description);
@@ -202,7 +202,7 @@ main(int argc, char* argv[]) {
     create_value_file("1.prg", 254, 37);
     if (run_binary_cleanup(binary, "-n 0123456789ABCDEFGHI -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         printf("UNRESOLVED: %s\n", description);
-    } else if (strncmp(&image[track_offset[17] + 0x90], "0123456789ABCDEF", 16) == 0 && image[track_offset[17] + 0xa0] == 0xa0) {
+    } else if (strncmp(&image[track_offset[17] + 0x90], "0123456789ABCDEF", 16) == 0 && image[track_offset[17] + 0xa0] == (char)0xa0) {
         passed++;
     } else {
         printf("FAIL: %s\n", description);
@@ -226,7 +226,7 @@ main(int argc, char* argv[]) {
     create_value_file("1.prg", 254, 37);
     if (run_binary_cleanup(binary, "-i 0123456789ABCDEFGHI -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         printf("UNRESOLVED: %s\n", description);
-    } else if (strncmp(&image[track_offset[17] + 0xa2], "01234", 5) == 0 && image[track_offset[17] + 0xa7] == 0xa0) {
+    } else if (strncmp(&image[track_offset[17] + 0xa2], "01234", 5) == 0 && image[track_offset[17] + 0xa7] == (char)0xa0) {
         passed++;
     } else {
         printf("FAIL: %s\n", description);
@@ -352,7 +352,7 @@ main(int argc, char* argv[]) {
     create_value_file("1.prg", 254 * 2, 1);
     if (run_binary_cleanup(binary, "-f 0123456789ABCDE#ef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         printf("UNRESOLVED: %s\n", description);
-    } else if (image[track_offset[17] + 256 + 5 + 15] == 0xef) {
+    } else if (image[track_offset[17] + 256 + 5 + 15] == (char)0xef) {
         passed++;
     } else {
         printf("FAIL: %s\n", description);
