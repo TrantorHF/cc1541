@@ -143,6 +143,16 @@ main(int argc, char* argv[]) {
         printf("FAIL: %s\n", description);
     }
 
+    description = "Size of empty G64 image should be 269862";
+    test++;
+    if (run_binary_cleanup(binary, "", "image.g64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (size == 269862) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+
     description = "Size of empty D71 image should be 2*174848";
     test++;
     if (run_binary_cleanup(binary, "", "image.d71", &image, &size) != NO_ERROR) {
@@ -273,7 +283,7 @@ main(int argc, char* argv[]) {
     remove("1.prg");
     remove("2.prg");
 
-    description = "File with default sector interleave 7 should fill sector 3 and 10 on track 1";
+    description = "File with default sector interleave 10 should fill sector 3 and 13 on track 1";
     test++;
     create_value_file("1.prg", 254 * 2, 37);
     if (run_binary_cleanup(binary, "-S 7 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {

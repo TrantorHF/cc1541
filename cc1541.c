@@ -97,7 +97,7 @@ void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niFSsfeErbcwlxtdu45q image.[d64|d71]\n\n");
+    printf("Usage: cc1541 -niFSsfeErbcwlxtdu45q image.[d64|g64|d71]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
     printf("-F            Next file first sector on a new track (default=3).\n");
@@ -1208,11 +1208,9 @@ encode_4_bytes_gcr(char* in, char* out)
 }
 
 void
-generate_uniformat_g64(unsigned char* image)
+generate_uniformat_g64(unsigned char* image, const char *imagepath)
 {
-    printf("Generating UniFormAt G64 image\n");
-
-    FILE* f = fopen("uniformat.g64", "wb");
+    FILE* f = fopen(imagepath, "wb");
 
     size_t filepos = 0;
 
@@ -1572,13 +1570,13 @@ main(int argc, char* argv[])
     }
 
     /* Save image */
-    f = fopen(imagepath, "wb");
-    fwrite(image, imagesize, 1, f);
-    fclose(f);
-
-    /*if (type == IMAGE_D64) {
-        generate_uniformat_g64(image);
-    }*/
+    if ((strlen(imagepath) >= 4) && !strcmp(imagepath + strlen(imagepath) - 4, ".g64")) {
+        generate_uniformat_g64(image, imagepath);
+    } else {
+        f = fopen(imagepath, "wb");
+        fwrite(image, imagesize, 1, f);
+        fclose(f);
+    }
 
     free(image);
 
