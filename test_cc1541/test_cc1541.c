@@ -405,6 +405,20 @@ main(int argc, char* argv[]) {
     remove("1.prg");
     remove("2.prg");
 
+    description = "Second file should start on track 2 sector 3 for -e -b 3";
+    test++;
+    create_value_file("1.prg", 254, 1);
+    create_value_file("2.prg", 254, 2);
+    if (run_binary_cleanup(binary, "-w 1.prg -e -b 3 -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (block_is_filled(image, 3 + 21, 2)) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+    remove("2.prg");
+
     description = "Second file should start on track 1 when it fits for -E";
     test++;
     create_value_file("1.prg", 20 * 254, 1);
