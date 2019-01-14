@@ -557,6 +557,58 @@ main(int argc, char* argv[]) {
     remove("1.prg");
     remove("2.prg");
 
+	description = "File should have DIR block size 0 for -B";
+	test++;
+	create_value_file("1.prg", 3 * 254, 1);
+	if (run_binary_cleanup(binary, "-B 0 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+		printf("UNRESOLVED: %s\n", description);
+	}
+	else if (image[track_offset[17] + 256 + 30] == 0 && image[track_offset[17] + 256 + 31] == 0) {
+		passed++;
+	}
+	else {
+		printf("FAIL: %s\n", description);
+	}
+	remove("1.prg");
+
+	description = "File should have DIR block size 65535 for -B";
+	test++;
+	create_value_file("1.prg", 3 * 254, 1);
+	if (run_binary_cleanup(binary, "-B 65535 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+		printf("UNRESOLVED: %s\n", description);
+	}
+	else if (image[track_offset[17] + 256 + 30] == (char)255 && image[track_offset[17] + 256 + 31] == (char)255) {
+		passed++;
+	}
+	else {
+		printf("FAIL: %s\n", description);
+	}
+	remove("1.prg");
+
+    description = "Loop file should have actual DIR block size per default";
+    test++;
+    create_value_file("1.prg", 258 * 254, 1);
+    if (run_binary_cleanup(binary, "-w 1.prg -f LOOP.PRG -l 1.PRG", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (image[track_offset[17] + 256 + 32 + 30] == 2 && image[track_offset[17] + 256 + 32 + 31] == 1) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+   
+    description = "Loop file should have DIR block size 258 for -B";
+    test++;
+    create_value_file("1.prg", 39 * 254, 1);
+    if (run_binary/*_cleanup*/(binary, "-w 1.prg -f LOOP.PRG -B 258 -l 1.PRG", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (image[track_offset[17] + 256 + 32 + 30] == 2 && image[track_offset[17] + 256 + 32 + 31] == 1) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
     /* clean up */
     if (image != NULL) {
         free(image);

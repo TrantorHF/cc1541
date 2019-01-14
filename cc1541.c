@@ -71,6 +71,7 @@ typedef struct
     int track;
     int sector;
     int nrSectors;
+    int nrSectorsShown;
     int mode;
 } imagefile;
 
@@ -97,7 +98,7 @@ void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niFSsfeErbcwlxtdu45q image.[d64|g64|d71]\n\n");
+    printf("Usage: cc1541 -niFSsfeErbcwlBxtdu45q image.[d64|g64|d71]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
     printf("-F            Next file first sector on a new track (default=3).\n");
@@ -124,6 +125,8 @@ usage()
     printf("              local name is used. After file written, the filename is unset.\n");
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
     printf("              disk, set filename with -f.\n");
+    printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
+    printf("              the next file.\n");    
     printf("-x            Don't split files over dirtrack hole (default split files).\n");
     printf("-t            Use dirtrack to also store files (makes -x useless) (default no).\n");
     printf("-d track      Maintain a shadow directory (copy of the actual directory).\n");
@@ -558,7 +561,7 @@ wipe_file(image_type type, unsigned char* image, unsigned int track, unsigned in
 }
 
 static int
-find_file(image_type type, unsigned char* image, char* filename, unsigned char *track, unsigned char *sector)
+find_file(image_type type, unsigned char* image, char* filename, unsigned char *track, unsigned char *sector, unsigned int *numblocks)
 {
     int direntryindex = 0;
 
@@ -575,7 +578,7 @@ find_file(image_type type, unsigned char* image, char* filename, unsigned char *
                     if (dirstrcmp((char *) image + dirblock + entryOffset + FILENAMEOFFSET, filename) == 0) {
                         *track = image[dirblock + entryOffset + FILETRACKOFFSET];
                         *sector = image[dirblock + entryOffset + FILESECTOROFFSET];
-
+						*numblocks = image[dirblock + entryOffset + FILEBLOCKSLOOFFSET] + 256*image[dirblock + entryOffset + FILEBLOCKSHIOFFSET];
                         return direntryindex;
                     }
                     break;
@@ -852,7 +855,7 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
 
         if (file->mode & MODE_LOOPFILE) {
             /* find loopfile source files */
-            int direntryindex = find_file(type, image, file->localname, &track, &sector);
+            int direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
             if (direntryindex >= 0) {
                 file->track = track;
                 file->sector = sector;
@@ -862,16 +865,19 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                 image[entryOffset + FILETRACKOFFSET] = file->track;
                 image[entryOffset + FILESECTOROFFSET] = file->sector;
 
-                image[entryOffset + FILEBLOCKSLOOFFSET] = 0;
-                image[entryOffset + FILEBLOCKSHIOFFSET] = 0;
+				if (file->nrSectorsShown == -1) {
+					file->nrSectorsShown = file->nrSectors;
+				}
+                image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown % 256;
+                image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown / 256;
 
                 if (shadowdirtrack > 0) {
                     entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
                     image[entryOffset + FILETRACKOFFSET] = file->track;
                     image[entryOffset + FILESECTOROFFSET] = file->sector;
 
-                    image[entryOffset + FILEBLOCKSLOOFFSET] = 0;
-                    image[entryOffset + FILEBLOCKSHIOFFSET] = 0;
+                    image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors;
+                    image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors;
                 }
 
                 continue;
@@ -1155,8 +1161,11 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
         image[entryOffset + FILETRACKOFFSET] = file->track;
         image[entryOffset + FILESECTOROFFSET] = file->sector;
 
-        image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
-        image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
+		if (file->nrSectorsShown < 0) {
+			file->nrSectorsShown = file->nrSectors;
+		}
+        image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
+        image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
 
         if (shadowdirtrack > 0) {
             entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
@@ -1372,6 +1381,7 @@ main(int argc, char* argv[])
     int sectorInterleave = 0;
     int dir_sector_interleave = 3;
     int numdirblocks = 2;
+    int nrSectorsShown = -1;
     char* filename = NULL;
     int set_header = 0;
 
@@ -1468,6 +1478,7 @@ main(int argc, char* argv[])
                 files[nrFiles].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
                 files[nrFiles].first_sector_new_track = first_sector_new_track;
                 files[nrFiles].nrSectors = 0;
+                files[nrFiles].nrSectorsShown = nrSectorsShown;                
                 nrFiles++;
             } else {
                 fprintf(stderr, "File '%s' (%d) not found\n", argv[j + 1], nrFiles + 1);
@@ -1477,6 +1488,7 @@ main(int argc, char* argv[])
             filename = NULL;
             first_sector_new_track = default_first_sector_new_track;
             sectorInterleave = 0;
+            nrSectorsShown = -1;
             j++;
         } else if (strcmp(argv[j], "-x") == 0) {
             dirtracksplit = 0;
@@ -1492,7 +1504,16 @@ main(int argc, char* argv[])
                 printf("Error parsing argument for -u\n");
                 return -1;
             }
-        } else if (strcmp(argv[j], "-4") == 0) {
+		} else if (strcmp(argv[j], "-B") == 0) {
+			if ((argc < j + 2) || !sscanf(argv[++j], "%d", &nrSectorsShown)) {
+				printf("Error parsing argument for -B\n");
+				return -1;
+			}
+			if (nrSectorsShown < 0 || nrSectorsShown > 65535) {
+				printf("Argument must be between 0 and 65535 for -B\n");
+				return -1;
+			}
+		} else if (strcmp(argv[j], "-4") == 0) {
             type = IMAGE_D64_EXTENDED_SPEED_DOS;
         } else if (strcmp(argv[j], "-5") == 0) {
             type = IMAGE_D64_EXTENDED_DOLPHIN_DOS;
