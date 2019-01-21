@@ -11,5 +11,5 @@ pipelines:
         script: # Modify the commands below to build your repository.
           - make
           - cd test_cc1541
-          - make
+          - make test
           
