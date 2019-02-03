@@ -547,9 +547,9 @@ main(int argc, char* argv[]) {
     create_value_file("2.prg", 5 * 254, 2);
     if (run_binary_cleanup(binary, "-d 23 -w 1.prg -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
         printf("UNRESOLVED: %s\n", description);
-    } else if (memcmp(&image[track_offset[17]+2], &image[track_offset[22]+2], 254) == 0 &&
-        memcmp(&image[track_offset[17] + 2] + 256, &image[track_offset[22] + 2] + 256, 254) == 0)
-    { /* leave out next dir block t/s */
+    } else if (memcmp(&image[track_offset[17] + 1], &image[track_offset[22] + 1], 255) == 0 &&
+        memcmp(&image[track_offset[17] + 256 + 1], &image[track_offset[22] + 256 + 1], 255) == 0)
+    { /* leave out next dir block track */
         passed++;
     } else {
         printf("FAIL: %s\n", description);
@@ -600,7 +600,7 @@ main(int argc, char* argv[]) {
     description = "Loop file should have DIR block size 258 for -B";
     test++;
     create_value_file("1.prg", 39 * 254, 1);
-    if (run_binary/*_cleanup*/(binary, "-w 1.prg -f LOOP.PRG -B 258 -l 1.PRG", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-w 1.prg -f LOOP.PRG -B 258 -l 1.PRG", "image.d64", &image, &size) != NO_ERROR) {
         printf("UNRESOLVED: %s\n", description);
     } else if (image[track_offset[17] + 256 + 32 + 30] == 2 && image[track_offset[17] + 256 + 32 + 31] == 1) {
         passed++;
@@ -609,6 +609,20 @@ main(int argc, char* argv[]) {
     }
     remove("1.prg");
 
+    description = "File should have DIR block size 258 for -B, but actual block size in shadow dir for -d";
+    test++;
+    create_value_file("1.prg", 3 * 254, 1);
+    if (run_binary/*_cleanup*/(binary, "-B 258 -d 23 -w 1.prg", "image_d23.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    }
+    else if (image[track_offset[17] + 256 + 30] == 258%256 && image[track_offset[17] + 256 + 31] == 258/256 && image[track_offset[22] + 256 + 30] == 3 && image[track_offset[22] + 256 + 31] == 0) {
+        passed++;
+    }
+    else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+    
     /* clean up */
     if (image != NULL) {
         free(image);
