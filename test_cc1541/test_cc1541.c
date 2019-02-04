@@ -596,7 +596,7 @@ main(int argc, char* argv[]) {
         printf("FAIL: %s\n", description);
     }
     remove("1.prg");
-   
+
     description = "Loop file should have DIR block size 258 for -B";
     test++;
     create_value_file("1.prg", 39 * 254, 1);
@@ -612,7 +612,7 @@ main(int argc, char* argv[]) {
     description = "File should have DIR block size 258 for -B, but actual block size in shadow dir for -d";
     test++;
     create_value_file("1.prg", 3 * 254, 1);
-    if (run_binary/*_cleanup*/(binary, "-B 258 -d 23 -w 1.prg", "image_d23.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-B 258 -d 23 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         printf("UNRESOLVED: %s\n", description);
     }
     else if (image[track_offset[17] + 256 + 30] == 258%256 && image[track_offset[17] + 256 + 31] == 258/256 && image[track_offset[22] + 256 + 30] == 3 && image[track_offset[22] + 256 + 31] == 0) {
@@ -622,7 +622,19 @@ main(int argc, char* argv[]) {
         printf("FAIL: %s\n", description);
     }
     remove("1.prg");
-    
+
+    description = "Loop file should have actual DIR block size for -L";
+    test++;
+    create_value_file("1.prg", 258 * 254, 1);
+    if (run_binary_cleanup(binary, "-w 1.prg -f LOOP.PRG -L 1", "image.d64", &image, &size) != NO_ERROR) {
+        printf("UNRESOLVED: %s\n", description);
+    } else if (image[track_offset[17] + 256 + 32 + 30] == 2 && image[track_offset[17] + 256 + 32 + 31] == 1) {
+        passed++;
+    } else {
+        printf("FAIL: %s\n", description);
+    }
+    remove("1.prg");
+
     /* clean up */
     if (image != NULL) {
         free(image);

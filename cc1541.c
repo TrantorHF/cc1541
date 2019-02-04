@@ -124,8 +124,8 @@ usage()
     printf("-c            Save next file cluster-optimized (d71 only).\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
     printf("              local name is used. After file written, the filename is unset.\n");
-    printf("-L fileindex  Write loop file (an additional dir entry) to previous file given\n");
-    printf("              in commandline (first file has index 1), set filename with -f.\n");
+    printf("-L fileindex  Write loop file (an additional dir entry) to entry in directory\n");
+    printf("              with given index (first file has index 1), set filename with -f.\n");
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
     printf("              disk, set filename with -f.\n");
     printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
@@ -850,8 +850,20 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
         imagefile *file = &(files[i]);
 
         if (file->mode & MODE_LOOPFILE) {
-            /* find loopfile source files */
-            int direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
+
+
+            int direntryindex = file->loopindex;
+            track = files[file->loopindex].track;
+            sector = files[file->loopindex].sector;
+            file->nrSectors = files[file->loopindex].nrSectors;
+
+            if (file->localname != NULL) {
+              /* find loopfile source file */
+                direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
+            } else if(direntryindex >= file->direntryindex) {
+                fprintf(stderr, "Loop file index %d (%d) not found\n", file->loopindex, i + 1);
+                exit(-1);
+            }
             if (direntryindex >= 0) {
                 file->track = track;
                 file->sector = sector;
@@ -879,7 +891,6 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                 continue;
             } else {
                 fprintf(stderr, "Loop source file '%s' (%d) not found\n", file->localname, i + 1);
-
                 exit(-1);
             }
         }
@@ -1459,7 +1470,7 @@ main(int argc, char* argv[])
                 fprintf(stderr, "File '%s' (%d) not found\n", argv[j + 1], nrFiles + 1);
                 exit(-1);
             }
-            files[nrFiles].localname = argv[j + 1];            
+            files[nrFiles].localname = argv[j + 1];
             if (filename == NULL) {
                 strncpy(files[nrFiles].filename, files[nrFiles].localname, FILENAMEMAXSIZE);
                 ascii2petscii(files[nrFiles].filename);
@@ -1469,7 +1480,7 @@ main(int argc, char* argv[])
             }
             files[nrFiles].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[nrFiles].first_sector_new_track = first_sector_new_track;
-			files[nrFiles].nrSectorsShown = nrSectorsShown;
+            files[nrFiles].nrSectorsShown = nrSectorsShown;
             first_sector_new_track = default_first_sector_new_track;
             filename = NULL;
             sectorInterleave = 0;
@@ -1486,25 +1497,21 @@ main(int argc, char* argv[])
               return -1;
             }
             files[nrFiles].mode |= MODE_LOOPFILE;
-            files[nrFiles].localname = argv[j + 1];            
+            files[nrFiles].localname = argv[j + 1];
             evalhexescape(filename);
             strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);
             files[nrFiles].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[nrFiles].first_sector_new_track = first_sector_new_track;
             first_sector_new_track = default_first_sector_new_track;
-			files[nrFiles].nrSectorsShown = nrSectorsShown;
-			filename = NULL;
+            files[nrFiles].nrSectorsShown = nrSectorsShown;
+            filename = NULL;
             sectorInterleave = 0;
             nrSectorsShown = -1;
             nrFiles++;
-            j++;            
+            j++;
         } else if (strcmp(argv[j], "-L") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &loopindex)) {
                 printf("Error parsing argument for -L\n");
-                return -1;
-            }
-            if (loopindex >= nrFiles) {
-                printf("Argument must be lower than current file index for -L\n");
                 return -1;
             }
             if (loopindex < 1) {
@@ -1517,16 +1524,15 @@ main(int argc, char* argv[])
             }
             files[nrFiles].mode |= MODE_LOOPFILE;
             evalhexescape(filename);
-            strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);            
+            strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);
             files[nrFiles].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[nrFiles].first_sector_new_track = first_sector_new_track;
-			files[nrFiles].nrSectorsShown = nrSectorsShown;
-			first_sector_new_track = default_first_sector_new_track;
+            files[nrFiles].nrSectorsShown = nrSectorsShown;
+            first_sector_new_track = default_first_sector_new_track;
             filename = NULL;
             sectorInterleave = 0;
             nrSectorsShown = -1;
             nrFiles++;
-            j++;                
         } else if (strcmp(argv[j], "-x") == 0) {
             dirtracksplit = 0;
         } else if (strcmp(argv[j], "-t") == 0) {
