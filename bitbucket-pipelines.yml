@@ -17,5 +17,9 @@ pipelines:
         script:
           - make CC=i686-w64-mingw32-gcc
           - mv cc1541 cc1541.exe
+          - cd test_cc1541
+          - make CC=i686-w64-mingw32-gcc
+          - mv test_cc1541 test_cc1541.exe
+          - wine test_cc1541.exe ../cc1541.exe
         artifacts:
           - cc1541.exe
