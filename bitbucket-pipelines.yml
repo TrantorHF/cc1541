@@ -9,9 +9,12 @@ image: alpine:3.7
 pipelines:
   default:
     - step:
+        name: Build and test
         script: # Modify the commands below to build your repository.
           - apk add build-base
           - make
           - cd test_cc1541
           - make test
+        artifacts:
+          - cc1541
           
