@@ -4,12 +4,13 @@
 # -----
 # You can specify a custom docker image from Docker Hub as your build environment.
 # image: gcc:6.1
-image: eugenmayer/make
+image: alpine:3.7
 
 pipelines:
   default:
     - step:
         script: # Modify the commands below to build your repository.
+          - apk add build-base
           - make
           - cd test_cc1541
           - make test
