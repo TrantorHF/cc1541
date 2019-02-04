@@ -1,9 +1,8 @@
-image: alpine:3.7
-
 pipelines:
   default:
     - step:
         name: Build and test
+        image: alpine:3.7
         script:
           - apk add build-base
           - make
@@ -13,9 +12,9 @@ pipelines:
           - cc1541
     - step:
         name: Build Windows
+        image: purplekarrot/mingw-w64-i686
         trigger: manual
         script:
-          - apk add mingw-w64
           - make CC=i686-w64-mingw32-gcc
           - mv cc1541 cc1541.exe
         artifacts:
