@@ -1,8 +1,8 @@
 test_cc1541: test_cc1541.o
-	gcc  -o $@ $^
+	$(CC)  -o $@ $^
 
 %.o: %.c
-	gcc -std=c99 -c $<
+	$(CC) -std=c99 -c $<
 
 test: test_cc1541
 	./test_cc1541 ../cc1541
