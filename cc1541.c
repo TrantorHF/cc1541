@@ -606,6 +606,41 @@ find_file(image_type type, unsigned char* image, char* filename, unsigned char *
     return -1;
 }
 
+/* sets image offset to the next DIR entry, returns 0 when the DIR end was reached */
+static int
+next_dir_entry(image_type type, unsigned char* image, int *offset)
+{
+    if (*offset % BLOCKSIZE == 7 * DIRENTRYSIZE) {
+        /* last entry in sector */
+        int sector_offset = (*offset / BLOCKSIZE) * BLOCKSIZE;
+        int track = image[sector_offset];
+        if (track == 0) {
+            /* this was the last DIR sector */
+            return 0;
+        } else {
+            /* follow the t/s link */
+            int sector = image[sector_offset + 1];
+            *offset = linear_sector(type, track, sector) * BLOCKSIZE;
+        }
+    } else {
+        *offset += DIRENTRYSIZE;
+    }
+    return 1;
+}
+
+static int
+num_dir_entries(image_type type, unsigned char* image)
+{
+    int entries = 0;
+    int offset = linear_sector(type, DIRTRACK, 1) * BLOCKSIZE;
+    do {
+        if (image[offset + 2] != 0) {
+            entries++;
+        }
+    } while (next_dir_entry(type, image, &offset));
+    return entries;
+}
+
 static void
 create_dir_entries(image_type type, unsigned char* image, imagefile* files, int num_files, int dir_sector_interleave, unsigned int shadowdirtrack)
 {
@@ -860,9 +895,16 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
             if (file->localname != NULL) {
               /* find loopfile source file */
                 direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
-            } else if(direntryindex >= file->direntryindex) {
-                fprintf(stderr, "Loop file index %d (%d) not found\n", file->loopindex, i + 1);
-                exit(-1);
+            } else {
+                if (direntryindex == file->direntryindex) {
+                    fprintf(stderr, "Loop file index %d cannot refer to itself\n", file->loopindex, i + 1);
+                    exit(-1);
+                }
+                int numfiles = num_dir_entries(type, image);
+                if (direntryindex >= numfiles) {
+                    fprintf(stderr, "Loop file index %d is higher than number of files %d\n", file->loopindex, numfiles);
+                    exit(-1);
+                }
             }
             if (direntryindex >= 0) {
                 file->track = track;
@@ -1523,6 +1565,7 @@ main(int argc, char* argv[])
               return -1;
             }
             files[nrFiles].mode |= MODE_LOOPFILE;
+            files[nrFiles].loopindex = loopindex - 1;
             evalhexescape(filename);
             strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);
             files[nrFiles].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
