@@ -94,7 +94,10 @@ run_binary(const char* binary, const char* options, const char* image_name, char
     if (f == NULL) {
         return ERROR_NO_OUTPUT;
     }
-    fread(*image, *size, 1, f);
+    if (fread(*image, *size, 1, f) != 1) {
+        fprintf(stderr, "ERROR: Unexpected filesize when reading %s\n", image_name);
+        return ERROR_NO_OUTPUT;
+    }
     fclose(f);
 
     return NO_ERROR;
