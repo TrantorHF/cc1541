@@ -62,7 +62,7 @@
 typedef struct
 {
     char* localname;
-    char filename[FILENAMEMAXSIZE];
+    char filename[FILENAMEMAXSIZE + 1];
     int loopindex;
     int direntryindex;
     int direntrysector;
@@ -658,7 +658,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
 
         int dirsector = 1;
         int dirblock;
-        int shadowdirblock;
+        int shadowdirblock = 0;
         int entryOffset;
         int found = 0;
         do {
@@ -897,7 +897,7 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                 direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
             } else {
                 if (direntryindex == file->direntryindex) {
-                    fprintf(stderr, "Loop file index %d cannot refer to itself\n", file->loopindex, i + 1);
+                    fprintf(stderr, "Loop file index %d cannot refer to itself\n", file->loopindex);
                     exit(-1);
                 }
                 int numfiles = num_dir_entries(type, image);
@@ -952,7 +952,10 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
             printf("could not open file %s for reading\n", file->localname);
             exit(-1);
         }
-        fread(filedata, fileSize, 1, f);
+        if (fread(filedata, fileSize, 1, f) != 1) {
+            fprintf(stderr, "ERROR: Unexpected filesize when reading %s\n", file->localname);
+            exit(-1);
+        }
         fclose(f);
 
         if ((file->mode & MODE_MIN_TRACK_MASK) > 0) {
@@ -1110,9 +1113,7 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                     } else {
                         sector = file->first_sector_new_track;
                     }
-                    if (sector < 0) {
-                        sector += num_sectors_table[prev_track - 1];
-                    }
+                    sector += num_sectors_table[prev_track - 1];
                     sector %= num_sectors_table[prev_track - 1];
 
                     if ((!usedirtrack)
@@ -1520,6 +1521,7 @@ main(int argc, char* argv[])
                 evalhexescape(filename);
                 strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);
             }
+            files[nrFiles].filename[FILENAMEMAXSIZE] = '\0';
             files[nrFiles].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[nrFiles].first_sector_new_track = first_sector_new_track;
             files[nrFiles].nrSectorsShown = nrSectorsShown;
@@ -1581,7 +1583,7 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-t") == 0) {
             usedirtrack = 1;
         } else if (strcmp(argv[j], "-d") == 0) {
-            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &shadowdirtrack)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%u", &shadowdirtrack)) {
                 printf("Error parsing argument for -d\n");
                 return -1;
             }
