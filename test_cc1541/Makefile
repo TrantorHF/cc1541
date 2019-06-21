@@ -7,5 +7,7 @@ test_cc1541: test_cc1541.o
 test: test_cc1541
 	./test_cc1541 ../cc1541
 
+check: test
+
 clean:
 	rm -rf *.o test_cc1541 *~
