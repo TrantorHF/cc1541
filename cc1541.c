@@ -952,7 +952,10 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
             printf("could not open file %s for reading\n", file->localname);
             exit(-1);
         }
-        fread(filedata, fileSize, 1, f);
+        if (fread(filedata, fileSize, 1, f) != 1) {
+            fprintf(stderr, "ERROR: Unexpected filesize when reading %s\n", file->localname);
+            exit(-1);
+        }
         fclose(f);
 
         if ((file->mode & MODE_MIN_TRACK_MASK) > 0) {
