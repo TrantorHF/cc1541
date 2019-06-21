@@ -1113,9 +1113,7 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                     } else {
                         sector = file->first_sector_new_track;
                     }
-                    if (sector < 0) {
-                        sector += num_sectors_table[prev_track - 1];
-                    }
+                    sector += num_sectors_table[prev_track - 1];
                     sector %= num_sectors_table[prev_track - 1];
 
                     if ((!usedirtrack)
