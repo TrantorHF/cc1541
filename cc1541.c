@@ -1584,7 +1584,7 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-t") == 0) {
             usedirtrack = 1;
         } else if (strcmp(argv[j], "-d") == 0) {
-            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &shadowdirtrack)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%u", &shadowdirtrack)) {
                 printf("Error parsing argument for -d\n");
                 return -1;
             }
