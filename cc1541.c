@@ -897,7 +897,7 @@ write_files(image_type type, unsigned char* image, imagefile* files, int num_fil
                 direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
             } else {
                 if (direntryindex == file->direntryindex) {
-                    fprintf(stderr, "Loop file index %d cannot refer to itself\n", file->loopindex, i + 1);
+                    fprintf(stderr, "Loop file index %d cannot refer to itself\n", file->loopindex);
                     exit(-1);
                 }
                 int numfiles = num_dir_entries(type, image);
