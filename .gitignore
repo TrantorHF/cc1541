@@ -1,0 +1,11 @@
+# Backup files
+*~
+
+# Compiler output.
+*.o
+
+# Compiled applications.
+/cc1541
+/cc1541.exe
+test_cc1541/test_cc1541
+test_cc1541/test_cc1541.exe
