@@ -62,7 +62,7 @@
 typedef struct
 {
     char* localname;
-    char filename[FILENAMEMAXSIZE];
+    char filename[FILENAMEMAXSIZE + 1];
     int loopindex;
     int direntryindex;
     int direntrysector;
@@ -1521,6 +1521,7 @@ main(int argc, char* argv[])
                 evalhexescape(filename);
                 strncpy(files[nrFiles].filename, filename, FILENAMEMAXSIZE);
             }
+            files[nrFiles].filename[FILENAMEMAXSIZE] = '\0';
             files[nrFiles].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[nrFiles].first_sector_new_track = first_sector_new_track;
             files[nrFiles].nrSectorsShown = nrSectorsShown;
