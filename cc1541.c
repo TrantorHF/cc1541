@@ -658,7 +658,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
 
         int dirsector = 1;
         int dirblock;
-        int shadowdirblock;
+        int shadowdirblock = 0;
         int entryOffset;
         int found = 0;
         do {
