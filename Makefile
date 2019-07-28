@@ -1,3 +1,5 @@
+override CFLAGS := -std=c99 $(CFLAGS)
+
 bindir ?= /usr/local/bin
 
 INSTALL ?= install
@@ -21,8 +23,5 @@ install: all
 
 clean:
 	rm -rf *.o cc1541 test_cc1541 *~
-
-%.o: %.c
-	$(CC) -std=c99 $(CFLAGS) -c $<
 
 .PHONY: all check clean install test
