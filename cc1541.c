@@ -1286,7 +1286,7 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
     filepos += write16(track_size, f);
 
     const unsigned int table_size = num_tracks * 4;
-    const unsigned int tracks_offset = filepos + (table_size * 2);
+    const unsigned int tracks_offset = (int)filepos + (table_size * 2);
 
     for (int track = 0; track < num_tracks; ++track) {
         unsigned int track_offset = 0;

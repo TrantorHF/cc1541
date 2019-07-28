@@ -63,7 +63,7 @@ run_binary(const char* binary, const char* options, const char* image_name, char
     }
 
     /* build command line */
-    int command_line_len = strlen(binary) + strlen(options) + strlen(image_name) + 3 + 12; /* 3 additional for spaces and terminator */
+    size_t command_line_len = strlen(binary) + strlen(options) + strlen(image_name) + 3 + 12; /* 3 additional for spaces and terminator */
     command_line = (char*)calloc(command_line_len, sizeof(char));
     if (command_line == NULL) {
         return ERROR_ALLOCATION;
@@ -73,7 +73,7 @@ run_binary(const char* binary, const char* options, const char* image_name, char
     strcat(command_line, options);
     strcat(command_line, " ");
     strcat(command_line, image_name);
-#ifdef WIN32
+#ifdef _WIN32
     strcat(command_line, " > nul      ");
 #else
     strcat(command_line, " > /dev/null");
