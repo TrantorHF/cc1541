@@ -19,3 +19,12 @@ pipelines:
           - wine ./test_cc1541.exe ./cc1541.exe
         artifacts:
           - cc1541.exe
+    - step:
+        name: Build MacOS
+        image: andrewd/osxcross
+        trigger: manual
+        script:
+          - make check
+          - mv cc1541 cc1541_mac
+        artifacts:
+          - cc1541_mac
