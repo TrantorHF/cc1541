@@ -5,9 +5,7 @@ pipelines:
         image: alpine:3.7
         script:
           - apk add build-base
-          - make
-          - cd test_cc1541
-          - make test
+          - make check
         artifacts:
           - cc1541
     - step:
@@ -15,11 +13,9 @@ pipelines:
         image: purplekarrot/mingw-w64-i686
         trigger: manual
         script:
-          - make CC=i686-w64-mingw32-gcc
+          - make cc1541 test_cc1541 CC=i686-w64-mingw32-gcc
           - mv cc1541 cc1541.exe
-          - cd test_cc1541
-          - make CC=i686-w64-mingw32-gcc
           - mv test_cc1541 test_cc1541.exe
-          - wine test_cc1541.exe ../cc1541.exe
+          - wine ./test_cc1541.exe ./cc1541.exe
         artifacts:
           - cc1541.exe
