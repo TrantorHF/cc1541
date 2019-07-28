@@ -16,3 +16,5 @@ clean:
 
 %.o: %.c
 	$(CC) -std=c99 $(CFLAGS) -c $<
+
+.PHONY: all check clean test
