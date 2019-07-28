@@ -1,4 +1,4 @@
-override CFLAGS := -std=c99 $(CFLAGS)
+override CFLAGS := -std=c99 -O2 $(CFLAGS)
 
 bindir ?= /usr/local/bin
 
