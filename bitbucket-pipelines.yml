@@ -24,7 +24,7 @@ pipelines:
         image: andrewd/osxcross
         trigger: manual
         script:
-          - make check
+          - make cc1541 CC=o64-clang
           - mv cc1541 cc1541_mac
         artifacts:
           - cc1541_mac
