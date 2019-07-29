@@ -106,7 +106,7 @@ void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niMFSsfeErbcwLlBxtdu45q image.[d64|g64|d71]\n\n");
+    printf("Usage: cc1541 -niMFSsfeErbcwLlBxtdu45q image.[d64|g64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
     printf("-M numchars   Hash computation maximum filename length, this must\n");
@@ -589,7 +589,7 @@ update_directory(image_type type, unsigned char* image, char* header, char* id, 
         header_offset = 4;
         id_offset = 0x16;
     } else {
-    image[bam + 0x03] = (type == IMAGE_D71) ? 0x80 : 0x00;
+    	image[bam + 0x03] = (type == IMAGE_D71) ? 0x80 : 0x00;
         header_offset = 0x90;
         id_offset = 0xa2;
     }
@@ -1906,16 +1906,16 @@ main(int argc, char* argv[])
 
     if (strlen(imagepath) >= 4) {
         if (strcmp(imagepath + strlen(imagepath) - 4, ".d71") == 0) {
-        if ((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
-                fprintf(stderr, "Extended .d71 images are not supported\n");
-
-            exit(-1);
-        }
-        type = IMAGE_D71;
+			if ((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
+					fprintf(stderr, "Extended .d71 images are not supported\n");
+	
+				exit(-1);
+			}
+			type = IMAGE_D71;
         } else if (strcmp(imagepath + strlen(imagepath) - 4, ".d81") == 0) {
             type = IMAGE_D81;
             dir_sector_interleave = 1;
-    }
+        }
     }
 
     /* open image */
