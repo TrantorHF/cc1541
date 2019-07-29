@@ -1435,6 +1435,7 @@ main(int argc, char* argv[])
     int loopindex;
     char* filename = NULL;
     int set_header = 0;
+    int retval = 0;
 
     int i, j;
 
@@ -1683,11 +1684,14 @@ main(int argc, char* argv[])
         generate_uniformat_g64(image, imagepath);
     } else {
         f = fopen(imagepath, "wb");
-        fwrite(image, imagesize, 1, f);
+        if (fwrite(image, imagesize, 1, f) != 1) {
+            fprintf(stderr, "ERROR: Failed to write %s\n", image);
+            retval = -1;
+        }
         fclose(f);
     }
 
     free(image);
 
-    return 0;
+    return retval;
 }
