@@ -295,7 +295,7 @@ is_sector_free(image_type type, unsigned char* image, int track, int sector, int
     if ((track == DIRTRACK) && (numdirblocks > 0)) {
         const int* num_sectors_table = image_num_sectors_table(type);
 
-        int dirsector;
+        int dirsector = 0;
         int s = 2;
         for (int i = 0; is_not_dir_block && (i < numdirblocks); i++) {
             switch (i) {
@@ -328,8 +328,8 @@ mark_sector(image_type type, unsigned char* image, int track, int sector, int fr
     if (free != is_sector_free(type, image, track, sector, 0, 0)) {
         int bam;
         unsigned char* bitmap;
-        int shadowbam;
-        unsigned char* shadowbitmap;
+        int shadowbam = 0;
+        unsigned char* shadowbitmap = NULL;
 
         if ((type == IMAGE_D71) && (track > D64NUMTRACKS)) {
             /* access second side bam */
