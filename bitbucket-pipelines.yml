@@ -39,6 +39,6 @@ pipelines:
         name: Create package
         script:
           - apt-get install zip
-          - zip -o cc1541.zip cc1541_lin_x86 cc1541.exe cc1541_mac README.md
+          - zip -o cc1541.zip cc1541_lin_x86 cc1541.exe cc1541_mac LICENSE.txt README.md
         artifacts:
           - cc1541.zip
