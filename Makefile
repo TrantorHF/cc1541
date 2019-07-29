@@ -7,9 +7,9 @@ INSTALL ?= install
 
 all: cc1541
 
-cc1541: cc1541.o
+cc1541: cc1541.c
 
-test_cc1541: test_cc1541.o
+test_cc1541: test_cc1541.c
 
 check: cc1541 test_cc1541
 	./test_cc1541 ./cc1541
