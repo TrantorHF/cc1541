@@ -22,7 +22,6 @@ pipelines:
     - step:
         name: Build MacOS
         image: andrewd/osxcross
-        trigger: manual
         script:
           - make CC=o64-clang
           - mv cc1541 cc1541_mac
