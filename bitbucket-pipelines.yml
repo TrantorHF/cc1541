@@ -13,7 +13,7 @@ pipelines:
         name: Build other platforms
         trigger: manual
         script:
-          - echo "Building other platforms"    
+          - echo "Building other platforms"
     - parallel:
           - step:
               name: Build Windows
