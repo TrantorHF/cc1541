@@ -6,7 +6,7 @@ Originally written by JackAsser, with improvements and fixes by Krill and some m
 
 The folder test_cc1541 contains a simple test suite that will call a cc1541 binary with different commandlines and examine the resulting image file.
 
-The program is under the MIT license, please refer to the cc1541 source file for further information. The public source code repository can be found here:
+The program is provided under the terms of the MIT license, please refer to the included LICENSE.txt file for its terms and conditions. The public source code repository can be found here:
 https://bitbucket.org/PTV_Claus/cc1541/src/master/
 
 ## Version history ##
