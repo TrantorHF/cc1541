@@ -23,7 +23,8 @@ pipelines:
         name: Build MacOS
         image: andrewd/osxcross
         script:
-          - make CC=o64-clang
+          - make cc1541 CC=o64-clang
+          - make test_cc1541 CC=o64-clang
           - mv cc1541 cc1541_mac
           - mv test_cc1541 test_cc1541_mac
         artifacts:
