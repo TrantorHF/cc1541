@@ -37,9 +37,8 @@ pipelines:
                 - test_cc1541_mac
     - step:
         name: Create package
-        image: alpine:3.7
+        image: kramos/alpine-zip
         script:
-          - apk add build-base
           - zip -o cc1541.zip cc1541_lin_x86 cc1541.exe cc1541_mac LICENSE.txt README.md
         artifacts:
           - cc1541.zip
