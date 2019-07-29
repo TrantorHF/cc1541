@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 20018-2019 Claus
+* Copyright (c) 20018-2019 Claus, Bjoern Esser
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -625,8 +625,8 @@ main(int argc, char* argv[]) {
     create_value_file("2.prg", 5 * 254, 2);
     if (run_binary_cleanup(binary, "-d 23 -w 1.prg -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (memcmp(&image[track_offset[17] + 1], &image[track_offset[22] + 1], 255) == 0 &&
-        memcmp(&image[track_offset[17] + 256 + 1], &image[track_offset[22] + 256 + 1], 255) == 0)
+    } else if (memcmp(&image[track_offset[17] + 1], &image[track_offset[22] + 1], 1) == 0 /* shadow BAM is not valid, only need the sector link */
+        && memcmp(&image[track_offset[17] + 1] + 256, &image[track_offset[22] + 1] + 256, 255) == 0)
     { /* leave out next dir block track */
         result = TEST_PASS;
         ++passed;
