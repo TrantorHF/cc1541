@@ -3,7 +3,6 @@ pipelines:
     - step:
         name: Build and test Linux glibc
         script:
-          - apt-get install build-essential
           - make -j2 check
           - mv cc1541 cc1541_lin_glibc_x86
         artifacts:
