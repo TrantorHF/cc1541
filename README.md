@@ -4,7 +4,7 @@ This is cc1541 v2.1, a tool for creating Commodore 1541 Floppy disk images in D6
 
 Originally written by JackAsser, with improvements and fixes by Krill, some more improvements by Claus and further improvements by Bjoern Esser.
 
-The folder test_cc1541 contains a simple test suite that will call a cc1541 binary with different commandlines and examine the resulting image file.
+The file test_cc1541.c contains a simple test suite that will call the cc1541 binary with different commandlines and examine the resulting image file.
 
 The program is provided under the terms of the MIT license, please refer to the included LICENSE.txt file for its terms and conditions. The public source code repository can be found here:
 https://bitbucket.org/PTV_Claus/cc1541/src/master/
