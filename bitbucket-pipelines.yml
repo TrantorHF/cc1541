@@ -1,28 +1,19 @@
 pipelines:
   default:
     - step:
-        name: Build and test Linux MUSL libc
-        image: alpine:3.7
+        name: Build and test Linux glibc
         script:
-          - apk add build-base
+          - apt-get install build-essential
           - make -j2 check
-          - mv cc1541 cc1541_lin_musl_x86
+          - mv cc1541 cc1541_lin_glibc_x86
         artifacts:
-          - cc1541_lin_musl_x86
+          - cc1541_lin_glibc_x86
     - step:
         name: Build other platforms
         trigger: manual
         script:
           - echo "Building other platforms"
     - parallel:
-          - step:
-              name: Build and test Linux glibc
-              script:
-                - apt-get install build-essential
-                - make -j2 check
-                - mv cc1541 cc1541_lin_glibc_x86
-              artifacts:
-                - cc1541_lin_glibc_x86
           - step:
               name: Build and test Windows
               image: purplekarrot/mingw-w64-i686
@@ -47,6 +38,6 @@ pipelines:
         name: Create package
         image: kramos/alpine-zip
         script:
-          - zip -o cc1541.zip cc1541_lin_musl_x86 cc1541_lin_glibc_x86 cc1541.exe cc1541_mac LICENSE.txt README.md
+          - zip -o cc1541.zip cc1541_lin_glibc_x86 cc1541.exe cc1541_mac LICENSE.txt README.md
         artifacts:
           - cc1541.zip
