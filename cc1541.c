@@ -1982,11 +1982,14 @@ main(int argc, char* argv[])
 
     if (check_hashes(type, image)) {
         fprintf(stderr, "Filename hash collision detected\n");
-
-        exit(-1);
+        retval = -1;
     }
 
     free(image);
 
-    return retval;
+    if (retval != 0) {
+        exit(-1);
+    }
+
+    return 0;
 }
