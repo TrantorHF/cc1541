@@ -125,6 +125,7 @@ usage()
     printf("              after the first sector of the next file.\n");
     printf("-f filename   Use filename as name when writing next file, use prefix # to\n");
     printf("              include arbitrary PETSCII characters (e.g. -f \"START#a0,8,1\").\n");
+    printf("-o            Do not overwrite if file with same name exists already.\n");
     printf("-e            Start next file on an empty track (default start sector is\n");
     printf("              current sector plus interleave).\n");
     printf("-E            Try to fit file on a single track.\n");
@@ -808,7 +809,7 @@ num_dir_entries(image_type type, unsigned char* image)
 }
 
 static void
-create_dir_entries(image_type type, unsigned char* image, imagefile* files, int num_files, int dir_sector_interleave, unsigned int shadowdirtrack)
+create_dir_entries(image_type type, unsigned char* image, imagefile* files, int num_files, int dir_sector_interleave, unsigned int shadowdirtrack, int nooverwrite)
 {
     /* this does not check for uniqueness of filenames */
 
@@ -840,6 +841,10 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
                 switch (filetype) {
                     case FILETYPE_PRG:
                         if (dirstrcmp((char *) image + dirblock + entryOffset + FILENAMEOFFSET, file->filename) == 0) {
+                            if (nooverwrite) {
+                                fprintf(stderr, "ERROR: Filename exists on disk image already and -o was set\n");
+                                exit(-1);
+                            }
                             wipe_file(type, image, image[dirblock + entryOffset + FILETRACKOFFSET], image[dirblock + entryOffset + FILESECTOROFFSET]);
                             num_overwritten_files++;
                             found = 1;
@@ -1692,6 +1697,7 @@ main(int argc, char* argv[])
     int loopindex;
     char* filename = NULL;
     int set_header = 0;
+    int nooverwrite = 0;    
     int retval = 0;
 
     int i, j;
@@ -1782,6 +1788,8 @@ main(int argc, char* argv[])
             files[num_files].mode = (files[num_files].mode & ~MODE_BEGINNING_SECTOR_MASK) | (i + 1);
         } else if (strcmp(argv[j], "-c") == 0) {
             files[num_files].mode |= MODE_SAVECLUSTEROPTIMIZED;
+        } else if (strcmp(argv[j], "-o") == 0) {
+            nooverwrite = 1;
         } else if (strcmp(argv[j], "-w") == 0) {
             if (argc < j + 2) {
                 printf("Error parsing argument for -w\n");
@@ -1956,7 +1964,7 @@ main(int argc, char* argv[])
 
     /* Create directory entries */
     fprintf(stdout, "creating dir entries\n");
-    create_dir_entries(type, image, files, num_files, dir_sector_interleave, shadowdirtrack);
+    create_dir_entries(type, image, files, num_files, dir_sector_interleave, shadowdirtrack, nooverwrite);
 
     /* Write files and mark sectors in BAM */
     write_files(type, image, files, num_files, usedirtrack, dirtracksplit, shadowdirtrack, numdirblocks, dir_sector_interleave);
