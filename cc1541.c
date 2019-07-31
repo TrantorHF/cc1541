@@ -126,8 +126,8 @@ usage()
     printf("-f filename   Use filename as name when writing next file, use prefix # to\n");
     printf("              include arbitrary PETSCII characters (e.g. -f \"START#a0,8,1\").\n");
     printf("-o            Do not overwrite if file with same name exists already.\n");
-	printf("-v            Do not modify image unless it is in valid CBM DOS format.\n");
-	printf("-e            Start next file on an empty track (default start sector is\n");
+    printf("-v            Do not modify image unless it is in valid CBM DOS format.\n");
+    printf("-e            Start next file on an empty track (default start sector is\n");
     printf("              current sector plus interleave).\n");
     printf("-E            Try to fit file on a single track.\n");
     printf("-r track      Restrict next file blocks to the specified track or higher.\n");
@@ -400,36 +400,33 @@ check_hashes(image_type type, unsigned char* image)
 }
 
 static int
-get_bam_offset(image_type type, unsigned int track) {
-	int bam;
-	unsigned int offset;
+get_bam_offset(image_type type, unsigned int track)
+{
+    int bam;
+    unsigned int offset;
 
-	if (type == IMAGE_D81) {
-		if (track <= 40) {
-			bam = linear_sector(type, dirtrack(type), 1 /* sector */) * BLOCKSIZE;
-			offset = bam + (track * 6) + 11;
-		}
-		else {
-			bam = linear_sector(type, dirtrack(type), 2 /* sector */) * BLOCKSIZE;
-			offset = bam + ((track - 40) * 6) + 11;
-		}
-	}
-	else if ((type == IMAGE_D71) && (track > D64NUMTRACKS)) {
-		/* access second side bam */
-		bam = linear_sector(type, dirtrack(type) + D64NUMTRACKS, 0) * BLOCKSIZE;
-		offset = bam + (track - D64NUMTRACKS - 1) * 3;
-	}
-	else {
-		if (((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) && (track > D64NUMTRACKS)) {
-			track -= D64NUMTRACKS;
-			bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE + ((type == IMAGE_D64_EXTENDED_SPEED_DOS) ? BAM_OFFSET_SPEED_DOS : BAM_OFFSET_DOLPHIN_DOS);
-		}
-		else {
-			bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
-		}
-		offset = bam + track * 4 + 1;
-	}
-	return offset;
+    if (type == IMAGE_D81) {
+        if (track <= 40) {
+            bam = linear_sector(type, dirtrack(type), 1 /* sector */) * BLOCKSIZE;
+            offset = bam + (track * 6) + 11;
+        } else {
+            bam = linear_sector(type, dirtrack(type), 2 /* sector */) * BLOCKSIZE;
+            offset = bam + ((track - 40) * 6) + 11;
+        }
+    } else if ((type == IMAGE_D71) && (track > D64NUMTRACKS)) {
+        /* access second side bam */
+        bam = linear_sector(type, dirtrack(type) + D64NUMTRACKS, 0) * BLOCKSIZE;
+        offset = bam + (track - D64NUMTRACKS - 1) * 3;
+    } else {
+        if (((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) && (track > D64NUMTRACKS)) {
+            track -= D64NUMTRACKS;
+            bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE + ((type == IMAGE_D64_EXTENDED_SPEED_DOS) ? BAM_OFFSET_SPEED_DOS : BAM_OFFSET_DOLPHIN_DOS);
+        } else {
+            bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
+        }
+        offset = bam + track * 4 + 1;
+    }
+    return offset;
 }
 
 static int
@@ -1721,113 +1718,113 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
 
     if (!is_uniform) {
         printf("Warning: \"%s\" is not UniFormAt'ed\n", imagepath);
-	}
+    }
 }
 
 static void
 validate(image_type type, unsigned char* image)
 {
-	/* determine number of blocks */
-	int num_blocks = 0;
-	for (unsigned int t = 1; t <= image_num_tracks(type); t++) {
-		num_blocks += num_sectors(type, t);
-	}
-	/* create block allocation table */
-	int *atab = (int *)calloc(num_blocks, sizeof(int));
-	if (atab == NULL) {
-		fprintf(stderr, "ERROR: error allocating memory");
-		exit(-1);
-	}
-	/* check format specifier */
-	int format = image[linear_sector(type, dirtrack(type), 0) * BLOCKSIZE + 2];
-	if (format != 0x41) {
-		fprintf(stderr, "ERROR: validation failed, format specifier in directory (0x%02x) does not specify 1541 (0x41)\n", format);
-		exit(-1);
-	}
-	/* check each directory entry and set block allocation table */
-	atab[linear_sector(type, dirtrack(type), 0)] = ALLOCATED;
-	unsigned int dt = dirtrack(type);
-	int dirsector = 1;
-	unsigned int start_track = 1;
-	while (start_track != 0) {
-		atab[linear_sector(type, dt, dirsector)] = ALLOCATED;
-		int dirblock = linear_sector(type, dt, dirsector) * BLOCKSIZE;
-		for (int direntry = 0; direntry < DIRENTRIESPERBLOCK; direntry++) {
-			int entryOffset = direntry * DIRENTRYSIZE;
-			int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
-			if (filetype > 4) {
-				fprintf(stderr, "ERROR: validation failed, illegal file type (0x%02x) in directory\n", filetype);
-				exit(-1);
-			}
-			if (filetype != 0) { /* skip deleted entries */
-				start_track = image[dirblock + entryOffset + FILETRACKOFFSET];
-				int start_sector = image[dirblock + entryOffset + FILESECTOROFFSET];
-				if (start_track == 0 || start_track > image_num_tracks(type)) {
-					fprintf(stderr, "ERROR: validation failed, illegal track reference (%d) in directory\n", start_track);
-					exit(-1);
-				}
-				if (start_sector >= num_sectors(type, start_track)) {
-					fprintf(stderr, "ERROR: validation failed, illegal sector reference (track %d, sector %d) in directory\n", start_track, start_sector);
-					exit(-1);
-				}
-				if (atab[linear_sector(type, start_track, start_sector)] == ALLOCATED) {
-					fprintf(stderr, "ERROR: validation failed, file starts in the middle of another file (track %d, sector %d)\n", start_track, start_sector);
-					exit(-1);
-				}
-				if (atab[linear_sector(type, start_track, start_sector)] != FILESTART) { /* loop files are allowed */
-					atab[linear_sector(type, start_track, start_sector)] = FILESTART;
-					/* follow sector chain */
-					unsigned int track = start_track;
-					int sector = start_sector;
-					while (1) {
-						int block_offset = linear_sector(type, track, sector) * BLOCKSIZE;
-						track = image[block_offset + TRACKLINKOFFSET];
-						sector = image[block_offset + SECTORLINKOFFSET];
-						if (track == 0) {
-							break;
-						}
-						if (track > image_num_tracks(type)) {
-							fprintf(stderr, "ERROR: validation failed, illegal track reference (%d) in file sector chain\n", track);
-							exit(-1);
-						}
-						if (sector >= num_sectors(type, track)) {
-							fprintf(stderr, "ERROR: validation failed, illegal sector reference in file sector chain (track %d, sector %d)\n", track, sector);
-							exit(-1);
-						}
-						if (atab[linear_sector(type, track, sector)] != UNALLOCATED) {
-							fprintf(stderr, "ERROR: validation failed, sector (track %d, sector %d) is referenced more than once\n", track, sector);
-							exit(-1);
-						}
-						atab[linear_sector(type, track, sector)] = ALLOCATED;
-					}
-				}
-			}
-		}
-		dt = image[dirblock + TRACKLINKOFFSET];
-		dirsector = image[dirblock + SECTORLINKOFFSET];
-		if (dt == 0) {
-			break;
-		}
-	}
-	/* check BAM for consistency with block allocation table */
-	for (unsigned int t = 1; t <= image_num_tracks(type); t++) {
-		unsigned char* bitmap = image + get_bam_offset(type, t);
-		int num_free = 0;
-		for (int s = 0; s < num_sectors(type, t); s++) {
-			int atab_used = (atab[linear_sector(type, t, s)] != UNALLOCATED);
-			int bam_used = ((bitmap[s >> 3] & (1 << (s & 7))) == 0);
-			num_free += (1 - bam_used);
-			if (bam_used != atab_used) {
-				fprintf(stderr, "ERROR: validation failed, BAM (%s) is not consistent with files (%s) for track %d sector %d\n", bam_used ? "used" : "free", atab_used ? "used" : "free", t, s);
-				exit(-1);
-			}
-		}
-		if (*(bitmap - 1) != num_free) {
-			fprintf(stderr, "ERROR: validation failed, BAM number of free blocks (%d) is not consistent with bitmap (%#02x%#02x%#02x) for track %d\n", *(bitmap - 1), *bitmap, *(bitmap + 1), *(bitmap + 2), t);
-			exit(-1);
-		}
-	}
-	free(atab);
+    /* determine number of blocks */
+    int num_blocks = 0;
+    for (unsigned int t = 1; t <= image_num_tracks(type); t++) {
+        num_blocks += num_sectors(type, t);
+    }
+    /* create block allocation table */
+    int *atab = (int *)calloc(num_blocks, sizeof(int));
+    if (atab == NULL) {
+        fprintf(stderr, "ERROR: error allocating memory");
+        exit(-1);
+    }
+    /* check format specifier */
+    int format = image[linear_sector(type, dirtrack(type), 0) * BLOCKSIZE + 2];
+    if (format != 0x41) {
+        fprintf(stderr, "ERROR: validation failed, format specifier in directory (0x%02x) does not specify 1541 (0x41)\n", format);
+        exit(-1);
+    }
+    /* check each directory entry and set block allocation table */
+    atab[linear_sector(type, dirtrack(type), 0)] = ALLOCATED;
+    unsigned int dt = dirtrack(type);
+    int dirsector = 1;
+    unsigned int start_track = 1;
+    while (start_track != 0) {
+        atab[linear_sector(type, dt, dirsector)] = ALLOCATED;
+        int dirblock = linear_sector(type, dt, dirsector) * BLOCKSIZE;
+        for (int direntry = 0; direntry < DIRENTRIESPERBLOCK; direntry++) {
+            int entryOffset = direntry * DIRENTRYSIZE;
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
+            if (filetype > 4) {
+                fprintf(stderr, "ERROR: validation failed, illegal file type (0x%02x) in directory\n", filetype);
+                exit(-1);
+            }
+            if (filetype != 0) { /* skip deleted entries */
+                start_track = image[dirblock + entryOffset + FILETRACKOFFSET];
+                int start_sector = image[dirblock + entryOffset + FILESECTOROFFSET];
+                if (start_track == 0 || start_track > image_num_tracks(type)) {
+                    fprintf(stderr, "ERROR: validation failed, illegal track reference (%d) in directory\n", start_track);
+                    exit(-1);
+                }
+                if (start_sector >= num_sectors(type, start_track)) {
+                    fprintf(stderr, "ERROR: validation failed, illegal sector reference (track %d, sector %d) in directory\n", start_track, start_sector);
+                    exit(-1);
+                }
+                if (atab[linear_sector(type, start_track, start_sector)] == ALLOCATED) {
+                    fprintf(stderr, "ERROR: validation failed, file starts in the middle of another file (track %d, sector %d)\n", start_track, start_sector);
+                    exit(-1);
+                }
+                if (atab[linear_sector(type, start_track, start_sector)] != FILESTART) { /* loop files are allowed */
+                    atab[linear_sector(type, start_track, start_sector)] = FILESTART;
+                    /* follow sector chain */
+                    unsigned int track = start_track;
+                    int sector = start_sector;
+                    while (1) {
+                        int block_offset = linear_sector(type, track, sector) * BLOCKSIZE;
+                        track = image[block_offset + TRACKLINKOFFSET];
+                        sector = image[block_offset + SECTORLINKOFFSET];
+                        if (track == 0) {
+                            break;
+                        }
+                        if (track > image_num_tracks(type)) {
+                            fprintf(stderr, "ERROR: validation failed, illegal track reference (%d) in file sector chain\n", track);
+                            exit(-1);
+                        }
+                        if (sector >= num_sectors(type, track)) {
+                            fprintf(stderr, "ERROR: validation failed, illegal sector reference in file sector chain (track %d, sector %d)\n", track, sector);
+                            exit(-1);
+                        }
+                        if (atab[linear_sector(type, track, sector)] != UNALLOCATED) {
+                            fprintf(stderr, "ERROR: validation failed, sector (track %d, sector %d) is referenced more than once\n", track, sector);
+                            exit(-1);
+                        }
+                        atab[linear_sector(type, track, sector)] = ALLOCATED;
+                    }
+                }
+            }
+        }
+        dt = image[dirblock + TRACKLINKOFFSET];
+        dirsector = image[dirblock + SECTORLINKOFFSET];
+        if (dt == 0) {
+            break;
+        }
+    }
+    /* check BAM for consistency with block allocation table */
+    for (unsigned int t = 1; t <= image_num_tracks(type); t++) {
+        unsigned char* bitmap = image + get_bam_offset(type, t);
+        int num_free = 0;
+        for (int s = 0; s < num_sectors(type, t); s++) {
+            int atab_used = (atab[linear_sector(type, t, s)] != UNALLOCATED);
+            int bam_used = ((bitmap[s >> 3] & (1 << (s & 7))) == 0);
+            num_free += (1 - bam_used);
+            if (bam_used != atab_used) {
+                fprintf(stderr, "ERROR: validation failed, BAM (%s) is not consistent with files (%s) for track %d sector %d\n", bam_used ? "used" : "free", atab_used ? "used" : "free", t, s);
+                exit(-1);
+            }
+        }
+        if (*(bitmap - 1) != num_free) {
+            fprintf(stderr, "ERROR: validation failed, BAM number of free blocks (%d) is not consistent with bitmap (%#02x%#02x%#02x) for track %d\n", *(bitmap - 1), *bitmap, *(bitmap + 1), *(bitmap + 2), t);
+            exit(-1);
+        }
+    }
+    free(atab);
 }
 
 int
@@ -1854,9 +1851,9 @@ main(int argc, char* argv[])
     int loopindex;
     char* filename = NULL;
     int set_header = 0;
-    int nooverwrite = 0;  
-	int dovalidate = 0;
-	int checkhashes = 0;
+    int nooverwrite = 0;
+    int dovalidate = 0;
+    int checkhashes = 0;
     int retval = 0;
 
     int i, j;
@@ -1938,9 +1935,9 @@ main(int argc, char* argv[])
             files[num_files].mode |= MODE_SAVECLUSTEROPTIMIZED;
         } else if (strcmp(argv[j], "-o") == 0) {
             nooverwrite = 1;
-		} else if (strcmp(argv[j], "-v") == 0) {
-			dovalidate = 1;
-		} else if (strcmp(argv[j], "-w") == 0) {
+        } else if (strcmp(argv[j], "-v") == 0) {
+            dovalidate = 1;
+        } else if (strcmp(argv[j], "-w") == 0) {
             if (argc < j + 2) {
                 printf("Error parsing argument for -w\n");
                 return -1;
@@ -2061,11 +2058,11 @@ main(int argc, char* argv[])
 
     if (strlen(imagepath) >= 4) {
         if (strcmp(imagepath + strlen(imagepath) - 4, ".d71") == 0) {
-			if ((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
-				fprintf(stderr, "Extended .d71 images are not supported\n");
-				exit(-1);
-			}
-			type = IMAGE_D71;
+            if ((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
+                fprintf(stderr, "Extended .d71 images are not supported\n");
+                exit(-1);
+            }
+            type = IMAGE_D71;
         } else if (strcmp(imagepath + strlen(imagepath) - 4, ".d81") == 0) {
             type = IMAGE_D81;
             dir_sector_interleave = 1;
@@ -2101,10 +2098,10 @@ main(int argc, char* argv[])
                 exit(-1);
             }
         }
-		if (dovalidate) {
-			validate(type, image);
-		}
-		if (set_header) {
+        if (dovalidate) {
+            validate(type, image);
+        }
+        if (set_header) {
             update_directory(type, image, header, id, shadowdirtrack);
         }
     }
