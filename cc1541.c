@@ -144,7 +144,8 @@ usage()
     printf("              the next file.\n");
     printf("-x            Don't split files over dirtrack hole (default split files).\n");
     printf("-t            Use dirtrack to also store files (makes -x useless) (default no).\n");
-    printf("-d track      Maintain a shadow directory (copy of the actual directory without a valid BAM).\n");
+    printf("-d track      Maintain a shadow directory (copy of the actual directory without\n");
+    printf("              a valid BAM).\n");
     printf("-u numblocks  When using -t, amount of dir blocks to leave free (default=2).\n");
     printf("-4            Use tracks 35-40 with SPEED DOS BAM formatting.\n");
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
