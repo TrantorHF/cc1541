@@ -110,7 +110,8 @@ usage()
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
     printf("-M numchars   Hash computation maximum filename length, this must\n");
-    printf("              match loader option FILENAME_MAXLENGTH.\n");
+    printf("              match loader option FILENAME_MAXLENGTH in the Krill loader.\n");
+    printf("              If this switch is set, a check for hash collision is performed.\n");
     printf("-F            Next file first sector on a new track (default=3).\n");
     printf("              Any negative value assumes aligned tracks and uses current\n");
     printf("              sector + interleave.\n");
