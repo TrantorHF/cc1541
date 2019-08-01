@@ -22,7 +22,12 @@ install: all
 codestyle: cc1541.c test_cc1541.c
 	astyle --style=kr -n -s -z2 cc1541.c test_cc1541.c
 
-clean:
-	rm -rf *.o *.orig cc1541 test_cc1541 *~
+wrap: README.md
+	fold -s -w 70 < README.md | \
+	  perl -pe 's/[\t\040]+$$//' > README.md.T
+	mv -f README.md.T README.md
 
-.PHONY: all check clean codestyle install test
+clean:
+	rm -rf README.md.T *.o *.orig cc1541 test_cc1541 *~
+
+.PHONY: all check clean codestyle install test wrap
