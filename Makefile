@@ -1,4 +1,10 @@
-override CFLAGS := -std=c99 -pipe -O2 -Wall -Wextra -pedantic $(CFLAGS)
+CC1541_CFLAGS = -std=c99 -pipe -O2 -Wall -Wextra -pedantic
+
+ifeq ($(DISABLE_WERROR),)
+CC1541_CFLAGS += -Werror
+endif
+
+override CFLAGS := $(CC1541_CFLAGS) $(CFLAGS)
 
 bindir ?= /usr/local/bin
 
