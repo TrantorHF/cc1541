@@ -842,6 +842,7 @@ next_dir_entry(image_type type, unsigned char* image, int *offset)
     return 1;
 }
 
+/*
 static int
 num_dir_entries(image_type type, unsigned char* image)
 {
@@ -854,6 +855,7 @@ num_dir_entries(image_type type, unsigned char* image)
     } while (next_dir_entry(type, image, &offset));
     return entries;
 }
+*/
 
 static int
 get_dir_entry_offset(image_type type, unsigned char* image, int index)
