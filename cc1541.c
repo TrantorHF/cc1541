@@ -122,6 +122,8 @@ usage()
     printf("-v            Do not modify image unless it is in valid CBM DOS format.\n");
     printf("-T filetype   Filetype for next file, allowed parameters are PRG, SEQ, USR, REL\n");
     printf("              and DEL. For DEL, the input file is ignored. Default is PRG.\n");
+    printf("-P            Set write protect flag for next file.\n");
+    printf("-O            Set open flag for next file.\n");
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
     printf("              disk, set filename with -f.\n");
     printf("-L fileindex  Write loop file (an additional dir entry) to entry in directory\n");
