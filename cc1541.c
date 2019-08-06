@@ -75,7 +75,6 @@
 typedef struct {
     char* localname;
     char  filename[FILENAMEMAXSIZE + 1];
-    int loopindex;
     int direntryindex;
     int direntrysector;
     int direntryoffset;
@@ -126,8 +125,6 @@ usage()
     printf("-O            Set open flag for next file.\n");
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
     printf("              disk, set filename with -f.\n");
-    printf("-L fileindex  Write loop file (an additional dir entry) to entry in directory\n");
-    printf("              with given index (first file has index 1), set filename with -f.\n");
     printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
     printf("              the next file.\n");
     printf("-M numchars   Hash computation maximum filename length, this must\n");
@@ -1513,21 +1510,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
         if (((file->filetype & 0xf) != FILETYPEDEL) && (file->mode & MODE_LOOPFILE)) {
-            int direntryindex = file->loopindex;
-            if (file->localname != NULL) {
-                /* find loopfile source file */
-                direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
-            } else {
-                if (direntryindex == file->direntryindex) {
-                    fprintf(stderr, "Loop file index %d cannot refer to itself\n", file->loopindex);
-                    exit(-1);
-                }
-                int numfiles = num_dir_entries(type, image);
-                if (direntryindex >= numfiles) {
-                    fprintf(stderr, "Loop file index %d is higher than number of files %d\n", file->loopindex, numfiles);
-                    exit(-1);
-                }
-            }
+            int direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
             if (direntryindex >= 0) {
                 /* read track/sector and nrSectors from disk image */
                 int entryOffset = get_dir_entry_offset(type, image, direntryindex);
@@ -1911,7 +1894,6 @@ main(int argc, char* argv[])
     int dir_sector_interleave = 3;
     int numdirblocks = 2;
     int nrSectorsShown = -1;
-    int loopindex;
     char* filename = NULL;
     int set_header = 0;
     int nooverwrite = 0;
@@ -2077,32 +2059,6 @@ main(int argc, char* argv[])
             nrSectorsShown = -1;
             num_files++;
             j++;
-        } else if (strcmp(argv[j], "-L") == 0) {
-            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &loopindex)) {
-                printf("Error parsing argument for -L\n");
-                return -1;
-            }
-            if (loopindex < 1) {
-                printf("Argument must be greater or equal to 1 for -L\n");
-                return -1;
-            }
-            if (filename == NULL) {
-                printf("Loop files require a filename set with -f\n");
-                return -1;
-            }
-            files[num_files].mode |= MODE_LOOPFILE;
-            files[num_files].loopindex = loopindex - 1;
-            evalhexescape(filename);
-            strncpy(files[num_files].filename, filename, FILENAMEMAXSIZE);
-            files[num_files].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
-            files[num_files].first_sector_new_track = first_sector_new_track;
-            files[num_files].nrSectorsShown = nrSectorsShown;
-            files[num_files].filetype = filetype;
-            first_sector_new_track = default_first_sector_new_track;
-            filename = NULL;
-            sectorInterleave = 0;
-            nrSectorsShown = -1;
-            num_files++;
         } else if (strcmp(argv[j], "-x") == 0) {
             dirtracksplit = 0;
         } else if (strcmp(argv[j], "-t") == 0) {

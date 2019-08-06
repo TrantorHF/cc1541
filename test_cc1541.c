@@ -712,38 +712,10 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
-    description = "Loop file should have actual DIR block size for -L";
-    ++test;
-    create_value_file("1.prg", 258 * 254, 1);
-    if (run_binary_cleanup(binary, "-w 1.prg -f LOOP.PRG -L 1", "image.d64", &image, &size) != NO_ERROR) {
-        result = TEST_UNRESOLVED;
-    } else if (image[track_offset[17] + 256 + 32 + 30] == 2 && image[track_offset[17] + 256 + 32 + 31] == 1) {
-        result = TEST_PASS;
-        ++passed;
-    } else {
-        result = TEST_FAIL;
-    }
-    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
-    remove("1.prg");
-
     description = "Loop file should share track and sector with later file using -l";
     ++test;
     create_value_file("1.prg", 1 * 254, 1);
     if (run_binary_cleanup(binary, "-f LOOP -l 1.PRG -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
-        result = TEST_UNRESOLVED;
-    } else if ((image[track_offset[17] + 256 + 3] == image[track_offset[17] + 256 + 32 + 3]) && (image[track_offset[17] + 256 + 4] == image[track_offset[17] + 256 + 32 + 4])) {
-        result = TEST_PASS;
-        ++passed;
-    } else {
-        result = TEST_FAIL;
-    }
-    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
-    remove("1.prg");
-
-    description = "Loop file should share track and sector with later file using -L";
-    ++test;
-    create_value_file("1.prg", 1 * 254, 1);
-    if (run_binary_cleanup(binary, "-f LOOP -L 2 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if ((image[track_offset[17] + 256 + 3] == image[track_offset[17] + 256 + 32 + 3]) && (image[track_offset[17] + 256 + 4] == image[track_offset[17] + 256 + 32 + 4])) {
         result = TEST_PASS;
@@ -761,42 +733,6 @@ main(int argc, char* argv[])
         result = TEST_UNRESOLVED;
     }
     if (run_binary_cleanup(binary, "-f LOOP -l FILE", "image.d64", &image, &size) != NO_ERROR) {
-        result = TEST_UNRESOLVED;
-    } else if ((image[track_offset[17] + 256 + 3] == image[track_offset[17] + 256 + 32 + 3]) && (image[track_offset[17] + 256 + 4] == image[track_offset[17] + 256 + 32 + 4])) {
-        result = TEST_PASS;
-        ++passed;
-    } else {
-        result = TEST_FAIL;
-    }
-    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
-    remove("1.prg");
-
-#if 0
-    description = "Loop file should share track and sector with file using -L when inserting in directory";
-    ++test;
-    create_value_file("1.prg", 1 * 254, 1);
-    if (run_binary(binary, "-f ONE -T DEL -O -w 1.prg -f TWO -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
-        result = TEST_UNRESOLVED;
-    }
-    if (run_binary_cleanup(binary, "-f LOOP -L 1", "image.d64", &image, &size) != NO_ERROR) {
-        result = TEST_UNRESOLVED;
-    } else if ((image[track_offset[17] + 256 + 3] == image[track_offset[17] + 256 + 32 + 3]) && (image[track_offset[17] + 256 + 4] == image[track_offset[17] + 256 + 32 + 4])) {
-        result = TEST_PASS;
-        ++passed;
-    } else {
-        result = TEST_FAIL;
-    }
-    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
-    remove("1.prg");
-#endif
-
-    description = "Loop file should share track and sector with file using -L when modifying image";
-    ++test;
-    create_value_file("1.prg", 1 * 254, 1);
-    if (run_binary(binary, "-f FILE -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
-        result = TEST_UNRESOLVED;
-    }
-    if (run_binary_cleanup(binary, "-f LOOP -L 1", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if ((image[track_offset[17] + 256 + 3] == image[track_offset[17] + 256 + 32 + 3]) && (image[track_offset[17] + 256 + 4] == image[track_offset[17] + 256 + 32 + 4])) {
         result = TEST_PASS;
