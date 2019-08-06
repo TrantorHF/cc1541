@@ -5,6 +5,11 @@
 # Compiler output.
 *.o
 
+# Patches
+*.diff
+*.patch
+*.rej
+
 # Compiled applications.
 /cc1541
 /cc1541.exe
