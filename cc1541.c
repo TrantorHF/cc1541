@@ -110,7 +110,7 @@ void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niMFSsfeErbcwLlBxtdu45q image.[d64|g64|d71|d81]\n\n");
+    printf("Usage: cc1541 -niwfovTPOlBMdtuxFsSeErbc45gq image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
@@ -155,6 +155,7 @@ usage()
     printf("-c            Save next file cluster-optimized (d71 only).\n");
     printf("-4            Use tracks 35-40 with SPEED DOS BAM formatting.\n");
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
+    printf("-g filename   Write additional g64 output file with given name.\n");
     printf("-q            Be quiet.\n");
     printf("\n");
 
@@ -1881,6 +1882,7 @@ main(int argc, char* argv[])
 
     image_type type = IMAGE_D64;
     char* imagepath = NULL;
+    char* filename_g64 = NULL;
     char* header = (char *) "DEFAULT";
     char* id     = (char *) "LODIS";
     int dirtracksplit = 1;
@@ -2086,6 +2088,12 @@ main(int argc, char* argv[])
             type = IMAGE_D64_EXTENDED_SPEED_DOS;
         } else if (strcmp(argv[j], "-5") == 0) {
             type = IMAGE_D64_EXTENDED_DOLPHIN_DOS;
+        } else if(strcmp(argv[j], "-g") == 0) {
+            if (argc < j + 2) {
+                fprintf(stderr, "Error parsing argument for -g\n");
+                return -1;
+            }
+            filename_g64 = argv[++j];
         } else if (strcmp(argv[j], "-q") == 0) {
             quiet = 1;
         } else if (strcmp(argv[j], "-h") == 0) {
@@ -2166,15 +2174,16 @@ main(int argc, char* argv[])
     }
 
     /* Save image */
-    if ((strlen(imagepath) >= 4) && !strcmp(imagepath + strlen(imagepath) - 4, ".g64")) {
-        generate_uniformat_g64(image, imagepath);
-    } else {
-        f = fopen(imagepath, "wb");
-        if (fwrite(image, imagesize, 1, f) != 1) {
-            fprintf(stderr, "ERROR: Failed to write %s\n", image);
-            retval = -1;
-        }
-        fclose(f);
+    f = fopen(imagepath, "wb");
+    if (fwrite(image, imagesize, 1, f) != 1) {
+        fprintf(stderr, "ERROR: Failed to write %s\n", image);
+        retval = -1;
+    }
+    fclose(f);
+
+    /* Save optional g64 image */
+    if (filename_g64 != NULL) {
+        generate_uniformat_g64(image, filename_g64);
     }
 
     if (checkhashes && check_hashes(type, image)) {

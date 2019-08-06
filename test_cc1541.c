@@ -190,7 +190,7 @@ main(int argc, char* argv[])
 
     description = "Size of empty G64 image should be 269862";
     ++test;
-    if (run_binary_cleanup(binary, "", "image.g64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-g image.g64", "image.g64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (size == 269862) {
         result = TEST_PASS;
