@@ -45,7 +45,11 @@
 #define TRACKLINKOFFSET        0
 #define SECTORLINKOFFSET       1
 #define FILETYPEOFFSET         2
-#define FILETYPE_PRG           0x82
+#define FILETYPEDEL            0
+#define FILETYPESEQ            1
+#define FILETYPEPRG            2
+#define FILETYPEUSR            3
+#define FILETYPEREL            4
 #define FILETRACKOFFSET        3
 #define FILESECTOROFFSET       4
 #define FILENAMEOFFSET         5
@@ -81,6 +85,7 @@ typedef struct {
     int sector;
     int nrSectors;
     int nrSectorsShown;
+    int filetype;
     int mode;
 } imagefile;
 
@@ -115,6 +120,8 @@ usage()
     printf("              include arbitrary PETSCII characters (e.g. -f \"START#a0,8,1\").\n");
     printf("-o            Do not overwrite if file with same name exists already.\n");
     printf("-v            Do not modify image unless it is in valid CBM DOS format.\n");
+    printf("-T filetype   Filetype for next file, allowed parameters are PRG, SEQ, USR, REL\n");
+    printf("              and DEL. For DEL, the input file is ignored. Default is PRG.\n");
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
     printf("              disk, set filename with -f.\n");
     printf("-L fileindex  Write loop file (an additional dir entry) to entry in directory\n");
@@ -154,6 +161,10 @@ usage()
 
     exit(-1);
 }
+
+static const char *filetypename[] = {
+    "DEL", "SEQ", "PRG", "USR", "REL"
+};
 
 static const int
 sectors_per_track[] = {
@@ -345,8 +356,8 @@ count_hashes(image_type type, unsigned char* image, unsigned int hash, bool prin
 
         for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
             int entryOffset = i * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
-            if (filetype != 0) {
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
+            if (filetype != FILETYPEDEL) {
                 char *filename = (char *) image + dirblock + entryOffset + FILENAMEOFFSET;
                 if (hash == filenamehash(filename)) {
                     ++num;
@@ -379,8 +390,8 @@ check_hashes(image_type type, unsigned char* image)
 
         for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
             int entryOffset = i * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
-            if (filetype != 0) {
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
+            if (filetype != FILETYPEDEL) {
                 char *filename = (char *) image + dirblock + entryOffset + FILENAMEOFFSET;
                 if (count_hashes(type, image, filenamehash(filename), false /* print */) > 1) {
                     collision = 1;
@@ -775,9 +786,12 @@ find_file(image_type type, unsigned char* image, char* filename, unsigned char *
         dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
         for (int j = 0; j < DIRENTRIESPERBLOCK; ++j) {
             entryOffset = j * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
             switch (filetype) {
-            case FILETYPE_PRG:
+            case FILETYPESEQ:
+            case FILETYPEPRG:
+            case FILETYPEUSR:
+            case FILETYPEREL:
                 if (dirstrcmp((char *) image + dirblock + entryOffset + FILENAMEOFFSET, filename) == 0) {
                     *track = image[dirblock + entryOffset + FILETRACKOFFSET];
                     *sector = image[dirblock + entryOffset + FILESECTOROFFSET];
@@ -841,6 +855,16 @@ num_dir_entries(image_type type, unsigned char* image)
     return entries;
 }
 
+static int
+get_dir_entry_offset(image_type type, unsigned char* image, int index)
+{
+    int offset = linear_sector(type, dirtrack(type), 1) * BLOCKSIZE;
+    for (int i = 0; i < index; i++) {
+        next_dir_entry(type, image, &offset);
+    }
+    return offset;
+}
+
 static void
 create_dir_entries(image_type type, unsigned char* image, imagefile* files, int num_files, int dir_sector_interleave, unsigned int shadowdirtrack, int nooverwrite)
 {
@@ -870,9 +894,12 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
             for (int j = 0; (!found) && (j < DIRENTRIESPERBLOCK); ++j, ++direntryindex) {
                 entryOffset = j * DIRENTRYSIZE;
                 /* this assumes the dir only holds PRG files */
-                int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
+                int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
                 switch (filetype) {
-                case FILETYPE_PRG:
+                case FILETYPESEQ:
+                case FILETYPEPRG:
+                case FILETYPEUSR:
+                case FILETYPEREL:
                     if (dirstrcmp((char *) image + dirblock + entryOffset + FILENAMEOFFSET, file->filename) == 0) {
                         if (nooverwrite) {
                             fprintf(stderr, "ERROR: Filename exists on disk image already and -o was set\n");
@@ -947,7 +974,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         } while (!found);
 
         /* set filetype */
-        image[dirblock + entryOffset + FILETYPEOFFSET] = FILETYPE_PRG;
+        image[dirblock + entryOffset + FILETYPEOFFSET] = file->filetype;
 
         /* set filename */
         for (unsigned int j = 0; j < FILENAMEMAXSIZE; j++) {
@@ -960,7 +987,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
 
         if (shadowdirtrack > 0) {
             /* set filetype */
-            image[shadowdirblock + entryOffset + FILETYPEOFFSET] = FILETYPE_PRG;
+            image[shadowdirblock + entryOffset + FILETYPEOFFSET] = file->filetype;
 
             /* set filename */
             for (unsigned int j = 0; j < FILENAMEMAXSIZE; j++) {
@@ -986,9 +1013,19 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
 static void
 print_file_allocation(image_type type, unsigned char* image, imagefile* files, int num_files)
 {
+    char typestring[6];
     for (int i = 0; i < num_files; i++) {
-        printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => \"%s\" [$%04x] (SL: %d)", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset,
-               files[i].localname, files[i].filename, filenamehash(files[i].filename), files[i].sectorInterleave);
+        typestring[0] = 0;
+        if ((files[i].filetype & 0x80) == 0) {
+            strcat(typestring, "*");
+        }
+        strcat(typestring, filetypename[files[i].filetype & 0xf]);
+        if ((files[i].filetype & 0x40) != 0) {
+            strcat(typestring, "<");
+        }
+        printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => \"%s\" [$%04x] (%s, SL: %d)", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset,
+               files[i].localname, files[i].filename, filenamehash(files[i].filename), typestring, files[i].sectorInterleave);
+
         int track = files[i].track;
         int sector = files[i].sector;
         int j = 0;
@@ -1045,7 +1082,7 @@ print_track_usage(image_type type, unsigned char *image, int track)
 
         for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
             int entryOffset = i * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] % 0xf;
             if (filetype != 0) {
                 int filetrack = image[dirblock + entryOffset + FILETRACKOFFSET];
                 int filesector = image[dirblock + entryOffset + FILESECTOROFFSET];
@@ -1151,14 +1188,330 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             file->sectorInterleave = 1;
         }
 
-        if (file->mode & MODE_LOOPFILE) {
+        if ((file->filetype & 0xf) == FILETYPEDEL) {
+            if (file->nrSectorsShown == -1) {
+                file->nrSectorsShown = file->nrSectors;
+            }
+            file->track = 0;
+            file->sector = 0;
+            int entryOffset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+            image[entryOffset + FILETRACKOFFSET] = file->track;
+            image[entryOffset + FILESECTOROFFSET] = file->sector;
+            image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
+            image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
+            if (shadowdirtrack > 0) {
+                entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+                image[entryOffset + FILETRACKOFFSET] = file->track;
+                image[entryOffset + FILESECTOROFFSET] = file->sector;
+                image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
+                image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
+            }
+        } else if (!(file->mode & MODE_LOOPFILE)) { /* loop files are handled later */
 
+            struct stat st;
+            stat(files[i].localname, &st);
 
+            int fileSize = st.st_size;
+
+            unsigned char* filedata = (unsigned char*)calloc(fileSize, sizeof(unsigned char));
+            if (filedata == NULL) {
+                fprintf(stderr, "Memory allocation error\n");
+
+                exit(-1);
+            }
+            FILE* f = fopen(file->localname, "rb");
+            if (f == NULL) {
+                fprintf(stderr, "Could not open file \"%s\" for reading\n", file->localname);
+
+                exit(-1);
+            }
+            if (fread(filedata, fileSize, 1, f) != 1) {
+                fprintf(stderr, "ERROR: Unexpected filesize when reading %s\n", file->localname);
+                exit(-1);
+            }
+            fclose(f);
+
+            if ((file->mode & MODE_MIN_TRACK_MASK) > 0) {
+                track = (file->mode & MODE_MIN_TRACK_MASK) >> MODE_MIN_TRACK_SHIFT;
+                /* note that track may be smaller than lastTrack now */
+                if (track > image_num_tracks(type)) {
+                    fprintf(stderr, "Invalid minimum track %d for file %s (%s) specified\n", track, file->localname, file->filename);
+
+                    exit(-1);
+                }
+                if ((!usedirtrack)
+                        && ((track == dirtrack(type)) || (track == shadowdirtrack)
+                            || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                    ++track; /* skip dir track */
+                }
+                if ((track - lastTrack) > 1) {
+                    /* previous file's last track and this file's beginning track have tracks in between */
+                    sector = (type == IMAGE_D81) ? 0 : file->first_sector_new_track;
+                }
+            }
+
+            if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
+                sector = (file->mode & MODE_BEGINNING_SECTOR_MASK) - 1;
+            }
+
+            if (((file->mode & MODE_SAVETOEMPTYTRACKS) != 0)
+                    || ((file->mode & MODE_FITONSINGLETRACK) != 0)) {
+
+                /* find first empty track */
+                int found = 0;
+                while (!found) {
+                    for (int s = 0; s < num_sectors(type, track); s++) {
+                        if (is_sector_free(type, image, track, s, usedirtrack ? numdirblocks : 0, dir_sector_interleave)) {
+                            if (s == (num_sectors(type, track) - 1)) {
+                                found = 1;
+                                /* In first pass, use sector as left by previous file (or as set by -b) to reach first file block quickly. */
+                                /* Claus: according to Krill, on real HW tracks are not aligned anyway, so it does not make a difference. */
+                                /* Emulators tend to reset the disk angle on track changes, so this should rather be 3. */
+                                if (sector >= num_sectors(type, track)) {
+                                    if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
+                                        fprintf(stderr, "Invalid beginning sector %d on track %d for file %s (%s) specified\n", sector, track, file->localname, file->filename);
+
+                                        exit(-1);
+                                    }
+
+                                    sector %= num_sectors(type, track);
+                                }
+                            }
+                        } else {
+                            int prev_track = track;
+                            if (file->mode & MODE_SAVECLUSTEROPTIMIZED) {
+                                if (track > D64NUMTRACKS) {
+                                    int next_track = track - D64NUMTRACKS + 1; /* to next track on first side */
+                                    if (next_track < D64NUMTRACKS) {
+                                        track = next_track;
+                                    } else {
+                                        ++track; /* disk full */
+                                    }
+                                } else {
+                                    track += D64NUMTRACKS; /* to same track on second side */
+                                }
+                            } else {
+                                ++track;
+                            }
+                            if ((!usedirtrack)
+                                    && ((track == dirtrack(type)) || (track == shadowdirtrack)
+                                        || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                                ++track; /* skip dir track */
+                            }
+                            if (file->mode & MODE_FITONSINGLETRACK) {
+                                int file_size = fileSize;
+                                int first_sector = -1;
+                                for (int s = 0; s < num_sectors(type, prev_track); s++) {
+                                    if (is_sector_free(type, image, prev_track, s, usedirtrack ? numdirblocks : 0, dir_sector_interleave)) {
+                                        if (first_sector < 0) {
+                                            first_sector = s;
+                                        }
+                                        file_size -= BLOCKSIZE + BLOCKOVERHEAD;
+                                        if (file_size <= 0) {
+                                            found = 1;
+                                            track = prev_track;
+                                            sector = first_sector;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (track > image_num_tracks(type)) {
+                                fprintf(stderr, "Disk full, file %s (%s)\n", file->localname, file->filename);
+
+                                exit(-1);
+                            }
+                            break;
+                        }
+                    } /* for each sector on track */
+
+                    if ((track == (lastTrack + 2))
+                            && (file->mode & MODE_BEGINNING_SECTOR_MASK) == 0) {
+                        /* previous file's last track and this file's beginning track have tracks in between now */
+                        sector = 0;
+                    }
+                } /* while not found */
+            }
+
+            if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
+                if (sector != ((file->mode & MODE_BEGINNING_SECTOR_MASK) - 1)) {
+                    fprintf(stderr, "Specified beginning sector of file %s (%s) not free on track %d\n", file->localname, file->filename, track);
+
+                    exit(-1);
+                }
+            }
+
+            /* found start track, now save file */
+            if (type == IMAGE_D81) {
+                sector = 0;
+            }
+
+            int byteOffset = 0;
+            int bytesLeft = fileSize;
+            while (bytesLeft > 0) {
+                /* Find free track & sector, starting from current T/S forward one revolution, then the next track etc... skip dirtrack (unless -t is active) */
+                /* If the file didn't fit before dirtrack then restart on dirtrack + 1 and try again (unless -t is active). */
+                /* If the file didn't fit before track 36/41/71 then the disk is full. */
+
+                int blockfound = 0;
+                int findSector = 0;
+
+                while (!blockfound) {
+                    /* find spare block on the current track */
+                    for (int s = sector; s < sector + num_sectors(type, track); s++) {
+                        findSector = s % num_sectors(type, track);
+
+                        if (is_sector_free(type, image, track, findSector, usedirtrack ? numdirblocks : 0, dir_sector_interleave)) {
+                            blockfound = 1;
+                            break;
+                        }
+                    }
+
+                    if (!blockfound) {
+                        /* find next track, use some magic to make up for track seek delay */
+                        int prev_track = track;
+                        int seek_delay = 1;
+                        if (file->mode & MODE_SAVECLUSTEROPTIMIZED) {
+                            if (track > D64NUMTRACKS) {
+                                track = track - D64NUMTRACKS + 1;
+                            } else {
+                                track += D64NUMTRACKS;
+                                seek_delay = 0; /* switching to the other side, no head movement */
+                            }
+                        } else {
+                            ++track;
+                        }
+                        if (type == IMAGE_D81) {
+                            sector = 0;
+                        } else if (file->first_sector_new_track < 0) {
+                            sector += seek_delay - 1;
+                        } else {
+                            sector = file->first_sector_new_track;
+                        }
+                        sector += num_sectors(type, prev_track);
+                        sector %= num_sectors(type, prev_track);
+
+                        if ((!usedirtrack)
+                                && ((track == dirtrack(type)) || (track == shadowdirtrack)
+                                    || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                            /* Delete old fragments and restart file */
+                            if (!dirtracksplit) {
+                                if (file->nrSectors > 0) {
+                                    int deltrack = file->track;
+                                    int delsector = file->sector;
+                                    while (deltrack != 0) {
+                                        mark_sector(type, image, deltrack, delsector, 1 /* free */);
+                                        int offset = linear_sector(type, deltrack, delsector) * BLOCKSIZE;
+                                        deltrack = image[offset + 0];
+                                        delsector = image[offset + 1];
+                                        memset(image + offset, 0, BLOCKSIZE);
+                                    }
+                                }
+
+                                bytesLeft = fileSize;
+                                byteOffset = 0;
+                                file->nrSectors = 0;
+                            }
+
+                            if (track == shadowdirtrack) {
+                                ++track;
+                            } else {
+                                track = dirtrack(type) + 1;
+                            }
+                            if (track == dirtrack(type)) {
+                                ++track;
+                            }
+                        }
+
+                        if (track > image_num_tracks(type)) {
+                            print_file_allocation(type, image, files, num_files);
+                            print_bam(type, image);
+
+                            fprintf(stderr, "Disk full, file %s (%s)\n", file->localname, file->filename);
+                            free(filedata);
+
+                            exit(-1);
+                        }
+                    }
+                } /* while not block found */
+
+                sector = findSector;
+                int offset = linear_sector(type, track, sector) * BLOCKSIZE;
+
+                if (bytesLeft == fileSize) {
+                    file->track = track;
+                    file->sector = sector;
+                    lastTrack = track;
+                    lastSector = sector;
+                    lastOffset = offset;
+                } else {
+                    image[lastOffset + 0] = track;
+                    image[lastOffset + 1] = sector;
+                }
+
+                /* write sector */
+                bytes_to_write = min(BLOCKSIZE - BLOCKOVERHEAD, bytesLeft);
+                memcpy(image + offset + 2, filedata + byteOffset, bytes_to_write);
+
+                bytesLeft -= bytes_to_write;
+                byteOffset += bytes_to_write;
+
+                lastTrack = track;
+                lastSector = sector;
+                lastOffset = offset;
+
+                mark_sector(type, image, track, sector, 0 /* not free */);
+
+                if (num_sectors(type, track) <= abs(file->sectorInterleave)) {
+                    fprintf(stderr, "Invalid interleave %d on track %d (%d sectors), file %s (%s)\n", file->sectorInterleave, track, num_sectors(type, track), file->localname, file->filename);
+
+                    exit(-1);
+                }
+
+                sector += abs(file->sectorInterleave);
+                if (sector >= num_sectors(type, track)) {
+                    sector -= num_sectors(type, track);
+                    if ((file->sectorInterleave >= 0) && (sector > 0)) {
+                        --sector; /* subtract one after wrap (supposedly due to large tail gap) */
+                    }
+                }
+
+                file->nrSectors++;
+            } /* while bytes left */
+
+            free(filedata);
+
+            image[lastOffset + 0] = 0x00;
+            image[lastOffset + 1] = bytes_to_write + 1;
+
+            /* update directory entry */
+            int entryOffset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+            image[entryOffset + FILETRACKOFFSET] = file->track;
+            image[entryOffset + FILESECTOROFFSET] = file->sector;
+
+            if (file->nrSectorsShown < 0) {
+                file->nrSectorsShown = file->nrSectors;
+            }
+            image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
+            image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
+
+            if (shadowdirtrack > 0) {
+                entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+                image[entryOffset + FILETRACKOFFSET] = file->track;
+                image[entryOffset + FILESECTOROFFSET] = file->sector;
+
+                image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
+                image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
+            }
+        }
+    } /* for each file */
+
+    /* update loop files */
+    for (int i = 0; i < num_files; i++) {
+        imagefile *file = files + i;
+        if (((file->filetype & 0xf) != FILETYPEDEL) && (file->mode & MODE_LOOPFILE)) {
             int direntryindex = file->loopindex;
-            track = files[file->loopindex].track;
-            sector = files[file->loopindex].sector;
-            file->nrSectors = files[file->loopindex].nrSectors;
-
             if (file->localname != NULL) {
                 /* find loopfile source file */
                 direntryindex = find_file(type, image, file->localname, &track, &sector, &file->nrSectors);
@@ -1174,27 +1527,30 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 }
             }
             if (direntryindex >= 0) {
-                file->track = track;
-                file->sector = sector;
+                /* read track/sector and nrSectors from disk image */
+                int entryOffset = get_dir_entry_offset(type, image, direntryindex);
+                file->track = image[entryOffset + FILETRACKOFFSET];
+                file->sector = image[entryOffset + FILESECTOROFFSET];
+                file->nrSectors = image[entryOffset + FILEBLOCKSLOOFFSET] + (image[entryOffset + FILEBLOCKSHIOFFSET] << 8);
 
                 /* update directory entry */
-                int entryOffset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+                entryOffset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
                 image[entryOffset + FILETRACKOFFSET] = file->track;
                 image[entryOffset + FILESECTOROFFSET] = file->sector;
 
                 if (file->nrSectorsShown == -1) {
                     file->nrSectorsShown = file->nrSectors;
                 }
-                image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown % 256;
-                image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown / 256;
+                image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
+                image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
 
                 if (shadowdirtrack > 0) {
                     entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
                     image[entryOffset + FILETRACKOFFSET] = file->track;
                     image[entryOffset + FILESECTOROFFSET] = file->sector;
 
-                    image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors;
-                    image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors;
+                    image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
+                    image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
                 }
 
                 continue;
@@ -1203,304 +1559,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 exit(-1);
             }
         }
-
-        struct stat st;
-        stat(files[i].localname, &st);
-
-        int fileSize = st.st_size;
-
-        unsigned char* filedata = (unsigned char*)calloc(fileSize, sizeof(unsigned char));
-        if (filedata == NULL) {
-            fprintf(stderr, "Memory allocation error\n");
-
-            exit(-1);
-        }
-        FILE* f = fopen(file->localname, "rb");
-        if (f == NULL) {
-            fprintf(stderr, "Could not open file \"%s\" for reading\n", file->localname);
-
-            exit(-1);
-        }
-        if (fread(filedata, fileSize, 1, f) != 1) {
-            fprintf(stderr, "ERROR: Unexpected filesize when reading %s\n", file->localname);
-            exit(-1);
-        }
-        fclose(f);
-
-        if ((file->mode & MODE_MIN_TRACK_MASK) > 0) {
-            track = (file->mode & MODE_MIN_TRACK_MASK) >> MODE_MIN_TRACK_SHIFT;
-            /* note that track may be smaller than lastTrack now */
-            if (track > image_num_tracks(type)) {
-                fprintf(stderr, "Invalid minimum track %d for file %s (%s) specified\n", track, file->localname, file->filename);
-
-                exit(-1);
-            }
-            if ((!usedirtrack)
-                    && ((track == dirtrack(type)) || (track == shadowdirtrack)
-                        || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
-                ++track; /* skip dir track */
-            }
-            if ((track - lastTrack) > 1) {
-                /* previous file's last track and this file's beginning track have tracks in between */
-                sector = (type == IMAGE_D81) ? 0 : file->first_sector_new_track;
-            }
-        }
-
-        if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
-            sector = (file->mode & MODE_BEGINNING_SECTOR_MASK) - 1;
-        }
-
-        if (((file->mode & MODE_SAVETOEMPTYTRACKS) != 0)
-                || ((file->mode & MODE_FITONSINGLETRACK) != 0)) {
-
-            /* find first empty track */
-            int found = 0;
-            while (!found) {
-                for (int s = 0; s < num_sectors(type, track); s++) {
-                    if (is_sector_free(type, image, track, s, usedirtrack ? numdirblocks : 0, dir_sector_interleave)) {
-                        if (s == (num_sectors(type, track) - 1)) {
-                            found = 1;
-                            /* In first pass, use sector as left by previous file (or as set by -b) to reach first file block quickly. */
-                            /* Claus: according to Krill, on real HW tracks are not aligned anyway, so it does not make a difference. */
-                            /* Emulators tend to reset the disk angle on track changes, so this should rather be 3. */
-                            if (sector >= num_sectors(type, track)) {
-                                if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
-                                    fprintf(stderr, "Invalid beginning sector %d on track %d for file %s (%s) specified\n", sector, track, file->localname, file->filename);
-
-                                    exit(-1);
-                                }
-
-                                sector %= num_sectors(type, track);
-                            }
-                        }
-                    } else {
-                        int prev_track = track;
-                        if (file->mode & MODE_SAVECLUSTEROPTIMIZED) {
-                            if (track > D64NUMTRACKS) {
-                                int next_track = track - D64NUMTRACKS + 1; /* to next track on first side */
-                                if (next_track < D64NUMTRACKS) {
-                                    track = next_track;
-                                } else {
-                                    ++track; /* disk full */
-                                }
-                            } else {
-                                track += D64NUMTRACKS; /* to same track on second side */
-                            }
-                        } else {
-                            ++track;
-                        }
-                        if ((!usedirtrack)
-                                && ((track == dirtrack(type)) || (track == shadowdirtrack)
-                                    || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
-                            ++track; /* skip dir track */
-                        }
-                        if (file->mode & MODE_FITONSINGLETRACK) {
-                            int file_size = fileSize;
-                            int first_sector = -1;
-                            for (int s = 0; s < num_sectors(type, prev_track); s++) {
-                                if (is_sector_free(type, image, prev_track, s, usedirtrack ? numdirblocks : 0, dir_sector_interleave)) {
-                                    if (first_sector < 0) {
-                                        first_sector = s;
-                                    }
-                                    file_size -= BLOCKSIZE + BLOCKOVERHEAD;
-                                    if (file_size <= 0) {
-                                        found = 1;
-                                        track = prev_track;
-                                        sector = first_sector;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        if (track > image_num_tracks(type)) {
-                            fprintf(stderr, "Disk full, file %s (%s)\n", file->localname, file->filename);
-
-                            exit(-1);
-                        }
-                        break;
-                    }
-                } /* for each sector on track */
-
-                if ((track == (lastTrack + 2))
-                        && (file->mode & MODE_BEGINNING_SECTOR_MASK) == 0) {
-                    /* previous file's last track and this file's beginning track have tracks in between now */
-                    sector = 0;
-                }
-            } /* while not found */
-        }
-
-        if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
-            if (sector != ((file->mode & MODE_BEGINNING_SECTOR_MASK) - 1)) {
-                fprintf(stderr, "Specified beginning sector of file %s (%s) not free on track %d\n", file->localname, file->filename, track);
-
-                exit(-1);
-            }
-        }
-
-        /* found start track, now save file */
-        if (type == IMAGE_D81) {
-            sector = 0;
-        }
-
-        int byteOffset = 0;
-        int bytesLeft = fileSize;
-        while (bytesLeft > 0) {
-            /* Find free track & sector, starting from current T/S forward one revolution, then the next track etc... skip dirtrack (unless -t is active) */
-            /* If the file didn't fit before dirtrack then restart on dirtrack + 1 and try again (unless -t is active). */
-            /* If the file didn't fit before track 36/41/71 then the disk is full. */
-
-            int blockfound = 0;
-            int findSector = 0;
-
-            while (!blockfound) {
-                /* find spare block on the current track */
-                for (int s = sector; s < sector + num_sectors(type, track); s++) {
-                    findSector = s % num_sectors(type, track);
-
-                    if (is_sector_free(type, image, track, findSector, usedirtrack ? numdirblocks : 0, dir_sector_interleave)) {
-                        blockfound = 1;
-                        break;
-                    }
-                }
-
-                if (!blockfound) {
-                    /* find next track, use some magic to make up for track seek delay */
-                    int prev_track = track;
-                    int seek_delay = 1;
-                    if (file->mode & MODE_SAVECLUSTEROPTIMIZED) {
-                        if (track > D64NUMTRACKS) {
-                            track = track - D64NUMTRACKS + 1;
-                        } else {
-                            track += D64NUMTRACKS;
-                            seek_delay = 0; /* switching to the other side, no head movement */
-                        }
-                    } else {
-                        ++track;
-                    }
-                    if (type == IMAGE_D81) {
-                        sector = 0;
-                    } else if (file->first_sector_new_track < 0) {
-                        sector += seek_delay - 1;
-                    } else {
-                        sector = file->first_sector_new_track;
-                    }
-                    sector += num_sectors(type, prev_track);
-                    sector %= num_sectors(type, prev_track);
-
-                    if ((!usedirtrack)
-                            && ((track == dirtrack(type)) || (track == shadowdirtrack)
-                                || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
-                        /* Delete old fragments and restart file */
-                        if (!dirtracksplit) {
-                            if (file->nrSectors > 0) {
-                                int deltrack = file->track;
-                                int delsector = file->sector;
-                                while (deltrack != 0) {
-                                    mark_sector(type, image, deltrack, delsector, 1 /* free */);
-                                    int offset = linear_sector(type, deltrack, delsector) * BLOCKSIZE;
-                                    deltrack = image[offset + 0];
-                                    delsector = image[offset + 1];
-                                    memset(image + offset, 0, BLOCKSIZE);
-                                }
-                            }
-
-                            bytesLeft = fileSize;
-                            byteOffset = 0;
-                            file->nrSectors = 0;
-                        }
-
-                        if (track == shadowdirtrack) {
-                            ++track;
-                        } else {
-                            track = dirtrack(type) + 1;
-                        }
-                        if (track == dirtrack(type)) {
-                            ++track;
-                        }
-                    }
-
-                    if (track > image_num_tracks(type)) {
-                        print_file_allocation(type, image, files, num_files);
-                        print_bam(type, image);
-
-                        fprintf(stderr, "Disk full, file %s (%s)\n", file->localname, file->filename);
-                        free(filedata);
-
-                        exit(-1);
-                    }
-                }
-            } /* while not block found */
-
-            sector = findSector;
-            int offset = linear_sector(type, track, sector) * BLOCKSIZE;
-
-            if (bytesLeft == fileSize) {
-                file->track = track;
-                file->sector = sector;
-                lastTrack = track;
-                lastSector = sector;
-                lastOffset = offset;
-            } else {
-                image[lastOffset + 0] = track;
-                image[lastOffset + 1] = sector;
-            }
-
-            /* write sector */
-            bytes_to_write = min(BLOCKSIZE - BLOCKOVERHEAD, bytesLeft);
-            memcpy(image + offset + 2, filedata + byteOffset, bytes_to_write);
-
-            bytesLeft -= bytes_to_write;
-            byteOffset += bytes_to_write;
-
-            lastTrack = track;
-            lastSector = sector;
-            lastOffset = offset;
-
-            mark_sector(type, image, track, sector, 0 /* not free */);
-
-            if (num_sectors(type, track) <= abs(file->sectorInterleave)) {
-                fprintf(stderr, "Invalid interleave %d on track %d (%d sectors), file %s (%s)\n", file->sectorInterleave, track, num_sectors(type, track), file->localname, file->filename);
-
-                exit(-1);
-            }
-
-            sector += abs(file->sectorInterleave);
-            if (sector >= num_sectors(type, track)) {
-                sector -= num_sectors(type, track);
-                if ((file->sectorInterleave >= 0) && (sector > 0)) {
-                    --sector; /* subtract one after wrap (supposedly due to large tail gap) */
-                }
-            }
-
-            file->nrSectors++;
-        } /* while bytes left */
-
-        free(filedata);
-
-        image[lastOffset + 0] = 0x00;
-        image[lastOffset + 1] = bytes_to_write + 1;
-
-        /* update directory entry */
-        int entryOffset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
-        image[entryOffset + FILETRACKOFFSET] = file->track;
-        image[entryOffset + FILESECTOROFFSET] = file->sector;
-
-        if (file->nrSectorsShown < 0) {
-            file->nrSectorsShown = file->nrSectors;
-        }
-        image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
-        image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
-
-        if (shadowdirtrack > 0) {
-            entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
-            image[entryOffset + FILETRACKOFFSET] = file->track;
-            image[entryOffset + FILESECTOROFFSET] = file->sector;
-
-            image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
-            image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
-        }
-    } /* for each file */
+    }
 }
 
 static size_t
@@ -1855,6 +1914,7 @@ main(int argc, char* argv[])
     int set_header = 0;
     int nooverwrite = 0;
     int dovalidate = 0;
+    int filetype = 0x82; /* default is closed PRG */
     int checkhashes = 0;
     int retval = 0;
 
@@ -1867,46 +1927,46 @@ main(int argc, char* argv[])
         if (strcmp(argv[j], "-n") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "Error parsing argument for -n\n");
-                exit(-1);
+                return -1;
             }
             header = argv[++j];
             set_header = 1;
         } else if (strcmp(argv[j], "-i") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "Error parsing argument for -i\n");
-                exit(-1);
+                return -1;
             }
             id = argv[++j];
             set_header = 1;
         } else if (strcmp(argv[j], "-M") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &max_hash_length)) {
                 fprintf(stderr, "Error parsing argument for -M\n");
-                exit(-1);
+                return -1;
             }
             if ((max_hash_length < 1) || (max_hash_length > FILENAMEMAXSIZE)) {
                 fprintf(stderr, "Hash computation maximum filename length %d specified\n", max_hash_length);
-                exit(-1);
+                return -1;
             }
             checkhashes = 1;
         } else if (strcmp(argv[j], "-F") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &first_sector_new_track)) {
                 fprintf(stderr, "Error parsing argument for -F\n");
-                exit(-1);
+                return -1;
             }
         } else if (strcmp(argv[j], "-S") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &defaultSectorInterleave)) {
                 fprintf(stderr, "Error parsing argument for -S\n");
-                exit(-1);
+                return -1;
             }
         } else if (strcmp(argv[j], "-s") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &sectorInterleave)) {
                 fprintf(stderr, "Error parsing argument for -s\n");
-                exit(-1);
+                return -1;
             }
         } else if (strcmp(argv[j], "-f") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "Error parsing argument for -f\n");
-                exit(-1);
+                return -1;
             }
             filename = argv[++j];
         } else if (strcmp(argv[j], "-e") == 0) {
@@ -1916,21 +1976,21 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-r") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &i)) {
                 fprintf(stderr, "Error parsing argument for -r\n");
-                exit(-1);
+                return -1;
             }
             if ((i < 1) || (((i << MODE_MIN_TRACK_SHIFT) & MODE_MIN_TRACK_MASK) != (i << MODE_MIN_TRACK_SHIFT))) {
                 fprintf(stderr, "Invalid minimum track %d specified\n",  i);
-                exit(-1);
+                return -1;
             }
             files[num_files].mode = (files[num_files].mode & ~MODE_MIN_TRACK_MASK) | (i << MODE_MIN_TRACK_SHIFT);
         } else if (strcmp(argv[j], "-b") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &i)) {
                 fprintf(stderr, "Error parsing argument for -b\n");
-                exit(-1);
+                return -1;
             }
             if ((i < 0) || (i >= num_sectors(type, 1))) {
                 fprintf(stderr, "Invalid beginning sector %d specified\n", i);
-                exit(-1);
+                return -1;
             }
             files[num_files].mode = (files[num_files].mode & ~MODE_BEGINNING_SECTOR_MASK) | (i + 1);
         } else if (strcmp(argv[j], "-c") == 0) {
@@ -1939,6 +1999,30 @@ main(int argc, char* argv[])
             nooverwrite = 1;
         } else if (strcmp(argv[j], "-v") == 0) {
             dovalidate = 1;
+        } else if (strcmp(argv[j], "-T") == 0) {
+            if (argc < j + 2) {
+                fprintf(stderr, "ERROR: Error parsing argument for -T\n");
+                return -1;
+            }
+            if (strcmp(argv[j + 1], "DEL") == 0) {
+                filetype = (filetype & 0xf0) | FILETYPEDEL;
+            } else if (strcmp(argv[j + 1], "SEQ") == 0) {
+                filetype = (filetype & 0xf0) | FILETYPESEQ;
+            } else if (strcmp(argv[j + 1], "PRG") == 0) {
+                filetype = (filetype & 0xf0) | FILETYPEPRG;
+            } else if (strcmp(argv[j + 1], "USR") == 0) {
+                filetype = (filetype & 0xf0) | FILETYPEUSR;
+            } else if (strcmp(argv[j + 1], "REL") == 0) {
+                filetype = (filetype & 0xf0) | FILETYPEREL;
+            } else {
+                fprintf(stderr, "ERROR: Error parsing argument for -T\n");
+                return -1;
+            }
+            j++;
+        } else if (strcmp(argv[j], "-O") == 0) {
+            filetype &= 0x7f;
+        } else if (strcmp(argv[j], "-P") == 0) {
+            filetype |= 0x40;
         } else if (strcmp(argv[j], "-w") == 0) {
             if (argc < j + 2) {
                 printf("Error parsing argument for -w\n");
@@ -1947,7 +2031,7 @@ main(int argc, char* argv[])
             struct stat st;
             if (stat(argv[j + 1], &st) != 0) {
                 fprintf(stderr, "File '%s' (%d) not found\n", argv[j + 1], num_files + 1);
-                exit(-1);
+                return -1;
             }
             files[num_files].localname = argv[j + 1];
             if (filename == NULL) {
@@ -1961,6 +2045,7 @@ main(int argc, char* argv[])
             files[num_files].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[num_files].first_sector_new_track = first_sector_new_track;
             files[num_files].nrSectorsShown = nrSectorsShown;
+            files[num_files].filetype = filetype;
             first_sector_new_track = default_first_sector_new_track;
             filename = NULL;
             sectorInterleave = 0;
@@ -1984,6 +2069,7 @@ main(int argc, char* argv[])
             files[num_files].first_sector_new_track = first_sector_new_track;
             first_sector_new_track = default_first_sector_new_track;
             files[num_files].nrSectorsShown = nrSectorsShown;
+            files[num_files].filetype = filetype;
             filename = NULL;
             sectorInterleave = 0;
             nrSectorsShown = -1;
@@ -2009,6 +2095,7 @@ main(int argc, char* argv[])
             files[num_files].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[num_files].first_sector_new_track = first_sector_new_track;
             files[num_files].nrSectorsShown = nrSectorsShown;
+            files[num_files].filetype = filetype;
             first_sector_new_track = default_first_sector_new_track;
             filename = NULL;
             sectorInterleave = 0;
@@ -2021,12 +2108,12 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-d") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%u", &shadowdirtrack)) {
                 fprintf(stderr, "Error parsing argument for -d\n");
-                exit(-1);
+                return -1;
             }
         } else if (strcmp(argv[j], "-u") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &numdirblocks)) {
                 fprintf(stderr, "Error parsing argument for -u\n");
-                exit(-1);
+                return -1;
             }
         } else if (strcmp(argv[j], "-B") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &nrSectorsShown)) {
@@ -2048,13 +2135,12 @@ main(int argc, char* argv[])
         } else {
             fprintf(stderr, "Error parsing commandline at \"%s\"\n", argv[j]);
             printf("Use -h for help.");
-            exit(-1);
+            return -1;
         }
     }
     if (j >= argc) {
         fprintf(stderr, "No image file provided, or misparsed last option\n");
-
-        exit(-1);
+        return -1;
     }
     imagepath = argv[argc-1];
 
@@ -2062,7 +2148,7 @@ main(int argc, char* argv[])
         if (strcmp(imagepath + strlen(imagepath) - 4, ".d71") == 0) {
             if ((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
                 fprintf(stderr, "Extended .d71 images are not supported\n");
-                exit(-1);
+                return -1;
             }
             type = IMAGE_D71;
         } else if (strcmp(imagepath + strlen(imagepath) - 4, ".d81") == 0) {
@@ -2076,7 +2162,7 @@ main(int argc, char* argv[])
     unsigned char* image = (unsigned char*)calloc(imagesize, sizeof(unsigned char));
     if (image == NULL) {
         fprintf(stderr, "Memory allocation error\n");
-        exit(-1);
+        return -1;
     }
     FILE* f = fopen(imagepath, "rb");
     if (f == NULL) {
@@ -2097,7 +2183,7 @@ main(int argc, char* argv[])
                 }
             } else {
                 fprintf(stderr, "Wrong filesize: expected to read %d bytes, but read %d bytes\n", imagesize, (int) read_size);
-                exit(-1);
+                return -1;
             }
         }
         if (dovalidate) {
@@ -2140,9 +2226,5 @@ main(int argc, char* argv[])
 
     free(image);
 
-    if (retval != 0) {
-        exit(-1);
-    }
-
-    return 0;
+    return retval;
 }
