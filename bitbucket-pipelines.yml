@@ -48,7 +48,7 @@ pipelines:
           - cc1541.zip
     - step:
         name: Deploy to Bitbucket downloads
-        deployment: Release
+        deployment: production
         trigger: manual
         script:
           - export FILENAME=cc1541_`grep "#define VERSION" cc1541.c | cut -d\" -f2`.zip
