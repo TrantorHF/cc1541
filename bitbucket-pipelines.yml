@@ -46,3 +46,10 @@ pipelines:
           - zip -o cc1541.zip cc1541_lin_glibc_x86 cc1541.exe cc1541_mac LICENSE.txt README.md
         artifacts:
           - cc1541.zip
+    - step:
+        name: Release to Downloads
+        trigger: manual
+        script:
+          - export FILENAME=cc1541_`grep "#define VERSION" cc1541.c | cut -d\" -f2`.zip
+          - mv cc1541.zip $FILENAME
+          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@$FILENAME
