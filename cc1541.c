@@ -842,21 +842,6 @@ next_dir_entry(image_type type, unsigned char* image, int *offset)
     return 1;
 }
 
-/*
-static int
-num_dir_entries(image_type type, unsigned char* image)
-{
-    int entries = 0;
-    int offset = linear_sector(type, dirtrack(type), 1) * BLOCKSIZE;
-    do {
-        if (image[offset + 2] != 0) {
-            entries++;
-        }
-    } while (next_dir_entry(type, image, &offset));
-    return entries;
-}
-*/
-
 static int
 get_dir_entry_offset(image_type type, unsigned char* image, int index)
 {
