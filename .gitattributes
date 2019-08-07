@@ -8,6 +8,8 @@
 *.txt           text eol=lf
 *.yml           text eol=lf
 Makefile*       text eol=lf
+.gitattributes  text eol=lf
+.gitignore      text eol=lf
 
 # Declare files that will always have CRLF line endings on checkout.
 *.sln           text eol=crlf
