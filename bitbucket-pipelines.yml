@@ -60,4 +60,5 @@ pipelines:
         trigger: manual
         script:
           - export VERSION="$(grep "#define VERSION" cc1541.c | cut -d\" -f2)"
-          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@cc1541_bin-$VERSION.zip,cc1541-$VERSION.tar.gz
+          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@cc1541-$VERSION.tar.gz
+          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@cc1541_bin-$VERSION.zip
