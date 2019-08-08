@@ -6,6 +6,7 @@ pipelines:
           - make -j2 dist-check
         artifacts:
           - cc1541*.tar.*
+          - cc1541*.zip
     - step:
         name: Build distribution binaries
         trigger: manual
