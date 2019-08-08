@@ -15,3 +15,6 @@
 /cc1541.exe
 /test_cc1541
 /test_cc1541.exe
+
+# Source tarball
+cc1541-*.tar*
