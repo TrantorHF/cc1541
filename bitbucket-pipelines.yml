@@ -21,7 +21,7 @@ pipelines:
                 - export CXXFLAGS="$(dpkg-buildflags --get CXXFLAGS)"
                 - export LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
                 - make -j2 check CPPFLAGS="$CPPFLAGS" CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS"
-                - strip -g cc1541
+                - strip cc1541
                 - mv cc1541 cc1541_lin_glibc_x86
               artifacts:
                 - cc1541_lin_glibc_x86
