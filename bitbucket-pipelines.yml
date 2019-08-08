@@ -39,18 +39,25 @@ pipelines:
               artifacts:
                 - cc1541_mac
                 - test_cc1541_mac
-    - step:
-        name: Create package
-        image: kramos/alpine-zip
-        script:
-          - zip -o cc1541.zip cc1541_lin_glibc_x86 cc1541.exe cc1541_mac LICENSE.txt README.md
-        artifacts:
-          - cc1541.zip
+    - parallel:
+          - step:
+              name: Create binary package
+              image: kramos/alpine-zip
+              script:
+                - export VERSION="$(grep "#define VERSION" cc1541.c | cut -d\" -f2)"
+                - zip -o cc1541_bin-$VERSION.zip cc1541_lin_glibc_x86 cc1541.exe cc1541_mac LICENSE.txt README.md
+              artifacts:
+                - cc1541_bin*.zip
+          - step:
+              name: Create and test source tarball
+              script:
+                - make -j2 dist-check
+              artifacts:
+                - cc1541*.tar.gz
     - step:
         name: Deploy to Bitbucket downloads
         deployment: production
         trigger: manual
         script:
-          - export FILENAME=cc1541_`grep "#define VERSION" cc1541.c | cut -d\" -f2`.zip
-          - mv cc1541.zip $FILENAME
-          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@$FILENAME
+          - export VERSION="$(grep "#define VERSION" cc1541.c | cut -d\" -f2)"
+          - curl -X POST --user "${BB_AUTH_STRING}" "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@cc1541_bin-$VERSION.zip,cc1541-$VERSION.tar.gz
