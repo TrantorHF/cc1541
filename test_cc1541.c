@@ -253,7 +253,7 @@ main(int argc, char* argv[])
     description = "Diskname should be found in track 18 sector 0 offset $90";
     ++test;
     create_value_file("1.prg", 254, 37);
-    if (run_binary_cleanup(binary, "-n 0123456789ABCDEF -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-n 0123456789abcdef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (strncmp(&image[track_offset[17] + 0x90], "0123456789ABCDEF", 16) == 0) {
         result = TEST_PASS;
@@ -267,7 +267,7 @@ main(int argc, char* argv[])
     description = "Diskname should be truncated to 16 characters";
     ++test;
     create_value_file("1.prg", 254, 37);
-    if (run_binary_cleanup(binary, "-n 0123456789ABCDEFGHI -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-n 0123456789abcdef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (strncmp(&image[track_offset[17] + 0x90], "0123456789ABCDEF", 16) == 0 && image[track_offset[17] + 0xa0] == (char)0xa0) {
         result = TEST_PASS;
@@ -427,7 +427,7 @@ main(int argc, char* argv[])
     description = "Filename should be found at track 18 sector 1 offset 5";
     ++test;
     create_value_file("1.prg", 254 * 2, 1);
-    if (run_binary_cleanup(binary, "-f 0123456789ABCDEF -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-f 0123456789abcdef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (strncmp(&image[track_offset[17] + 256 + 5], "0123456789ABCDEF", 16) == 0) {
         result = TEST_PASS;

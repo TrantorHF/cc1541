@@ -73,19 +73,20 @@
 #define FILESTART              2
 
 typedef struct {
-    char* localname;
-    char  filename[FILENAMEMAXSIZE + 1];
-    int direntryindex;
-    int direntrysector;
-    int direntryoffset;
-    int sectorInterleave;
-    int first_sector_new_track;
-    int track;
-    int sector;
-    int nrSectors;
-    int nrSectorsShown;
-    int filetype;
-    int mode;
+    char* localname; /* local file name or name of loop file in ASCII */
+    char  filename[FILENAMEMAXSIZE + 1]; /* disk file name in PETSCII */
+	char* afilename; /* disk file name in ASCII */
+    int  direntryindex;
+    int  direntrysector;
+    int  direntryoffset;
+    int  sectorInterleave;
+    int  first_sector_new_track;
+    int  track;
+    int  sector;
+    int  nrSectors;
+    int  nrSectorsShown;
+    int  filetype;
+    int  mode;
 } imagefile;
 
 enum mode {
@@ -569,26 +570,43 @@ mark_sector(image_type type, unsigned char* image, int track, int sector, int fr
     }
 }
 
+static char
+a2p(char a)
+{
+    switch (a) {
+    case '\n':
+        return 0x0d;
+    case 0x7e:
+        return 0xff;
+    default:
+        if ((a >= 0x5b) && (a <= 0x5f)) {
+            return a;
+        }
+        if ((a >= 0x60) && (a <= 0x7e)) {
+            return a ^ 0x20;
+        }
+        if ((a >= 'A') && (a <= 'Z')) {
+            return a | 0x80;
+        }
+        return a;
+    }
+}
+
 static char *
 ascii2petscii(char* str)
 {
     unsigned char* ascii = (unsigned char *) str;
-
     while (*ascii != '\0') {
-        if ((*ascii >= 'a') && (*ascii <= 'z')) {
-            *ascii += 'A' - 'a';
-        }
-
+        *ascii = a2p(*ascii);
         ascii++;
     }
-
     return str;
 }
 
 static unsigned int
 hex2int(char hex)
 {
-    if ((hex < '0' || hex > '9') && (hex < 'a' || hex > 'f')) {
+    if ((hex < '0' || hex > '9') && (hex < 'A' || hex > 'F')) {
         fprintf(stderr, "Invalid hex string in filename\n");
 
         exit(-1);
@@ -596,7 +614,7 @@ hex2int(char hex)
     if (hex <= '9') {
         hex -= '0';
     } else {
-        hex -= 'a' - 10;
+        hex -= 'A' - 10;
     }
     return (unsigned int)hex;
 }
@@ -613,12 +631,12 @@ evalhexescape(char *str)
             unsigned int lo = hex2int(ascii[++read]);
             ascii[write] = (unsigned char)(16 * hi + lo);
         } else {
-            ascii[write] = ascii[read];
+            ascii[write] = a2p(ascii[read]);
         }
         read++;
         write++;
     }
-    ascii[write] = ascii[read]; /* copy final \0 */
+    ascii[write] = 0;
 
     return str;
 }
@@ -642,17 +660,17 @@ update_directory(image_type type, unsigned char* image, char* header, char* id, 
     /* Set header and ID */
     for (size_t i = 0; i < 16; ++i) {
         if (i < strlen(header)) {
-            image[bam + header_offset + i] = header[i];
+            image[bam + header_offset + i] = a2p(header[i]);
         } else {
             image[bam + header_offset + i] = FILENAMEEMPTYCHAR;
         }
     }
 
-    static const char DEFAULT_ID[] = "00 2A";
+    static const char DEFAULT_ID[] = "00 2a";
 
     for (size_t i = 0; i < 5; ++i)    {
         if (i < strlen(id)) {
-            image[bam + id_offset + i] = id[i];
+            image[bam + id_offset + i] = a2p(id[i]);
         } else {
             image[bam + id_offset + i] = DEFAULT_ID[i];
         }
@@ -1870,8 +1888,10 @@ main(int argc, char* argv[])
     image_type type = IMAGE_D64;
     char* imagepath = NULL;
     char* filename_g64 = NULL;
-    char* header = (char *) "DEFAULT";
-    char* id     = (char *) "LODIS";
+    char* header  = (char *) "DEFAULT";
+	char* aheader = (char *) "default";
+    char* id      = (char *) "LODIS";
+	char* aid     = (char *) "lodis";
     int dirtracksplit = 1;
     int usedirtrack = 0;
     unsigned int shadowdirtrack = 0;
@@ -2009,9 +2029,7 @@ main(int argc, char* argv[])
             files[num_files].localname = argv[j + 1];
             if (filename == NULL) {
                 strncpy(files[num_files].filename, files[num_files].localname, FILENAMEMAXSIZE + 1);
-                ascii2petscii(files[num_files].filename);
             } else {
-                evalhexescape(filename);
                 strncpy(files[num_files].filename, filename, FILENAMEMAXSIZE + 1);
             }
             files[num_files].filename[FILENAMEMAXSIZE] = '\0';
@@ -2036,7 +2054,6 @@ main(int argc, char* argv[])
             }
             files[num_files].mode |= MODE_LOOPFILE;
             files[num_files].localname = argv[j + 1];
-            evalhexescape(filename);
             strncpy(files[num_files].filename, filename, FILENAMEMAXSIZE);
             files[num_files].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[num_files].first_sector_new_track = first_sector_new_track;
