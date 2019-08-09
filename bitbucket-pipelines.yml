@@ -2,6 +2,7 @@ pipelines:
   default:
     - step:
         name: Create and test source tarball
+        image: atlassian/default-image:2
         script:
           - make -j2 dist-check
         artifacts:
