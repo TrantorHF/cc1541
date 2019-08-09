@@ -1,6 +1,6 @@
 CC1541_CFLAGS = -std=c99 -pipe -O2 -Wall -Wextra -pedantic
 
-ifeq ($(DISABLE_WERROR),)
+ifneq ($(ENABLE_WERROR),)
 CC1541_CFLAGS += -Werror
 endif
 
