@@ -4,7 +4,7 @@ pipelines:
         name: Create and test source tarball
         image: atlassian/default-image:2
         script:
-          - make -j2 dist-check
+          - make -j2 ENABLE_WERROR=1 dist-check
         artifacts:
           - cc1541*.tar.*
           - cc1541*.zip
