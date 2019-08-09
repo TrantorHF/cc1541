@@ -397,7 +397,7 @@ check_hashes(image_type type, unsigned char* image)
                 if (count_hashes(type, image, filenamehash(filename), false /* print */) > 1) {
                     collision = 1;
 
-                    printf("Error: Hash of filename \"%s\" [$%04x] is not unique\n", dirfilename(filename), filenamehash(filename));
+                    fprintf(stderr, "Error: Hash of filename \"%s\" [$%04x] is not unique\n", dirfilename(filename), filenamehash(filename));
                     count_hashes(type, image, filenamehash(filename), true /* print */);
                 }
             }
@@ -2018,7 +2018,7 @@ main(int argc, char* argv[])
             filetype |= 0x40;
         } else if (strcmp(argv[j], "-w") == 0) {
             if (argc < j + 2) {
-                printf("Error parsing argument for -w\n");
+                fprintf(stderr, "Error parsing argument for -w\n");
                 return -1;
             }
             struct stat st;
@@ -2045,11 +2045,11 @@ main(int argc, char* argv[])
             j++;
         } else if (strcmp(argv[j], "-l") == 0) {
             if (argc < j + 2) {
-                printf("Error parsing argument for -l\n");
+                fprintf(stderr, "Error parsing argument for -l\n");
                 return -1;
             }
             if (filename == NULL) {
-                printf("Loop files require a filename set with -f\n");
+                fprintf(stderr, "Loop files require a filename set with -f\n");
                 return -1;
             }
             files[num_files].mode |= MODE_LOOPFILE;
@@ -2081,11 +2081,11 @@ main(int argc, char* argv[])
             }
         } else if (strcmp(argv[j], "-B") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &nrSectorsShown)) {
-                printf("Error parsing argument for -B\n");
+                fprintf(stderr, "Error parsing argument for -B\n");
                 return -1;
             }
             if (nrSectorsShown < 0 || nrSectorsShown > 65535) {
-                printf("Argument must be between 0 and 65535 for -B\n");
+                fprintf(stderr, "Argument must be between 0 and 65535 for -B\n");
                 return -1;
             }
         } else if (strcmp(argv[j], "-4") == 0) {
@@ -2104,7 +2104,7 @@ main(int argc, char* argv[])
             usage();
         } else {
             fprintf(stderr, "Error parsing commandline at \"%s\"\n", argv[j]);
-            printf("Use -h for help.");
+            fprintf(stdout, "Use -h for help.\n");
             return -1;
         }
     }
