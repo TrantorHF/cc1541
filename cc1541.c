@@ -119,7 +119,7 @@ void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niwfoVTPOlBMdtuxFsSeErbc45gqh image.[d64|d71|d81]\n\n");
+    printf("Usage: cc1541 -niwfoVTPOlBMdtuxFsSeErbc45gqvh image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
@@ -166,6 +166,7 @@ usage()
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
     printf("-q            Be quiet.\n");
+    printf("-v            Be verbose and print the full directory listing.\n");
     printf("-h            Print this commandline help.\n");
     printf("\n");
 
@@ -1052,21 +1053,30 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
 }
 
 static void
+print_filetype(int filetype)
+{
+    if ((filetype & 0x80) == 0) {
+        printf("*");
+    } else {
+        printf(" ");
+    }
+    puts(filetypename[filetype & 0xf]);
+    if ((filetype & 0x40) != 0) {
+        printf("<");
+    } else {
+        printf(" ");
+    }
+}
+
+static void
 print_file_allocation(image_type type, unsigned char* image, imagefile* files, int num_files)
 {
     printf("File allocation:\n");
-    char typestring[6];
     for (int i = 0; i < num_files; i++) {
-        typestring[0] = 0;
-        if ((files[i].filetype & 0x80) == 0) {
-            strcat(typestring, "*");
-        }
-        strcat(typestring, filetypename[files[i].filetype & 0xf]);
-        if ((files[i].filetype & 0x40) != 0) {
-            strcat(typestring, "<");
-        }
-        printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => \"%s\" [$%04x] (%s, SL: %d)", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset,
-               files[i].alocalname, files[i].afilename, filenamehash(files[i].pfilename), typestring, files[i].sectorInterleave);
+        printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => \"%s\" (", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset,
+               files[i].alocalname, files[i].afilename);
+        print_filetype(files[i].filetype);
+        printf(", SL: %d)", files[i].sectorInterleave);
 
         int track = files[i].track;
         int sector = files[i].sector;
@@ -1210,8 +1220,68 @@ print_bam(image_type type, unsigned char* image)
         print_track_usage(type, image, t);
         printf("\n");
     }
-    printf("\n%3d (%d) BLOCKS FREE (out of %d (%d) BLOCKS)\n", sectorsFree, sectorsFree + sectorsFreeOnDirTrack,
+    printf("%3d (%d) BLOCKS FREE (out of %d (%d) BLOCKS)\n", sectorsFree, sectorsFree + sectorsFreeOnDirTrack,
            sectorsFree + sectorsOccupied, sectorsFree + sectorsFreeOnDirTrack + sectorsOccupied + sectorsOccupiedOnDirTrack);
+}
+
+static void
+print_filename(unsigned char* pfilename)
+{
+    int ended = 0;
+    putc('\"', stdout);
+    for (int pos = 0; pos < FILENAMEMAXSIZE; pos++) {
+        if (pfilename[pos] == FILENAMEEMPTYCHAR) {
+            if (!ended) {
+                putc('\"', stdout);
+                ended = 1;
+            } else {
+                putc(' ', stdout);
+            }
+        } else {
+            putc(p2a(pfilename[pos]), stdout);
+        }
+    }
+    if (!ended) {
+        putc('\"', stdout);
+    } else {
+        putc(' ', stdout);
+    }
+}
+
+static void
+print_directory(image_type type, unsigned char* image)
+{
+    unsigned char aheader[FILENAMEMAXSIZE + 1];
+    unsigned char aid[6];
+    unsigned char* bam = image + linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
+    petscii2ascii(bam + get_header_offset(type), aheader, FILENAMEMAXSIZE);
+    petscii2ascii(bam + get_id_offset(type), aid, 5);
+    printf("\n0 \033[7m\"%-16s\" %-5s\033[m\n", aheader, aid);
+
+    int dirsector = 1;
+    do {
+        int dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
+
+        for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
+            int entryOffset = i * DIRENTRYSIZE;
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
+            int blocks = image[dirblock + entryOffset + FILEBLOCKSLOOFFSET] + 256 * image[dirblock + entryOffset + FILEBLOCKSHIOFFSET];
+
+            if ((filetype & 0xf) != FILETYPEDEL) {
+                unsigned char* filename = (unsigned char*)image + dirblock + entryOffset + FILENAMEOFFSET;
+                printf("%-5d", blocks);
+                print_filename(filename);
+                print_filetype(filetype);
+                printf(" [$%04x]\n", filenamehash(filename));
+            }
+        }
+
+        if (image[dirblock + TRACKLINKOFFSET] == dirtrack(type)) {
+            dirsector = image[dirblock + SECTORLINKOFFSET];
+        } else {
+            dirsector = 0;
+        }
+    } while (dirsector > 0);
 }
 
 static void
@@ -1949,6 +2019,7 @@ main(int argc, char* argv[])
     int dovalidate = 0;
     int filetype = 0x82; /* default is closed PRG */
     int checkhashes = 0;
+    int verbose = 0;
     int retval = 0;
 
     int i, j;
@@ -2143,6 +2214,8 @@ main(int argc, char* argv[])
             filename_g64 = argv[++j];
         } else if (strcmp(argv[j], "-q") == 0) {
             quiet = 1;
+        } else if (strcmp(argv[j], "-v") == 0) {
+            verbose = 1;
         } else if (strcmp(argv[j], "-h") == 0) {
             usage();
         } else {
@@ -2207,16 +2280,6 @@ main(int argc, char* argv[])
         }
     }
 
-    /* Print disk info */
-    if (!quiet) {
-        unsigned char aheader[FILENAMEMAXSIZE + 1];
-        unsigned char aid[6];
-        unsigned char* bam = image + linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
-        petscii2ascii(bam + get_header_offset(type), aheader, FILENAMEMAXSIZE);
-        petscii2ascii(bam + get_id_offset(type), aid, 5);
-        printf("%s: \033[7m\"%-16s\" %-5s\033[m\n\n", imagepath, aheader, aid);
-    }
-
     /* Create directory entries */
     create_dir_entries(type, image, files, num_files, dir_sector_interleave, shadowdirtrack, nooverwrite);
 
@@ -2227,6 +2290,11 @@ main(int argc, char* argv[])
     if (!quiet) {
         print_file_allocation(type, image, files, num_files);
         print_bam(type, image);
+    }
+
+    /* Print directory */
+    if (verbose) {
+        print_directory(type, image);
     }
 
     /* Save image */
