@@ -119,7 +119,7 @@ void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niwfovTPOlBMdtuxFsSeErbc45gq image.[d64|d71|d81]\n\n");
+    printf("Usage: cc1541 -niwfoVTPOlBMdtuxFsSeErbc45gqh image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
@@ -127,7 +127,7 @@ usage()
     printf("-f filename   Use filename as name when writing next file, use prefix # to\n");
     printf("              include arbitrary PETSCII characters (e.g. -f \"START#a0,8,1\").\n");
     printf("-o            Do not overwrite if file with same name exists already.\n");
-    printf("-v            Do not modify image unless it is in valid CBM DOS format.\n");
+    printf("-V            Do not modify image unless it is in valid CBM DOS format.\n");
     printf("-T filetype   Filetype for next file, allowed parameters are PRG, SEQ, USR, REL\n");
     printf("              and DEL. For DEL, the input file is ignored. Default is PRG.\n");
     printf("-P            Set write protect flag for next file.\n");
@@ -166,6 +166,7 @@ usage()
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
     printf("-q            Be quiet.\n");
+    printf("-h            Print this commandline help.\n");
     printf("\n");
 
     exit(-1);
@@ -1930,7 +1931,7 @@ main(int argc, char* argv[])
     char* imagepath = NULL;
     char* filename_g64 = NULL;
     unsigned char* header  = (unsigned char*)"cc1541";
-	unsigned char* id      = (unsigned char*)"00 2a";
+    unsigned char* id      = (unsigned char*)"00 2a";
     int dirtracksplit = 1;
     int usedirtrack = 0;
     unsigned int shadowdirtrack = 0;
@@ -2029,7 +2030,7 @@ main(int argc, char* argv[])
             files[num_files].mode |= MODE_SAVECLUSTEROPTIMIZED;
         } else if (strcmp(argv[j], "-o") == 0) {
             nooverwrite = 1;
-        } else if (strcmp(argv[j], "-v") == 0) {
+        } else if (strcmp(argv[j], "-V") == 0) {
             dovalidate = 1;
         } else if (strcmp(argv[j], "-T") == 0) {
             if (argc < j + 2) {
