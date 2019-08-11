@@ -81,7 +81,7 @@
 
 typedef struct {
     const unsigned char* alocalname;                      /* local file name or name of loop file in ASCII */
-    unsigned char        plocalname[FILENAMEMAXSIZE + 1]; /* loop file in PETSCII */
+    unsigned char        plocalname[FILENAMEMAXSIZE];     /* loop file in PETSCII */
     const unsigned char* afilename;                       /* disk file name in ASCII */
     unsigned char        pfilename[FILENAMEMAXSIZE + 1];  /* disk file name in PETSCII */
     int                  direntryindex;
@@ -465,7 +465,7 @@ count_hashes(image_type type, unsigned char* image, unsigned int hash, bool prin
                     ++num;
 
                     if (print) {
-                        unsigned char afilename[FILENAMEMAXSIZE+1];
+                        unsigned char afilename[FILENAMEMAXSIZE + 1];
                         petscii2ascii(filename, afilename, FILENAMEMAXSIZE);
                         printf(" [$%04x] \"%s\"\n", filenamehash(filename), afilename);
                     }
@@ -710,12 +710,12 @@ update_directory(image_type type, unsigned char* image, unsigned char* header, u
     }
 
     /* Set header and ID */
-    unsigned char aheader[FILENAMEMAXSIZE];
-    unsigned char aid[5];
-    ascii2petscii(header, aheader, FILENAMEMAXSIZE);
-    ascii2petscii(id, aid, 5);
-    memcpy(image + bam + get_header_offset(type), aheader, FILENAMEMAXSIZE);
-    memcpy(image + bam + get_id_offset(type), aid, 5);
+    unsigned char pheader[FILENAMEMAXSIZE];
+    unsigned char pid[5];
+    ascii2petscii(header, pheader, FILENAMEMAXSIZE);
+    ascii2petscii(id, pid, 5);
+    memcpy(image + bam + get_header_offset(type), pheader, FILENAMEMAXSIZE);
+    memcpy(image + bam + get_id_offset(type), pid, 5);
 
     if (type == IMAGE_D81) {
         unsigned int bam = linear_sector(type, dirtrack(type), 1 /* sector */) * BLOCKSIZE;
