@@ -673,7 +673,7 @@ main(int argc, char* argv[])
     description = "Loop file should have actual DIR block size per default";
     ++test;
     create_value_file("1.prg", 258 * 254, 1);
-    if (run_binary_cleanup(binary, "-w 1.prg -f LOOP.PRG -l 1.PRG", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-w 1.prg -f LOOP.PRG -l 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (image[track_offset[17] + 256 + 32 + 30] == 2 && image[track_offset[17] + 256 + 32 + 31] == 1) {
         result = TEST_PASS;
@@ -687,7 +687,7 @@ main(int argc, char* argv[])
     description = "Loop file should have DIR block size 258 for -B";
     ++test;
     create_value_file("1.prg", 39 * 254, 1);
-    if (run_binary_cleanup(binary, "-w 1.prg -f LOOP.PRG -B 258 -l 1.PRG", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-w 1.prg -f LOOP.PRG -B 258 -l 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (image[track_offset[17] + 256 + 32 + 30] == 2 && image[track_offset[17] + 256 + 32 + 31] == 1) {
         result = TEST_PASS;
@@ -715,7 +715,7 @@ main(int argc, char* argv[])
     description = "Loop file should share track and sector with later file using -l";
     ++test;
     create_value_file("1.prg", 1 * 254, 1);
-    if (run_binary_cleanup(binary, "-f LOOP -l 1.PRG -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-f LOOP -l 1.prg -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if ((image[track_offset[17] + 256 + 3] == image[track_offset[17] + 256 + 32 + 3]) && (image[track_offset[17] + 256 + 4] == image[track_offset[17] + 256 + 32 + 4])) {
         result = TEST_PASS;
