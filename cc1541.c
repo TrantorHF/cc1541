@@ -1060,7 +1060,7 @@ print_filetype(int filetype)
     } else {
         printf(" ");
     }
-    puts(filetypename[filetype & 0xf]);
+    printf("%s", filetypename[filetype & 0xf]);
     if ((filetype & 0x40) != 0) {
         printf("<");
     } else {
