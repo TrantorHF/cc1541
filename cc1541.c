@@ -145,10 +145,10 @@ sectors_per_track_extended[] = {
     17,17,17,17,17
 };
 
-static int quiet = 0;                         /* global quiet flag */
-static int verbose = 0;                       /* global verbose flag */
-static int num_files = 0;                     /* number of files to be written provided by the user */
-static int max_hash_length = FILENAMEMAXSIZE; /* number of bytes of the filenames to calculate the hash over */
+static int quiet = 0;           /* global quiet flag */
+static int verbose = 0;         /* global verbose flag */
+static int num_files = 0;       /* number of files to be written provided by the user */
+static int max_hash_length = 0; /* number of bytes of the filenames to calculate the hash over */
 
 /* Prints the commandline help */
 static void
@@ -1067,7 +1067,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
     }
 
     if (!quiet && (num_overwritten_files > 0)) {
-        printf("%d files out of %d files exist and will be overwritten\n", num_overwritten_files, num_files);
+        printf("%d out of %d files exist and will be overwritten\n", num_overwritten_files, num_files);
     }
 }
 
@@ -1307,7 +1307,11 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
     unsigned char* bam = image + linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
     petscii2ascii(bam + get_header_offset(type), aheader, FILENAMEMAXSIZE);
     petscii2ascii(bam + get_id_offset(type), aid, 5);
-    printf("\n0 \033[7m\"%-16s\" %-5s\033[m\n", aheader, aid);
+    printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
+    if(max_hash_length) {
+        printf("    hash");
+    }
+    printf("\n");
 
     int dirsector = 1;
     do {
@@ -1323,7 +1327,10 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
                 printf("%-5d", blocks);
                 print_filename(filename);
                 print_filetype(filetype);
-                printf(" [$%04x]\n", filenamehash(filename));
+                if (max_hash_length) {
+                    printf(" [$%04x]", filenamehash(filename));
+                }
+                printf("\n");
             }
         }
 
@@ -2076,7 +2083,6 @@ main(int argc, char* argv[])
     int nooverwrite = 0;
     int dovalidate = 0;
     int filetype = 0x82; /* default is closed PRG */
-    int checkhashes = 0;
     int retval = 0;
 
     int i, j;
@@ -2108,7 +2114,6 @@ main(int argc, char* argv[])
                 fprintf(stderr, "ERROR: Hash computation maximum filename length %d specified\n", max_hash_length);
                 return -1;
             }
-            checkhashes = 1;
         } else if (strcmp(argv[j], "-F") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &first_sector_new_track)) {
                 fprintf(stderr, "ERROR: Error parsing argument for -F\n");
@@ -2372,7 +2377,7 @@ main(int argc, char* argv[])
         generate_uniformat_g64(image, filename_g64);
     }
 
-    if (checkhashes && check_hashes(type, image)) {
+    if (max_hash_length && check_hashes(type, image)) {
         fprintf(stderr, "ERROR: Filename hash collision detected\n");
         retval = -1;
     }
