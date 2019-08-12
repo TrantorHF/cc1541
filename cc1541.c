@@ -2269,6 +2269,11 @@ main(int argc, char* argv[])
         }
     }
 
+    /* quiet has precedence over verbose */
+    if(quiet) {
+        verbose = 0;
+    }
+
     /* open image */
     unsigned int imagesize = image_size(type);
     unsigned char* image = (unsigned char*)calloc(imagesize, sizeof(unsigned char));
