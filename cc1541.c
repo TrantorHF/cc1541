@@ -174,7 +174,7 @@ usage()
 }
 
 static const char *filetypename[] = {
-    "DEL", "SEQ", "PRG", "USR", "REL"
+    "del", "seq", "prg", "usr", "rel"
 };
 
 static const int
@@ -920,7 +920,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
 
     int num_overwritten_files = 0;
 
-    if (!quiet) {
+    if (!quiet && num_files > 0) {
         printf("Creating dir entries:\n");
     }
 
@@ -1071,7 +1071,10 @@ print_filetype(int filetype)
 static void
 print_file_allocation(image_type type, unsigned char* image, imagefile* files, int num_files)
 {
-    printf("File allocation:\n");
+    if(num_files > 0) {
+        printf("File allocation:\n");
+    }
+
     for (int i = 0; i < num_files; i++) {
         printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => \"%s\" (", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset,
                files[i].alocalname, files[i].afilename);
@@ -1157,32 +1160,40 @@ print_track_usage(image_type type, unsigned char *image, int track)
     } while (dirsector > 0);
 }
 
-static void
-print_bam(image_type type, unsigned char* image)
+static int
+check_bam(image_type type, unsigned char* image)
 {
     int sectorsFree = 0;
     int sectorsFreeOnDirTrack = 0;
     int sectorsOccupied = 0;
     int sectorsOccupiedOnDirTrack = 0;
 
-    printf("Block allocation:\n");
+    if (!quiet) {
+        printf("Block allocation:\n");
+    }
 
     int max_track = (type == IMAGE_D81) ? D81NUMTRACKS
                     : (((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) ? D64NUMTRACKS_EXTENDED
                        : D64NUMTRACKS);
     for (int t = 1; t <= max_track; t++) {
 
-        printf("  %2d: ", t);
+        if (!quiet) {
+            printf("  %2d: ", t);
+        }
         for (int s = 0; s < num_sectors(type, t); s++) {
             if (is_sector_free(type, image, t, s, 0, 0)) {
-                printf("0");
+                if (!quiet) {
+                    printf("0");
+                }
                 if (t != dirtrack(type)) {
                     sectorsFree++;
                 } else {
                     sectorsFreeOnDirTrack++;
                 }
             } else {
-                printf("1");
+                if (!quiet) {
+                    printf("1");
+                }
                 if (t != dirtrack(type)) {
                     sectorsOccupied++;
                 } else {
@@ -1193,14 +1204,20 @@ print_bam(image_type type, unsigned char* image)
 
         if (type == IMAGE_D71) {
             for (int i = num_sectors(type, t); i < 23; i++) {
-                printf(" ");
+                if (!quiet) {
+                    printf(" ");
+                }
             }
             int t2 = t + D64NUMTRACKS;
 
-            printf("%2d: ", t2);
+            if (!quiet) {
+                printf("%2d: ", t2);
+            }
             for (int s = 0; s < num_sectors(type, t2); s++) {
                 if (is_sector_free(type, image, t2, s, 0, 0)) {
-                    printf("0");
+                    if (!quiet) {
+                        printf("0");
+                    }
                     if (t2 != dirtrack(type)) {
                         sectorsFree++;
                     } else {
@@ -1208,20 +1225,30 @@ print_bam(image_type type, unsigned char* image)
                         sectorsFreeOnDirTrack++;
                     }
                 } else {
-                    printf("1");
+                    if (!quiet) {
+                        printf("1");
+                    }
                     sectorsOccupied++;
                 }
             }
         }
 
         for (int i = ((type == IMAGE_D81) ? 42 : 23) - num_sectors(type, t); i > 0; --i) {
-            printf(" ");
+            if (!quiet) {
+                printf(" ");
+            }
         }
-        print_track_usage(type, image, t);
-        printf("\n");
+        if (!quiet) {
+            print_track_usage(type, image, t);
+            printf("\n");
+        }
     }
-    printf("%3d (%d) BLOCKS FREE (out of %d (%d) BLOCKS)\n", sectorsFree, sectorsFree + sectorsFreeOnDirTrack,
-           sectorsFree + sectorsOccupied, sectorsFree + sectorsFreeOnDirTrack + sectorsOccupied + sectorsOccupiedOnDirTrack);
+    if (!quiet) {
+        printf("%3d/%3d blocks free (%d/%d including dir track)\n", sectorsFree, sectorsFree + sectorsOccupied,
+               sectorsFree + sectorsFreeOnDirTrack, sectorsFree + sectorsFreeOnDirTrack + sectorsOccupied + sectorsOccupiedOnDirTrack);
+    }
+
+    return sectorsFree;
 }
 
 static void
@@ -1249,7 +1276,7 @@ print_filename(unsigned char* pfilename)
 }
 
 static void
-print_directory(image_type type, unsigned char* image)
+print_directory(image_type type, unsigned char* image, int blocks_free)
 {
     unsigned char aheader[FILENAMEMAXSIZE + 1];
     unsigned char aid[6];
@@ -1282,6 +1309,7 @@ print_directory(image_type type, unsigned char* image)
             dirsector = 0;
         }
     } while (dirsector > 0);
+    printf("%d blocks free.\n", blocks_free);
 }
 
 static void
@@ -1543,7 +1571,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
                         if (track > image_num_tracks(type)) {
                             print_file_allocation(type, image, files, num_files);
-                            print_bam(type, image);
+                            check_bam(type, image);
 
                             fprintf(stderr, "ERROR: Disk full, file %s (%s)\n", file->alocalname, file->afilename);
                             free(filedata);
@@ -2289,12 +2317,12 @@ main(int argc, char* argv[])
     /* Print allocation info */
     if (!quiet) {
         print_file_allocation(type, image, files, num_files);
-        print_bam(type, image);
     }
+    int blocks_free = check_bam(type, image);
 
     /* Print directory */
     if (verbose) {
-        print_directory(type, image);
+        print_directory(type, image, blocks_free);
     }
 
     /* Save image */
