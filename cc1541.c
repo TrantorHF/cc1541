@@ -166,7 +166,7 @@ usage()
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
     printf("-q            Be quiet.\n");
-    printf("-v            Be verbose and print the full directory listing.\n");
+    printf("-v            Be verbose.\n");
     printf("-h            Print this commandline help.\n");
     printf("\n");
 
