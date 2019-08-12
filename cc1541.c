@@ -1760,7 +1760,7 @@ encode_4_bytes_gcr(char* in, char* out)
 }
 
 /* Writes image as G64 file */
-void
+static void
 generate_uniformat_g64(unsigned char* image, const char *imagepath)
 {
     FILE* f = fopen(imagepath, "wb");
