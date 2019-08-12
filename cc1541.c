@@ -115,7 +115,43 @@ typedef enum {
     IMAGE_D81
 } image_type;
 
-void
+static const char *filetypename[] = {
+    "del", "seq", "prg", "usr", "rel"
+};
+
+static const int
+sectors_per_track[] = {
+    /*  1-17 */ 21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,
+    /* 18-24 */ 19,19,19,19,19,19,19,
+    /* 25-30 */ 18,18,18,18,18,18,
+    /* 31-35 */ 17,17,17,17,17,
+    21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,
+    19,19,19,19,19,19,19,
+    18,18,18,18,18,18,
+    17,17,17,17,17
+};
+
+static const int
+sectors_per_track_extended[] = {
+    /*  1-17 */ 21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,
+    /* 18-24 */ 19,19,19,19,19,19,19,
+    /* 25-30 */ 18,18,18,18,18,18,
+    /* 31-35 */ 17,17,17,17,17,
+    /* 36-40 */ 17,17,17,17,17,
+    21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,
+    19,19,19,19,19,19,19,
+    18,18,18,18,18,18,
+    17,17,17,17,17,
+    17,17,17,17,17
+};
+
+static int quiet = 0;                         /* global quiet flag */
+static int verbose = 0;                       /* global verbose flag */
+static int num_files = 0;                     /* number of files to be written provided by the user */
+static int max_hash_length = FILENAMEMAXSIZE; /* number of bytes of the filenames to calculate the hash over */
+
+/* Prints the commandline help */
+static void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
@@ -173,44 +209,7 @@ usage()
     exit(-1);
 }
 
-static const char *filetypename[] = {
-    "del", "seq", "prg", "usr", "rel"
-};
-
-static const int
-sectors_per_track[] = {
-    /*  1-17 */ 21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,
-    /* 18-24 */ 19,19,19,19,19,19,19,
-    /* 25-30 */ 18,18,18,18,18,18,
-    /* 31-35 */ 17,17,17,17,17,
-    21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,
-    19,19,19,19,19,19,19,
-    18,18,18,18,18,18,
-    17,17,17,17,17
-};
-
-static const int
-sectors_per_track_extended[] = {
-    /*  1-17 */ 21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,
-    /* 18-24 */ 19,19,19,19,19,19,19,
-    /* 25-30 */ 18,18,18,18,18,18,
-    /* 31-35 */ 17,17,17,17,17,
-    /* 36-40 */ 17,17,17,17,17,
-    21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,
-    19,19,19,19,19,19,19,
-    18,18,18,18,18,18,
-    17,17,17,17,17,
-    17,17,17,17,17
-};
-
-static int quiet = 0;
-static int verbose = 0;
-
-static int num_files = 0;
-
-static int max_hash_length = FILENAMEMAXSIZE;
-
-/* returns a pointer to the filename in a path */
+/* Returns a pointer to the filename in a path */
 static const unsigned char*
 basename(const unsigned char* path)
 {
@@ -219,6 +218,7 @@ basename(const unsigned char* path)
     return name;
 }
 
+/* Calculates a hash from a filename to be used by the Krill loader */
 static unsigned int
 filenamehash(const unsigned char *filename)
 {
@@ -244,7 +244,8 @@ filenamehash(const unsigned char *filename)
     return (hashhi << 8) | hashlo;
 }
 
-unsigned int
+/* Returns the size of an image in bytes */
+static unsigned int
 image_size(image_type type)
 {
     switch (type) {
@@ -267,7 +268,8 @@ image_size(image_type type)
     }
 }
 
-unsigned int
+/* Returns the number of tracks in an image */
+static unsigned int
 image_num_tracks(image_type type)
 {
     switch (type) {
@@ -290,12 +292,14 @@ image_num_tracks(image_type type)
     }
 }
 
-int
+/* Returns the directory track of an image */
+static int
 dirtrack(image_type type)
 {
     return (type == IMAGE_D81) ? DIRTRACK_D81 : DIRTRACK_D41_D71;
 }
 
+/* Returns the number of sectors for a given track */
 static int
 num_sectors(image_type type, int track)
 {
@@ -425,6 +429,7 @@ evalhexescape(const unsigned char* ascii, unsigned char* petscii, int len)
     }
 }
 
+/* Calculates the overall sector index from a given track and sector */
 static int
 linear_sector(image_type type, int track, int sector)
 {
@@ -450,6 +455,7 @@ linear_sector(image_type type, int track, int sector)
     return linear_sector;
 }
 
+/* Finds all filenames with the given hash */
 static int
 count_hashes(image_type type, unsigned char* image, unsigned int hash, bool print)
 {
@@ -486,6 +492,7 @@ count_hashes(image_type type, unsigned char* image, unsigned int hash, bool prin
     return num;
 }
 
+/* Checks if multiple filenames have the same hash */
 static bool
 check_hashes(image_type type, unsigned char* image)
 {
@@ -497,7 +504,7 @@ check_hashes(image_type type, unsigned char* image)
 
         for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
             int entryOffset = i * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
             if (filetype != FILETYPEDEL) {
                 unsigned char *filename = (unsigned char *) image + dirblock + entryOffset + FILENAMEOFFSET;
                 if (count_hashes(type, image, filenamehash(filename), false /* print */) > 1) {
@@ -520,6 +527,7 @@ check_hashes(image_type type, unsigned char* image)
     return collision;
 }
 
+/* Returns the image offset of the bam entry for a given track */
 static int
 get_bam_offset(image_type type, unsigned int track)
 {
@@ -550,6 +558,7 @@ get_bam_offset(image_type type, unsigned int track)
     return offset;
 }
 
+/* Checks if a given sector is marked as free in the BAM and also not used by directory */
 static int
 is_sector_free(image_type type, unsigned char* image, int track, int sector, int numdirblocks, int dir_sector_interleave)
 {
@@ -616,6 +625,7 @@ is_sector_free(image_type type, unsigned char* image, int track, int sector, int
     return is_not_dir_block && ((bitmap[byte] & (1 << bit)) != 0);
 }
 
+/* Marks given sector as allocated in BAM */
 static void
 mark_sector(image_type type, unsigned char* image, int track, int sector, int free)
 {
@@ -677,6 +687,7 @@ mark_sector(image_type type, unsigned char* image, int track, int sector, int fr
     }
 }
 
+/* Returns offset for header on directory track */
 static int
 get_header_offset(image_type type)
 {
@@ -690,6 +701,7 @@ get_header_offset(image_type type)
     return offset;
 }
 
+/* Returns offset for id on directory track */
 static int
 get_id_offset(image_type type)
 {
@@ -703,6 +715,7 @@ get_id_offset(image_type type)
     return offset;
 }
 
+/* Updates the directory with the given header and id */
 static void
 update_directory(image_type type, unsigned char* image, unsigned char* header, unsigned char* id, int shadowdirtrack)
 {
@@ -738,6 +751,7 @@ update_directory(image_type type, unsigned char* image, unsigned char* header, u
     }
 }
 
+/* Writes an empty directory and BAM */
 static void
 initialize_directory(image_type type, unsigned char* image, unsigned char* header, unsigned char* id, int shadowdirtrack)
 {
@@ -818,6 +832,7 @@ initialize_directory(image_type type, unsigned char* image, unsigned char* heade
     update_directory(type, image, header, id, shadowdirtrack);
 }
 
+/* Deletes a file from directory and BAM */
 static void
 wipe_file(image_type type, unsigned char* image, unsigned int track, unsigned int sector)
 {
@@ -836,6 +851,7 @@ wipe_file(image_type type, unsigned char* image, unsigned int track, unsigned in
     }
 }
 
+/* Returns index of file with given filename or -1 if it does not exist */
 static int
 find_file(image_type type, unsigned char* image, unsigned char* filename, unsigned char *track, unsigned char *sector, int *numblocks)
 {
@@ -882,7 +898,7 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, unsign
     return -1;
 }
 
-/* sets image offset to the next DIR entry, returns 0 when the DIR end was reached */
+/* Sets image offset to the next DIR entry, returns 0 when the DIR end was reached */
 static int
 next_dir_entry(image_type type, unsigned char* image, int *offset)
 {
@@ -904,6 +920,7 @@ next_dir_entry(image_type type, unsigned char* image, int *offset)
     return 1;
 }
 
+/* Returns the byte offset of the directory entry with the given index */
 static int
 get_dir_entry_offset(image_type type, unsigned char* image, int index)
 {
@@ -914,6 +931,7 @@ get_dir_entry_offset(image_type type, unsigned char* image, int index)
     return offset;
 }
 
+/* Adds the specified new entries to the directory */
 static void
 create_dir_entries(image_type type, unsigned char* image, imagefile* files, int num_files, int dir_sector_interleave, unsigned int shadowdirtrack, int nooverwrite)
 {
@@ -1053,6 +1071,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
     }
 }
 
+/* Prints the filetype in the same way as the C64 does when listing the directory */
 static void
 print_filetype(int filetype)
 {
@@ -1069,6 +1088,7 @@ print_filetype(int filetype)
     }
 }
 
+/* Prints the allocated tracks and sectors for every new file */
 static void
 print_file_allocation(image_type type, unsigned char* image, imagefile* files, int num_files)
 {
@@ -1110,6 +1130,7 @@ print_file_allocation(image_type type, unsigned char* image, imagefile* files, i
     printf("\n");
 }
 
+/* Returns if the file starting on the given filetrack and filesector uses the given track */
 static bool
 fileontrack(image_type type, unsigned char *image, int track, int filetrack, int filesector)
 {
@@ -1128,6 +1149,7 @@ fileontrack(image_type type, unsigned char *image, int track, int filetrack, int
     return false;
 }
 
+/* Prints all filenames of files that use the given track */
 static void
 print_track_usage(image_type type, unsigned char *image, int track)
 {
@@ -1159,6 +1181,7 @@ print_track_usage(image_type type, unsigned char *image, int track)
     } while (dirsector > 0);
 }
 
+/* Prints the BAM allocation map and returns the number of free blocks */
 static int
 check_bam(image_type type, unsigned char* image)
 {
@@ -1250,6 +1273,7 @@ check_bam(image_type type, unsigned char* image)
     return sectorsFree;
 }
 
+/* Prints the given PETSCII filename as the C64 does when listing the directory */
 static void
 print_filename(unsigned char* pfilename)
 {
@@ -1274,6 +1298,7 @@ print_filename(unsigned char* pfilename)
     }
 }
 
+/* Prints the directory as the C64 does when listing the directory */
 static void
 print_directory(image_type type, unsigned char* image, int blocks_free)
 {
@@ -1311,6 +1336,7 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
     printf("%d blocks free.\n", blocks_free);
 }
 
+/* Write files to disk */
 static void
 write_files(image_type type, unsigned char *image, imagefile *files, int num_files, int usedirtrack, int dirtracksplit, int shadowdirtrack, int numdirblocks, int dir_sector_interleave)
 {
@@ -1692,6 +1718,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     }
 }
 
+/* Writes 16 bit value to file */
 static size_t
 write16(unsigned int value, FILE* f)
 {
@@ -1704,6 +1731,7 @@ write16(unsigned int value, FILE* f)
     return bytes_written;
 }
 
+/* Writes 32 bit value to file */
 static size_t
 write32(unsigned int value, FILE* f)
 {
@@ -1713,6 +1741,7 @@ write32(unsigned int value, FILE* f)
     return bytes_written;
 }
 
+/* Performs GCR encoding on 32 bit value */
 static void
 encode_4_bytes_gcr(char* in, char* out)
 {
@@ -1730,6 +1759,7 @@ encode_4_bytes_gcr(char* in, char* out)
     out[4] = (nibble_to_gcr[(in[3] >> 4) & 0xf] << 5) |  nibble_to_gcr[ in[3]       & 0xf]; /* 77788888 */
 }
 
+/* Writes image as G64 file */
 void
 generate_uniformat_g64(unsigned char* image, const char *imagepath)
 {
@@ -1912,6 +1942,7 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
     }
 }
 
+/* Performs strict CBM DOS validation on the image */
 static void
 validate(image_type type, unsigned char* image)
 {
