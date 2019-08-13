@@ -27,6 +27,12 @@
 #include <sys/stat.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define FILESEPARATOR "\\"
+#else
+#define FILESEPARATOR "/"
+#endif
+
 enum {
     NO_ERROR = 0,
     ERROR_ALLOCATION,
@@ -236,6 +242,18 @@ main(int argc, char* argv[])
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
 
+    description = "Size of empty D81 image should be 80*40*256";
+    ++test;
+    if (run_binary_cleanup(binary, "", "image.d81", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (size == 80 * 40 * 256) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+
     description = "Writing file with one block should fill track 1 sector 3";
     ++test;
     create_value_file("1.prg", 254, 37);
@@ -250,12 +268,27 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+
     description = "Diskname should be found in track 18 sector 0 offset $90";
     ++test;
     create_value_file("1.prg", 254, 37);
     if (run_binary_cleanup(binary, "-n 0123456789abcdef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (strncmp(&image[track_offset[17] + 0x90], "0123456789ABCDEF", 16) == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Diskname should be found in track 40 sector 0 offset 4 for d81";
+    ++test;
+    create_value_file("1.prg", 254, 37);
+    if (run_binary_cleanup(binary, "-n 0123456789abcdef -w 1.prg", "image.d81", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (strncmp(&image[40*39*256 + 4], "0123456789ABCDEF", 16) == 0) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -278,6 +311,20 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Diskname hex escape should be evaluted correctly";
+    ++test;
+    create_value_file("1.prg", 254, 37);
+    if (run_binary_cleanup(binary, "-n 0123456789abcde#ef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 0x90 + 15] == (char)0xef) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
     description = "Disk ID should be found in track 18 sector 0 offset $a2";
     ++test;
     create_value_file("1.prg", 254, 37);
@@ -292,12 +339,40 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Disk ID should be found in track 40 sector 0 offset 0x16 for d81";
+    ++test;
+    create_value_file("1.prg", 254, 37);
+    if (run_binary_cleanup(binary, "-i 01234 -w 1.prg", "image.d81", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (strncmp(&image[40 * 39 * 256 + 0x16], "01234", 5) == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
     description = "Disk ID should be truncated to 5 characters";
     ++test;
     create_value_file("1.prg", 254, 37);
     if (run_binary_cleanup(binary, "-i 0123456789ABCDEFGHI -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (strncmp(&image[track_offset[17] + 0xa2], "01234", 5) == 0 && image[track_offset[17] + 0xa7] == (char)0xa0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Disk ID hex escape should be evaluted correctly";
+    ++test;
+    create_value_file("1.prg", 254, 37);
+    if (run_binary_cleanup(binary, "-i 0123#ef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 0xa2 + 4] == (char)0xef) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -451,6 +526,20 @@ main(int argc, char* argv[])
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
+
+    description = "Input path should be stripped of folders for filename";
+    ++test;
+    create_value_file(".." FILESEPARATOR "1.prg", 254 * 2, 1);
+    if (run_binary_cleanup(binary, "-w .." FILESEPARATOR "1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (strncmp(&image[track_offset[17] + 256 + 5], "1.PRG", 5) == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("../1.prg");
 
     description = "Second file should start on track 2 sector 13 for -e";
     ++test;
@@ -757,6 +846,20 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Writing a PRG should result in first two blocks allocated on d81";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-F 0 -S 1 -f FILE -w 1.prg", "image.d81", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[40*39*256+256 + 6 + 11] == (char)0xfc) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
     description = "Writing a DEL should not allocate any block";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);
@@ -827,6 +930,20 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
     remove("2.prg");
+
+    // tests to add:
+    // - some weird ascii petscii conversions?
+    // - test validation: wrong format specified
+    // - test validation: illegal file type
+    // - test validation: illegal track
+    // - test validation: illegal sector
+    // - test validation: overlapping files
+    // - test validation: loop files
+    // - test validation: inconsistent BAM
+    // - hash calculations
+    // - hash collisions
+    // - editing d71, extended(?), d81
+
 
     /* clean up */
     if (image != NULL) {

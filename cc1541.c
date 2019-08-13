@@ -729,8 +729,8 @@ update_directory(image_type type, unsigned char* image, unsigned char* header, u
     /* Set header and ID */
     unsigned char pheader[FILENAMEMAXSIZE];
     unsigned char pid[5];
-    ascii2petscii(header, pheader, FILENAMEMAXSIZE);
-    ascii2petscii(id, pid, 5);
+    evalhexescape(header, pheader, FILENAMEMAXSIZE);
+    evalhexescape(id, pid, 5);
     memcpy(image + bam + get_header_offset(type), pheader, FILENAMEMAXSIZE);
     memcpy(image + bam + get_id_offset(type), pid, 5);
 
@@ -1072,7 +1072,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
     }
 }
 
-/* Prints the filetype in the same way as the C64 does when listing the directory */
+/* Prints the filetype like the C64 when listing the directory */
 static void
 print_filetype(int filetype)
 {
@@ -1274,7 +1274,7 @@ check_bam(image_type type, unsigned char* image)
     return sectorsFree;
 }
 
-/* Prints the given PETSCII filename as the C64 does when listing the directory */
+/* Prints the given PETSCII filename like the C64 when listing the directory */
 static void
 print_filename(unsigned char* pfilename)
 {
@@ -1299,7 +1299,7 @@ print_filename(unsigned char* pfilename)
     }
 }
 
-/* Prints the directory as the C64 does when listing the directory */
+/* Prints the directory like the C64 when listing the directory */
 static void
 print_directory(image_type type, unsigned char* image, int blocks_free)
 {
