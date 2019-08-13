@@ -1314,7 +1314,7 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
     }
     printf("\n");
 
-    int dirsector = 1;
+    int dirsector = (type == IMAGE_D81) ? 3 : 1;
     do {
         int dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
 
@@ -1323,7 +1323,7 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
             int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
             int blocks = image[dirblock + entryOffset + FILEBLOCKSLOOFFSET] + 256 * image[dirblock + entryOffset + FILEBLOCKSHIOFFSET];
 
-            if ((filetype & 0xf) != FILETYPEDEL) {
+            if (filetype != FILETYPEDEL) {
                 unsigned char* filename = (unsigned char*)image + dirblock + entryOffset + FILENAMEOFFSET;
                 printf("%-5d", blocks);
                 print_filename(filename);
