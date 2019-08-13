@@ -1,6 +1,6 @@
 # README #
 
-This is cc1541 v2.1, a tool for creating Commodore 1541 Floppy disk
+This is cc1541 v3.0, a tool for creating Commodore 1541 Floppy disk
 images in D64, G64, D71 or D81 format with custom sector interleaving
 etc.  Also supports extended tracks 35-40 using either SPEED DOS or
 DOLPHIN DOS BAM-formatting.
@@ -21,11 +21,31 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 
 ## Version history ##
 
-v2.1
+v3.0
 
+* ASCII to PETSCII conversion added, this breaks backward 
+  compatibility (and therefore warrants a major version increase)!
 * Support for D81 images
-* Support for hash calculation for latest Krill loader
-* ...
+* Default printout is now a full directory similar to how it would
+  be displayed on a Commodore machine
+* -v switch added for verbose output of file and block allocation
+* -M switch added to perform hash calculation and collision check for
+  latest Krill loader
+* -B switch added to allow setting the displayed file size
+* -o switch added to prevent overwriting of existing files on an 
+  image
+* -V switch added to validate images before editing them
+* -T switch added to allow setting the file type
+* -O switch added to allow setting the open flag
+* -P switch added to allow setting the protected flag
+* Hex escapes are now also allowed for diskname and ID
+* When no disk file name is provided, only the base name of the
+  input file is used as disk file name instead of the full path
+* Bugfix: fixed memory access issue for GCC 8 and -O2
+* Bugfix: G64 output is now an optional additional output using -g,
+  avoiding the utterly broken reading of G64 files
+* Bugfix: loop files have actual file size per default instead of 0
+* Bugfix: printouts to stderr and stdout are more consistent now
 
 v2.0
 
@@ -36,7 +56,7 @@ v2.0
 * Converted to ANSI C99
 * MSVC build files added
 * getopt removed
-* simple test suite added
-* bugfix: hex escape was not considered for file overwrite detection
-* bugfix: first sector per track was ignored for track 1
-* bugfix: default sector interleave was ignored for first file
+* Simple test suite added
+* Bugfix: hex escape was not considered for file overwrite detection
+* Bugfix: first sector per track was ignored for track 1
+* Bugfix: default sector interleave was ignored for first file
