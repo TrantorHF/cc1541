@@ -87,8 +87,10 @@ run_binary(const char* binary, const char* options, const char* image_name, char
 #endif
 
     if (system(command_line) != 0) {
+        free(command_line);
         return ERROR_RETURN_VALUE;
     }
+    free(command_line);
 
     if (stat(image_name, &st)) {
         return ERROR_NO_OUTPUT;
