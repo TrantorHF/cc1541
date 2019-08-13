@@ -1332,6 +1332,7 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
     petscii2ascii(bam + get_id_offset(type), aid, 5);
 
 #ifdef _WIN32
+    /* Avoid escape values for inverse printing under Windows if they are not supported by the console */
     if (EnableVTMode()) {
         printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
     } else {
@@ -2333,6 +2334,10 @@ main(int argc, char* argv[])
             }
             type = IMAGE_D71;
         } else if (strcmp(imagepath + strlen(imagepath) - 4, ".d81") == 0) {
+            if ((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
+                fprintf(stderr, "ERROR: Cannot use -4 or -5 with .d81 images\n");
+                return -1;
+            }
             type = IMAGE_D81;
             dir_sector_interleave = 1;
         }
