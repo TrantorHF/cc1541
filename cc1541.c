@@ -36,6 +36,7 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 #ifdef _WIN32
+#include <windows.h>
 #define FILESEPARATOR '\\'
 #else
 #define FILESEPARATOR '/'
@@ -1299,6 +1300,27 @@ print_filename(unsigned char* pfilename)
     }
 }
 
+#ifdef _WIN32
+/* Enables console formatting under Windows if possible */
+static bool
+EnableVTMode()
+{
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) {
+        return false;
+    }
+    dwMode |= 0x0004; /* ENABLE_VIRTUAL_TERMINAL_PROCESSING not defined for older SDKs */
+    if (!SetConsoleMode(hOut, dwMode)) {
+        return false;
+    }
+    return true;
+}
+#endif
+
 /* Prints the directory like the C64 when listing the directory */
 static void
 print_directory(image_type type, unsigned char* image, int blocks_free)
@@ -1308,7 +1330,17 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
     unsigned char* bam = image + linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
     petscii2ascii(bam + get_header_offset(type), aheader, FILENAMEMAXSIZE);
     petscii2ascii(bam + get_id_offset(type), aid, 5);
+
+#ifdef _WIN32
+    if (EnableVTMode()) {
+        printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
+    } else {
+        printf("\n0 \"%-16s\" %-5s", aheader, aid);
+    }
+#else
     printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
+#endif
+
     if(max_hash_length) {
         printf("    hash");
     }
