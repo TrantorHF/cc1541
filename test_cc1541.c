@@ -893,6 +893,25 @@ main(int argc, char* argv[])
     remove("1.prg");
     remove("2.prg");
 
+    description = "Overwriting a PRG on d81 should result in only first block allocated";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    create_value_file("2.prg", 1 * 254, 2);
+    if (run_binary(binary, "-F 0 -S 1 -f FILE -w 1.prg", "image.d81", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary_cleanup(binary, "-F 0 -S 1 -f FILE -w 2.prg", "image.d81", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[40 * 39 * 256 + 256 + 6 + 11] == (char)0xfe) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+    remove("2.prg");
+
     description = "Overwriting a PRG with a USR should result in only first block allocated";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);
@@ -932,18 +951,7 @@ main(int argc, char* argv[])
     remove("2.prg");
 
     // tests to add:
-    // - some weird ascii petscii conversions?
-    // - test validation: wrong format specified
-    // - test validation: illegal file type
-    // - test validation: illegal track
-    // - test validation: illegal sector
-    // - test validation: overlapping files
-    // - test validation: loop files
-    // - test validation: inconsistent BAM
-    // - hash calculations
-    // - hash collisions
     // - editing d71, extended(?), d81
-
 
     /* clean up */
     if (image != NULL) {
