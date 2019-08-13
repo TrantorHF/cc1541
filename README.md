@@ -23,24 +23,23 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 
 v3.0
 
-* ASCII to PETSCII conversion added, this breaks backward 
+* ASCII to PETSCII conversion added, this breaks backward
   compatibility (and therefore warrants a major version increase)!
 * Support for D81 images
-* Default printout is now a full directory similar to how it would
-  be displayed on a Commodore machine
+* Default printout is now a full directory similar to how it would be
+  displayed on a Commodore machine
 * -v switch added for verbose output of file and block allocation
 * -M switch added to perform hash calculation and collision check for
   latest Krill loader
 * -B switch added to allow setting the displayed file size
-* -o switch added to prevent overwriting of existing files on an 
-  image
+* -o switch added to prevent overwriting of existing files on an image
 * -V switch added to validate images before editing them
 * -T switch added to allow setting the file type
 * -O switch added to allow setting the open flag
 * -P switch added to allow setting the protected flag
 * Hex escapes are now also allowed for diskname and ID
-* When no disk file name is provided, only the base name of the
-  input file is used as disk file name instead of the full path
+* When no disk file name is provided, only the base name of the input
+  file is used as disk file name instead of the full path
 * Bugfix: fixed memory access issue for GCC 8 and -O2
 * Bugfix: G64 output is now an optional additional output using -g,
   avoiding the utterly broken reading of G64 files
