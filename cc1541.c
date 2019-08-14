@@ -184,21 +184,23 @@ usage()
     printf("-x            Don't split files over dirtrack hole (default split files).\n");
     printf("-F            Next file first sector on a new track (default=3).\n");
     printf("              Any negative value assumes aligned tracks and uses current\n");
-    printf("              sector + interleave.\n");
-    printf("              After each file, the value falls back to the default.\n");
+    printf("              sector + interleave. After each file, the value falls back to the\n");
+    printf("              default. Not applicable for D81.\n");
     printf("-S value      Default sector interleave, default=10.\n");
     printf("              At track end, reduces this by 1 to accomodate large tail gap.\n");
-    printf("              If negative, no special treatment of tail gap.\n");
+    printf("              If negative, no special treatment of tail gap.  Not applicable for\n");
+    printf("              D81.\n");
     printf("-s value      Next file sector interleave, valid after each file.\n");
     printf("              At track end, reduces this by 1 to accomodate large tail gap.\n");
     printf("              If negative, no special treatment of tail gap.\n");
     printf("              The interleave value falls back to the default value set by -S\n");
-    printf("              after the first sector of the next file.\n");
+    printf("              after the first sector of the next file. Not applicable for D81.\n");
     printf("-e            Start next file on an empty track (default start sector is\n");
     printf("              current sector plus interleave).\n");
     printf("-E            Try to fit file on a single track.\n");
     printf("-r track      Restrict next file blocks to the specified track or higher.\n");
     printf("-b sector     Set next file beginning sector to the specified value.\n");
+    printf("              Not applicable for D81.\n");
     printf("-c            Save next file cluster-optimized (d71 only).\n");
     printf("-4            Use tracks 35-40 with SPEED DOS BAM formatting.\n");
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
@@ -1628,10 +1630,10 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         }
 
                         if (track > image_num_tracks(type)) {
-							if (verbose) {
-								print_file_allocation(type, image, files, num_files);
-								check_bam(type, image);
-							}
+                            if (verbose) {
+                                print_file_allocation(type, image, files, num_files);
+                                check_bam(type, image);
+                            }
 
                             fprintf(stderr, "ERROR: Disk full, file %s (%s)\n", file->alocalname, file->afilename);
                             free(filedata);
@@ -2111,6 +2113,13 @@ main(int argc, char* argv[])
     int nooverwrite = 0;
     int dovalidate = 0;
     int filetype = 0x82; /* default is closed PRG */
+
+    /* flags to detect illegal settings for D81 */
+    int sector_interleave_set = 0;
+    int default_sector_interleave_set = 0;
+    int file_start_sector_set = 0;
+    int new_track_start_sector_set = 0;
+
     int retval = 0;
 
     int i, j;
@@ -2147,16 +2156,19 @@ main(int argc, char* argv[])
                 fprintf(stderr, "ERROR: Error parsing argument for -F\n");
                 return -1;
             }
+            new_track_start_sector_set = 1;
         } else if (strcmp(argv[j], "-S") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &defaultSectorInterleave)) {
                 fprintf(stderr, "ERROR: Error parsing argument for -S\n");
                 return -1;
             }
+            default_sector_interleave_set = 1;
         } else if (strcmp(argv[j], "-s") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &sectorInterleave)) {
                 fprintf(stderr, "ERROR: Error parsing argument for -s\n");
                 return -1;
             }
+            sector_interleave_set = 1;
         } else if (strcmp(argv[j], "-f") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "ERROR: Error parsing argument for -f\n");
@@ -2187,6 +2199,7 @@ main(int argc, char* argv[])
                 return -1;
             }
             files[num_files].mode = (files[num_files].mode & ~MODE_BEGINNING_SECTOR_MASK) | (i + 1);
+            file_start_sector_set = 1;
         } else if (strcmp(argv[j], "-c") == 0) {
             files[num_files].mode |= MODE_SAVECLUSTEROPTIMIZED;
         } else if (strcmp(argv[j], "-o") == 0) {
@@ -2329,7 +2342,7 @@ main(int argc, char* argv[])
             type = IMAGE_D71;
         } else if (strcmp(imagepath + strlen(imagepath) - 4, ".d81") == 0) {
             if ((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
-                fprintf(stderr, "ERROR: Cannot use -4 or -5 with .d81 images\n");
+                fprintf(stderr, "ERROR: Extended .d81 images are not supported\n");
                 return -1;
             }
             type = IMAGE_D81;
@@ -2340,6 +2353,26 @@ main(int argc, char* argv[])
     if (filename_g64 != NULL && type != IMAGE_D64) {
         fprintf(stderr, "ERROR: G64 output is only supported for non-extended D64 images\n");
         return -1;
+    }
+
+    /* Check for unsupported settings for D81 */
+    if (type == IMAGE_D81) {
+        if (default_sector_interleave_set) {
+            fprintf(stderr, "ERROR: -S is not supported for D81 images\n");
+            return -1;
+        }
+        if (sector_interleave_set) {
+            fprintf(stderr, "ERROR: -s is not supported for D81 images\n");
+            return -1;
+        }
+        if (new_track_start_sector_set) {
+            fprintf(stderr, "ERROR: -F is not supported for D81 images\n");
+            return -1;
+        }
+        if (file_start_sector_set) {
+            fprintf(stderr, "ERROR: -b is not supported for D81 images\n");
+            return -1;
+        }
     }
 
     /* quiet has precedence over verbose */
