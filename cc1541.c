@@ -1396,7 +1396,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
         if (type == IMAGE_D81) {
-            file->sectorInterleave = 1;
+            file->sectorInterleave = 1; /* TODO: disallow setting interleave in case of D81 */
         }
 
         if ((file->filetype & 0xf) == FILETYPEDEL) {
@@ -1624,15 +1624,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                                 byteOffset = 0;
                                 file->nrSectors = 0;
                             }
-
-                            if (track == shadowdirtrack) {
-                                ++track;
-                            } else {
-                                track = dirtrack(type) + 1;
-                            }
-                            if (track == dirtrack(type)) {
-                                ++track;
-                            }
+                            ++track;
                         }
 
                         if (track > image_num_tracks(type)) {
