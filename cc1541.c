@@ -2390,12 +2390,12 @@ main(int argc, char* argv[])
     FILE* f = fopen(imagepath, "rb");
     if (f == NULL) {
         if (!quiet) {
-            printf("Adding %d files to new image %s\n", num_files, basename(imagepath));
+            printf("Adding %d files to new image %s\n", num_files, basename((unsigned char*)imagepath));
         }
         initialize_directory(type, image, header, id, shadowdirtrack);
     } else {
         if (!quiet) {
-            printf("Adding %d files to existing image %s\n", num_files, basename(imagepath));
+            printf("Adding %d files to existing image %s\n", num_files, basename((unsigned char*)imagepath));
         }
         size_t read_size = fread(image, 1, imagesize, f);
         fclose(f);
