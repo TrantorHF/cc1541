@@ -942,7 +942,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
     int num_overwritten_files = 0;
 
     if (verbose && num_files > 0) {
-        printf("Creating dir entries:\n");
+        printf("\nCreating dir entries:\n");
     }
 
     for (int i = 0; i < num_files; i++) {
@@ -2362,8 +2362,14 @@ main(int argc, char* argv[])
     }
     FILE* f = fopen(imagepath, "rb");
     if (f == NULL) {
+        if (!quiet) {
+            printf("Adding %d files to new image %s\n", num_files, basename(imagepath));
+        }
         initialize_directory(type, image, header, id, shadowdirtrack);
     } else {
+        if (!quiet) {
+            printf("Adding %d files to existing image %s\n", num_files, basename(imagepath));
+        }
         size_t read_size = fread(image, 1, imagesize, f);
         fclose(f);
         if (read_size != imagesize) {
