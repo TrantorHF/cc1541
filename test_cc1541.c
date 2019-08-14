@@ -952,9 +952,6 @@ main(int argc, char* argv[])
     remove("1.prg");
     remove("2.prg");
 
-    // tests to add:
-    // - editing d71, extended(?), d81
-
     /* clean up */
     if (image != NULL) {
         free(image);
