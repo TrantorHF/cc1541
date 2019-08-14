@@ -1628,8 +1628,10 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         }
 
                         if (track > image_num_tracks(type)) {
-                            print_file_allocation(type, image, files, num_files);
-                            check_bam(type, image);
+							if (verbose) {
+								print_file_allocation(type, image, files, num_files);
+								check_bam(type, image);
+							}
 
                             fprintf(stderr, "ERROR: Disk full, file %s (%s)\n", file->alocalname, file->afilename);
                             free(filedata);
