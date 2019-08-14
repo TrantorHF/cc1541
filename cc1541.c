@@ -2343,6 +2343,11 @@ main(int argc, char* argv[])
         }
     }
 
+    if (filename_g64 != NULL && type != IMAGE_D64) {
+        fprintf(stderr, "ERROR: G64 output is only supported for non-extended D64 images\n");
+        return -1;
+    }
+
     /* quiet has precedence over verbose */
     if(quiet) {
         verbose = 0;
