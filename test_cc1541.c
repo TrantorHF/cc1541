@@ -27,10 +27,14 @@
 #include <sys/stat.h>
 #include <string.h>
 
+#define CMD_LINE_LEN  4096 + 1 /* 4k is enough for commandline buffer. */
+
 #ifdef _WIN32
 #define FILESEPARATOR "\\"
+#define NULL_DEV      "> nul"
 #else
 #define FILESEPARATOR "/"
+#define NULL_DEV      "> /dev/null"
 #endif
 
 enum {
@@ -62,7 +66,7 @@ int
 run_binary(const char* binary, const char* options, const char* image_name, char **image, size_t *size)
 {
     struct stat st;
-    char *command_line;
+    static char command_line[CMD_LINE_LEN];
 
     if (*image != NULL) {
         free(*image);
@@ -70,27 +74,11 @@ run_binary(const char* binary, const char* options, const char* image_name, char
     }
 
     /* build command line */
-    size_t command_line_len = strlen(binary) + strlen(options) + strlen(image_name) + 3 + 12; /* 3 additional for spaces and terminator */
-    command_line = (char*)calloc(command_line_len, sizeof(char));
-    if (command_line == NULL) {
-        return ERROR_ALLOCATION;
-    }
-    strcat(command_line, binary);
-    strcat(command_line, " ");
-    strcat(command_line, options);
-    strcat(command_line, " ");
-    strcat(command_line, image_name);
-#ifdef _WIN32
-    strcat(command_line, " > nul      ");
-#else
-    strcat(command_line, " > /dev/null");
-#endif
+    snprintf(command_line, CMD_LINE_LEN, "%s %s %s %s", binary, options, image_name, NULL_DEV);
 
     if (system(command_line) != 0) {
-        free(command_line);
         return ERROR_RETURN_VALUE;
     }
-    free(command_line);
 
     if (stat(image_name, &st)) {
         return ERROR_NO_OUTPUT;
