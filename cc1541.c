@@ -1799,7 +1799,7 @@ encode_4_bytes_gcr(char* in, char* out)
 }
 
 /* Writes image as G64 file */
-static void
+static int
 generate_uniformat_g64(unsigned char* image, const char *imagepath)
 {
     FILE* f = fopen(imagepath, "wb");
@@ -1894,8 +1894,9 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
         int gap_size = (track_bytes - data_bytes) / num_sectors;
         if (gap_size < 0) {
             printf("\nERROR: Track too small for G64 output\n");
+            fclose(f);
 
-            exit(-1);
+            return -1;
         }
 
         float average_gap_remainder = (((float) (track_bytes - data_bytes)) / num_sectors) - gap_size;
@@ -1979,6 +1980,8 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
     if (!is_uniform) {
         printf("\nWARNING: \"%s\" is not UniFormAt'ed\n", imagepath);
     }
+
+    return 0;
 }
 
 /* Performs strict CBM DOS validation on the image */
@@ -2455,7 +2458,9 @@ main(int argc, char* argv[])
 
     /* Save optional g64 image */
     if (filename_g64 != NULL) {
-        generate_uniformat_g64(image, filename_g64);
+        /* retval might be set to -1 already.  Thus we need to take its
+           previous state and OR it with the following return value. */
+        retval |= generate_uniformat_g64(image, filename_g64);
     }
 
     if (!ignore_collision && check_hashes(type, image)) {
