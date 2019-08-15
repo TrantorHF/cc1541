@@ -25,6 +25,9 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 * "cc1541 -s 4 -f program -w program.prg image.d64" writes file
   with a dedicated sector interleave for a fastloader (the best
   value depends on the used fastloader and its configuration)
+* "cc1541 -T DEL -O -f program -w program.prg image.d64" effectively
+  deletes file "program", as an open DEL file is the marker for
+  a completely deleted file in Commodore DOS.
 
 ## Version history ##
 
