@@ -1891,7 +1891,7 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
         int data_bytes = num_sectors * block_size;
         int gap_size = (track_bytes - data_bytes) / num_sectors;
         if (gap_size < 0) {
-            printf("Error: track too small\n");
+            printf("\nERROR: Track too small for G64 output\n");
 
             exit(-1);
         }
@@ -1975,7 +1975,7 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
     fclose(f);
 
     if (!is_uniform) {
-        printf("Warning: \"%s\" is not UniFormAt'ed\n", imagepath);
+        printf("\nWARNING: \"%s\" is not UniFormAt'ed\n", imagepath);
     }
 }
 
