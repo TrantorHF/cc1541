@@ -1,17 +1,13 @@
 # README #
 
 This is cc1541 v3.0, a tool for creating Commodore 1541 Floppy disk
-images in D64, G64, D71 or D81 format with custom sector interleaving
+images in D64, D71 or D81 format with custom sector interleaving
 etc.  Also supports extended tracks 35-40 using either SPEED DOS or
 DOLPHIN DOS BAM-formatting.
 
 Originally written by JackAsser, with improvements and fixes by
 Krill, some more improvements by Claus and further improvements by
 Bjoern Esser.
-
-The file test_cc1541.c contains a simple test suite that will call
-the cc1541 binary with different commandlines and examine the
-resulting image file.
 
 The program is provided under the terms of the MIT license, please
 refer to the included LICENSE.txt file for its terms and conditions.
