@@ -17,6 +17,7 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 
 ## Usage examples ##
 
+* "cc1541 -h" shows the command line help
 * "cc1541 image.d64" lists the content of image.d64
 * "cc1541 -f program -w program.prg image.d64" adds the file
   program.prg to image.d64 using the name "program"
