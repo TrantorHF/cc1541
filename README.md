@@ -19,6 +19,17 @@ refer to the included LICENSE.txt file for its terms and conditions.
 The public source code repository can be found here:
 https://bitbucket.org/PTV_Claus/cc1541/src/master/
 
+## Usage examples ##
+
+* "cc1541 image.d64" lists the content of image.d64
+* "cc1541 -f program -w program.prg image.d64" adds the file
+  program.prg to image.d64 using the name "program"
+* "cc1541 -f program1 -w program1.prg -f program2 -w program2.prg
+  image.d64" adds two files under the names program1 and program2
+* "cc1541 -s 4 -f program -w program.prg image.d64" writes file
+  with a dedicated sector interleave for a fastloader (the best
+  value depends on the used fastloader and its configuration)
+
 ## Version history ##
 
 v3.0
