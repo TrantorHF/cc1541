@@ -81,10 +81,10 @@
 #define FILESTART              2
 
 typedef struct {
-    const unsigned char* alocalname;                      /* local file name or name of loop file in ASCII */
-    unsigned char        plocalname[FILENAMEMAXSIZE];     /* loop file in PETSCII */
-    const unsigned char* afilename;                       /* disk file name in ASCII */
-    unsigned char        pfilename[FILENAMEMAXSIZE + 1];  /* disk file name in PETSCII */
+    const unsigned char* alocalname;                  /* local file name or name of loop file in ASCII */
+    unsigned char        plocalname[FILENAMEMAXSIZE]; /* loop file in PETSCII */
+    const unsigned char* afilename;                   /* disk file name in ASCII */
+    unsigned char        pfilename[FILENAMEMAXSIZE];  /* disk file name in PETSCII */
     int                  direntryindex;
     int                  direntrysector;
     int                  direntryoffset;
@@ -147,9 +147,9 @@ sectors_per_track_extended[] = {
     /* 76-80 */ 17,17,17,17,17
 };
 
-static int quiet = 0;           /* global quiet flag */
-static int verbose = 0;         /* global verbose flag */
-static int num_files = 0;       /* number of files to be written provided by the user */
+static int quiet           = 0; /* global quiet flag */
+static int verbose         = 0; /* global verbose flag */
+static int num_files       = 0; /* number of files to be written provided by the user */
 static int max_hash_length = 0; /* number of bytes of the filenames to calculate the hash over */
 
 /* Prints the commandline help */
