@@ -7,7 +7,7 @@ DOLPHIN DOS BAM-formatting.
 
 Originally written by JackAsser, with improvements and fixes by
 Krill, some more improvements by Claus and further improvements by
-Bjoern Esser.
+Björn Esser.
 
 The program is provided under the terms of the MIT license, please
 refer to the included LICENSE.txt file for its terms and conditions.
