@@ -20,7 +20,7 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 * "cc1541 -h" shows the command line help
 * "cc1541 image.d64" lists the content of image.d64
 * "cc1541 -f program -w program.prg image.d64" adds the file
-  program.prg to image.d64 (or creates the image if it does not 
+  program.prg to image.d64 (or creates the image if it does not
   exist yet) using the name "program"
 * "cc1541 -f program1 -w program1.prg -f program2 -w program2.prg
   image.d64" adds two files under the names program1 and program2
