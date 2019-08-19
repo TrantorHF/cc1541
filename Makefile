@@ -1,12 +1,20 @@
 CC1541_CFLAGS = -std=c99 -pipe -O2 -Wall -Wextra -pedantic
 
+ALL_TARGETS = cc1541
+
+ifneq ($(ENABLE_MAN),)
+ALL_TARGETS += man
+endif
+
 ifneq ($(ENABLE_WERROR),)
 CC1541_CFLAGS += -Werror
 endif
 
 override CFLAGS := $(CC1541_CFLAGS) $(CFLAGS)
 
-bindir ?= /usr/local/bin
+prefix ?= /usr/local
+bindir ?= $(prefix)/bin
+mandir ?= $(prefix)/share/man
 
 INSTALL ?= install
 
@@ -14,7 +22,7 @@ VERSION := $(shell grep 'define VERSION' cc1541.c | cut -d\" -f2)
 
 CC1541_SRC := Makefile $(wildcard *.c *.h *.in *.sln *.vcxproj* LICENSE* README*)
 
-all: cc1541
+all: $(ALL_TARGETS)
 
 cc1541: cc1541.c
 
@@ -35,6 +43,9 @@ test: check
 
 install: all
 	$(INSTALL) -Dpm 0755 ./cc1541 $(DESTDIR)$(bindir)/cc1541
+ifneq ($(ENABLE_MAN),)
+	$(INSTALL) -Dpm 0644 ./cc1541.1 $(DESTDIR)$(mandir)/man1/cc1541.1
+endif
 
 cc1541-$(VERSION).tar: $(CC1541_SRC)
 	rm -rf cc1541-$(VERSION)/ *~ README.md.T
