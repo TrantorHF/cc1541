@@ -147,17 +147,17 @@ sectors_per_track_extended[] = {
     /* 76-80 */ 17,17,17,17,17
 };
 
-static int quiet           = 0; /* global quiet flag */
-static int verbose         = 0; /* global verbose flag */
-static int num_files       = 0; /* number of files to be written provided by the user */
-static int max_hash_length = 0; /* number of bytes of the filenames to calculate the hash over */
+static int quiet           = 0;  /* global quiet flag */
+static int verbose         = 0;  /* global verbose flag */
+static int num_files       = 0;  /* number of files to be written provided by the user */
+static int max_hash_length = 16; /* number of bytes of the filenames to calculate the hash over */
 
 /* Prints the commandline help */
 static void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niwfoVTPOlBMdtuxFsSeErbc45gqvh image.[d64|d71|d81]\n\n");
+    printf("Usage: cc1541 -niwfoVTPOlBMmdtuxFsSeErbc45gqvh image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='DEFAULT'.\n");
     printf("-i id         Disk ID, default='LODIS'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
@@ -176,7 +176,9 @@ usage()
     printf("              the next file.\n");
     printf("-M numchars   Hash computation maximum filename length, this must\n");
     printf("              match loader option FILENAME_MAXLENGTH in the Krill loader.\n");
-    printf("              If this switch is set, a check for hash collision is performed.\n");
+    printf("              Default is 16.\n");
+    printf("-m            Ignore filename hash collisions, without this switch a collision\n");
+    printf("              results in an error.\n");
     printf("-d track      Maintain a shadow directory (copy of the actual directory without\n");
     printf("              a valid BAM).\n");
     printf("-t            Use dirtrack to also store files (makes -x useless) (default no).\n");
@@ -502,6 +504,7 @@ check_hashes(image_type type, unsigned char* image)
 {
     bool collision = false;
 
+    printf("\n");
     int dirsector = 1;
     do {
         int dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
@@ -515,7 +518,7 @@ check_hashes(image_type type, unsigned char* image)
                     collision = 1;
                     unsigned char afilename[FILENAMEMAXSIZE + 1];
                     petscii2ascii(filename, afilename, FILENAMEMAXSIZE);
-                    fprintf(stderr, "ERROR: Hash of filename \"%s\" [$%04x] is not unique\n", afilename, filenamehash(filename));
+                    fprintf(stderr, "Hash of filename \"%s\" [$%04x] is not unique\n", afilename, filenamehash(filename));
                     count_hashes(type, image, filenamehash(filename), true /* print */);
                 }
             }
@@ -1336,18 +1339,13 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
 #ifdef _WIN32
     /* Avoid escape values for inverse printing under Windows if they are not supported by the console */
     if (EnableVTMode()) {
-        printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
+        printf("\n0 \033[7m\"%-16s\" %-5s\033[m    hash\n", aheader, aid);
     } else {
-        printf("\n0 \"%-16s\" %-5s", aheader, aid);
+        printf("\n0 \"%-16s\" %-5s    hash\n", aheader, aid);
     }
 #else
-    printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
+    printf("\n0 \033[7m\"%-16s\" %-5s\033[m    hash\n", aheader, aid);
 #endif
-
-    if(max_hash_length) {
-        printf("    hash");
-    }
-    printf("\n");
 
     int dirsector = (type == IMAGE_D81) ? 3 : 1;
     do {
@@ -1363,10 +1361,7 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
                 printf("%-5d", blocks);
                 print_filename(filename);
                 print_filetype(filetype);
-                if (max_hash_length) {
-                    printf(" [$%04x]", filenamehash(filename));
-                }
-                printf("\n");
+                printf(" [$%04x]\n", filenamehash(filename));
             }
         }
 
@@ -2112,6 +2107,7 @@ main(int argc, char* argv[])
     int set_header = 0;
     int nooverwrite = 0;
     int dovalidate = 0;
+    int ignore_collision = 0;
     int filetype = 0x82; /* default is closed PRG */
 
     /* flags to detect illegal settings for D81 */
@@ -2151,6 +2147,8 @@ main(int argc, char* argv[])
                 fprintf(stderr, "ERROR: Hash computation maximum filename length %d specified\n", max_hash_length);
                 return -1;
             }
+        } else if (strcmp(argv[j], "-m") == 0) {
+            ignore_collision = 1;
         } else if (strcmp(argv[j], "-F") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &first_sector_new_track)) {
                 fprintf(stderr, "ERROR: Error parsing argument for -F\n");
@@ -2453,8 +2451,8 @@ main(int argc, char* argv[])
         generate_uniformat_g64(image, filename_g64);
     }
 
-    if (max_hash_length && check_hashes(type, image)) {
-        fprintf(stderr, "ERROR: Filename hash collision detected\n");
+    if (!ignore_collision && check_hashes(type, image)) {
+        fprintf(stderr, "\nERROR: Filename hash collision detected, image is not compatible with Krill loader. Use -m to ignore this error.\n");
         retval = -1;
     }
 

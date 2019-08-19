@@ -39,8 +39,9 @@ v3.0
 * Default printout is now a full directory similar to how it would be
   displayed on a Commodore machine
 * -v switch added for verbose output of file and block allocation
-* -M switch added to perform hash calculation and collision check for
-  latest Krill loader
+* -M switch added to specify number of characters for filename hash
+  calculation for latest Krill loader
+* -m switch added to skip filename collision check
 * -B switch added to allow setting the displayed file size
 * -o switch added to prevent overwriting of existing files on an image
 * -V switch added to validate images before editing them
