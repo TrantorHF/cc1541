@@ -1452,7 +1452,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
                     exit(-1);
                 }
-                if ((!usedirtrack)
+                while ((!usedirtrack)
                         && ((track == dirtrack(type)) || (track == shadowdirtrack)
                             || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                     ++track; /* skip dir track */
@@ -1506,7 +1506,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                             } else {
                                 ++track;
                             }
-                            if ((!usedirtrack)
+                            while ((!usedirtrack)
                                     && ((track == dirtrack(type)) || (track == shadowdirtrack)
                                         || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                                 ++track; /* skip dir track */
@@ -1605,7 +1605,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         sector += num_sectors(type, prev_track);
                         sector %= num_sectors(type, prev_track);
 
-                        if ((!usedirtrack)
+                        while ((!usedirtrack)
                                 && ((track == dirtrack(type)) || (track == shadowdirtrack)
                                     || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                             /* Delete old fragments and restart file */
