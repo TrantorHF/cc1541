@@ -4,6 +4,7 @@
 # and converted to UNIX line endings on checkout.
 *.c             text eol=lf
 *.h             text eol=lf
+*.in            text eol=lf
 *.md            text eol=lf
 *.txt           text eol=lf
 *.yml           text eol=lf

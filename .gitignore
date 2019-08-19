@@ -19,3 +19,7 @@
 # Source tarball
 cc1541-*.tar*
 cc1541-*.zip
+
+# Manpage
+/cc1541.1
+/cc1541.1.txt

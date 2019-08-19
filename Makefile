@@ -12,11 +12,19 @@ INSTALL ?= install
 
 VERSION := $(shell grep 'define VERSION' cc1541.c | cut -d\" -f2)
 
-CC1541_SRC := Makefile $(wildcard *.c *.h *.sln *.vcxproj* LICENSE* README*)
+CC1541_SRC := Makefile $(wildcard *.c *.h *.in *.sln *.vcxproj* LICENSE* README*)
 
 all: cc1541
 
 cc1541: cc1541.c
+
+cc1541.1.txt: cc1541.1.txt.in
+	sed -e "s/@@VERSION@@/$(VERSION)/g" < cc1541.1.txt.in > cc1541.1.txt
+
+cc1541.1: cc1541.1.txt
+	a2x -d manpage -f manpage cc1541.1.txt
+
+man: cc1541.1
 
 test_cc1541: test_cc1541.c
 
@@ -69,14 +77,15 @@ dist-check: dist
 codestyle: cc1541.c test_cc1541.c
 	astyle --style=kr -n -s -z2 cc1541.c test_cc1541.c
 
-wrap: README.md
-	fold -s -w 70 < README.md | \
-	  perl -pe 's/[\t\040]+$$//' > README.md.T
-	mv -f README.md.T README.md
+wrap: cc1541.1.txt.in README.md
+	for f in $^; do \
+	  fold -s -w 70 < $$f | perl -pe 's/[\t\040]+$$//' > $$f.T; \
+	  mv -f $$f.T $$f; \
+	done
 
 clean:
-	rm -rf cc1541-$(VERSION)/ *~ README.md.T *.o *.orig cc1541 test_cc1541 cc1541-$(VERSION).*
+	rm -rf cc1541-$(VERSION)/ *~ README.md.T *.o *.orig cc1541 test_cc1541 cc1541-$(VERSION).* cc1541.1 cc1541.1.txt
 
-.PHONY: all check clean codestyle dist dist-all dist-bz2 dist-check dist-gz dist-xz dist-zip install test wrap
+.PHONY: all check clean codestyle dist dist-all dist-bz2 dist-check dist-gz dist-xz dist-zip install man test wrap
 
 .NOTPARALLEL: cc1541-$(VERSION).tar cc1541-$(VERSION).zip
