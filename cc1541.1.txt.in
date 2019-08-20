@@ -62,8 +62,11 @@ the next file.
 
 *-M numchars*::
   Hash computation maximum filename length, this must match loader
-option FILENAME_MAXLENGTH in the Krill loader.  If this switch is
-set, a check for hash collision is performed.
+option FILENAME_MAXLENGTH in Krill's Loader.  Default is 16.
+
+*-m*::
+  Ignore filename hash collisions, without this switch a collision
+results in an error.
 
 *-d track*::
   Maintain a shadow directory (copy of the actual directory without a

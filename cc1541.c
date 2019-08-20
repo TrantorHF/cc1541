@@ -175,7 +175,7 @@ usage()
     printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
     printf("              the next file.\n");
     printf("-M numchars   Hash computation maximum filename length, this must\n");
-    printf("              match loader option FILENAME_MAXLENGTH in the Krill loader.\n");
+    printf("              match loader option FILENAME_MAXLENGTH in Krill's Loader.\n");
     printf("              Default is 16.\n");
     printf("-m            Ignore filename hash collisions, without this switch a collision\n");
     printf("              results in an error.\n");
@@ -224,7 +224,7 @@ basename(const unsigned char* path)
     return name;
 }
 
-/* Calculates a hash from a filename to be used by the Krill loader */
+/* Calculates a hash from a filename to be used by Krill's Loader */
 static unsigned int
 filenamehash(const unsigned char *filename)
 {
@@ -2459,7 +2459,7 @@ main(int argc, char* argv[])
     }
 
     if (!ignore_collision && check_hashes(type, image)) {
-        fprintf(stderr, "\nERROR: Filename hash collision detected, image is not compatible with Krill's loader. Use -m to ignore this error.\n");
+        fprintf(stderr, "\nERROR: Filename hash collision detected, image is not compatible with Krill's Loader. Use -m to ignore this error.\n");
         retval = -1;
     }
 
