@@ -931,7 +931,7 @@ next_dir_entry(image_type type, unsigned char* image, int *offset)
 static int
 get_dir_entry_offset(image_type type, unsigned char* image, int index)
 {
-    int offset = linear_sector(type, dirtrack(type), 1) * BLOCKSIZE;
+    int offset = linear_sector(type, dirtrack(type), (type == IMAGE_D81 ? 3 : 1)) * BLOCKSIZE;
     for (int i = 0; i < index; i++) {
         next_dir_entry(type, image, &offset);
     }
@@ -1339,13 +1339,17 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
 #ifdef _WIN32
     /* Avoid escape values for inverse printing under Windows if they are not supported by the console */
     if (EnableVTMode()) {
-        printf("\n0 \033[7m\"%-16s\" %-5s\033[m    hash\n", aheader, aid);
+        printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
     } else {
-        printf("\n0 \"%-16s\" %-5s    hash\n", aheader, aid);
+        printf("\n0 \"%-16s\" %-5s", aheader, aid);
     }
 #else
-    printf("\n0 \033[7m\"%-16s\" %-5s\033[m    hash\n", aheader, aid);
+    printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
 #endif
+    if (verbose) {
+        printf("    hash");
+    }
+    printf("\n");
 
     int dirsector = (type == IMAGE_D81) ? 3 : 1;
     do {
@@ -1361,7 +1365,10 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
                 printf("%-5d", blocks);
                 print_filename(filename);
                 print_filetype(filetype);
-                printf(" [$%04x]\n", filenamehash(filename));
+                if (verbose) {
+                    printf(" [$%04x]", filenamehash(filename));
+                }
+                printf("\n");
             }
         }
 
@@ -2452,7 +2459,7 @@ main(int argc, char* argv[])
     }
 
     if (!ignore_collision && check_hashes(type, image)) {
-        fprintf(stderr, "\nERROR: Filename hash collision detected, image is not compatible with Krill loader. Use -m to ignore this error.\n");
+        fprintf(stderr, "\nERROR: Filename hash collision detected, image is not compatible with Krill's loader. Use -m to ignore this error.\n");
         retval = -1;
     }
 
