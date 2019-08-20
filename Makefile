@@ -88,7 +88,7 @@ dist-check: dist
 codestyle: cc1541.c test_cc1541.c
 	astyle --style=kr -n -s -z2 cc1541.c test_cc1541.c
 
-wrap: cc1541.1.txt.in README.md
+wrap: cc1541.1.txt.in LICENSE.txt README.md
 	for f in $^; do \
 	  fold -s -w 70 < $$f | perl -pe 's/[\t\040]+$$//' > $$f.T; \
 	  mv -f $$f.T $$f; \
