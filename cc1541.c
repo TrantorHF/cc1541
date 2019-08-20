@@ -931,7 +931,7 @@ next_dir_entry(image_type type, unsigned char* image, int *offset)
 static int
 get_dir_entry_offset(image_type type, unsigned char* image, int index)
 {
-    int offset = linear_sector(type, dirtrack(type), (type == IMAGE_D81 ? 3 : 1)) * BLOCKSIZE;
+    int offset = linear_sector(type, dirtrack(type), (type == IMAGE_D81) ? 3 : 1) * BLOCKSIZE;
     for (int i = 0; i < index; i++) {
         next_dir_entry(type, image, &offset);
     }
