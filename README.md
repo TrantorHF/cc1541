@@ -54,6 +54,9 @@ v3.0
 * When no disk file name is provided, only the base name of the input
   file is used as disk file name instead of the full path
 * Bugfix: fixed memory access issue for GCC 8 and -O2
+* Bugfix: fixed endless loop when reaching track 53 on a D71
+* Bugfix: fixed that (shadow) directory track would be used for data
+  when the shadow directory is a neighbour of the actual directory
 * Bugfix: G64 output is now an optional additional output using -g,
   avoiding the utterly broken reading of G64 files
 * Bugfix: loop files have actual file size per default instead of 0
