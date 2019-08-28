@@ -82,7 +82,7 @@ dist: dist-gz dist-zip
 
 dist-check: dist
 	tar xf cc1541-$(VERSION).tar.gz
-	$(MAKE) -C cc1541-$(VERSION)/ check
+	$(MAKE) -C cc1541-$(VERSION)/ all check
 	rm -rf cc1541-$(VERSION)/
 
 codestyle: cc1541.c test_cc1541.c
