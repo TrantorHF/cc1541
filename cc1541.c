@@ -2264,6 +2264,7 @@ main(int argc, char* argv[])
             filename = NULL;
             sectorInterleave = 0;
             nrSectorsShown = -1;
+            filetype = 0x82;
             num_files++;
             j++;
         } else if (strcmp(argv[j], "-l") == 0) {
@@ -2288,6 +2289,7 @@ main(int argc, char* argv[])
             filename = NULL;
             sectorInterleave = 0;
             nrSectorsShown = -1;
+            filetype = 0x82;
             num_files++;
             j++;
         } else if (strcmp(argv[j], "-x") == 0) {
