@@ -897,6 +897,7 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, int *e
 {
     int direntryindex = 0;
     int offset = BLOCKSIZE * linear_sector(type, dirtrack(type), (type == IMAGE_D81) ? 3 : 1);
+    *entry_offset = -1;
 
     do {
         int filetype = image[offset + FILETYPEOFFSET] & 0xf;
@@ -906,6 +907,14 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, int *e
         case FILETYPEUSR:
         case FILETYPEREL:
             if (memcmp(image + offset + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
+                *entry_offset = offset;
+                return direntryindex;
+            }
+            break;
+        case FILETYPEDEL:
+            if (image[offset + FILETYPEOFFSET] == 0 && *entry_offset == -1) {
+                *entry_offset = offset; /* save offset of first free slot */
+            } else if(memcmp(image + offset + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
                 *entry_offset = offset;
                 return direntryindex;
             }
@@ -957,7 +966,6 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
 
             for (int j = 0; (!found) && (j < DIRENTRIESPERBLOCK); ++j, ++direntryindex) {
                 entryOffset = j * DIRENTRYSIZE;
-                /* this assumes the dir only holds PRG files */
                 int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
                 switch (filetype) {
                 case FILETYPESEQ:
