@@ -858,15 +858,76 @@ wipe_file(image_type type, unsigned char* image, unsigned int track, unsigned in
     }
 }
 
+/* Sets image offset to the next DIR entry, returns 0 when the DIR end was reached */
+static int
+next_dir_entry(image_type type, unsigned char* image, int *offset)
+{
+    if (*offset % BLOCKSIZE == 7 * DIRENTRYSIZE) {
+        /* last entry in sector */
+        int sector_offset = (*offset / BLOCKSIZE) * BLOCKSIZE;
+        int track = image[sector_offset];
+        if (track == 0) {
+            /* this was the last DIR sector */
+            return 0;
+        } else {
+            /* follow the t/s link */
+            int sector = image[sector_offset + 1];
+            *offset = linear_sector(type, track, sector) * BLOCKSIZE;
+        }
+    } else {
+        *offset += DIRENTRYSIZE;
+    }
+    return 1;
+}
+
+/* Returns the byte offset of the directory entry with the given index */
+static int
+get_dir_entry_offset(image_type type, unsigned char* image, int index)
+{
+    int offset = linear_sector(type, dirtrack(type), (type == IMAGE_D81) ? 3 : 1) * BLOCKSIZE;
+    for (int i = 0; i < index; i++) {
+        next_dir_entry(type, image, &offset);
+    }
+    return offset;
+}
+
 /* Returns index of file with given filename or -1 if it does not exist */
 static int
 find_file(image_type type, unsigned char* image, unsigned char* filename, unsigned char *track, unsigned char *sector, int *numblocks)
 {
     int direntryindex = 0;
+#if 1
+    int offset = BLOCKSIZE * linear_sector(type, dirtrack(type), (type == IMAGE_D81) ? 3 : 1);
 
+    do {
+        int filetype = image[offset + FILETYPEOFFSET] & 0xf;
+        switch (filetype) {
+        case FILETYPESEQ:
+        case FILETYPEPRG:
+        case FILETYPEUSR:
+        case FILETYPEREL:
+            if (memcmp(image + offset + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
+                *track = image[offset + FILETRACKOFFSET];
+                *sector = image[offset + FILESECTOROFFSET];
+                *numblocks = image[offset + FILEBLOCKSLOOFFSET] + 256 * image[offset + FILEBLOCKSHIOFFSET];
+                return direntryindex;
+            }
+            break;
+
+        default:
+            break;
+        }
+
+        ++direntryindex;
+    } while (next_dir_entry(type, image, &offset));
+
+    return -1;
+
+#else
     int dirsector = (type == IMAGE_D81) ? 3 : 1;
     int dirblock;
     int entryOffset;
+
     do {
         dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
         for (int j = 0; j < DIRENTRIESPERBLOCK; ++j) {
@@ -903,39 +964,7 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, unsign
     } while (1);
 
     return -1;
-}
-
-/* Sets image offset to the next DIR entry, returns 0 when the DIR end was reached */
-static int
-next_dir_entry(image_type type, unsigned char* image, int *offset)
-{
-    if (*offset % BLOCKSIZE == 7 * DIRENTRYSIZE) {
-        /* last entry in sector */
-        int sector_offset = (*offset / BLOCKSIZE) * BLOCKSIZE;
-        int track = image[sector_offset];
-        if (track == 0) {
-            /* this was the last DIR sector */
-            return 0;
-        } else {
-            /* follow the t/s link */
-            int sector = image[sector_offset + 1];
-            *offset = linear_sector(type, track, sector) * BLOCKSIZE;
-        }
-    } else {
-        *offset += DIRENTRYSIZE;
-    }
-    return 1;
-}
-
-/* Returns the byte offset of the directory entry with the given index */
-static int
-get_dir_entry_offset(image_type type, unsigned char* image, int index)
-{
-    int offset = linear_sector(type, dirtrack(type), (type == IMAGE_D81) ? 3 : 1) * BLOCKSIZE;
-    for (int i = 0; i < index; i++) {
-        next_dir_entry(type, image, &offset);
-    }
-    return offset;
+#endif
 }
 
 /* Adds the specified new entries to the directory */
@@ -957,6 +986,8 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         if (verbose) {
             printf("  \"%s\"\n", file->afilename);
         }
+
+        /* BUG! Use find_file to search for file here. If it exists, evaluate -o and set dirblock and entry offset accordingly. */
 
         int direntryindex = 0;
 
