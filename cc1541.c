@@ -893,10 +893,9 @@ get_dir_entry_offset(image_type type, unsigned char* image, int index)
 
 /* Returns index of file with given filename or -1 if it does not exist */
 static int
-find_file(image_type type, unsigned char* image, unsigned char* filename, unsigned char *track, unsigned char *sector, int *numblocks)
+find_file(image_type type, unsigned char* image, unsigned char* filename, int *entry_offset)
 {
     int direntryindex = 0;
-#if 1
     int offset = BLOCKSIZE * linear_sector(type, dirtrack(type), (type == IMAGE_D81) ? 3 : 1);
 
     do {
@@ -907,13 +906,10 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, unsign
         case FILETYPEUSR:
         case FILETYPEREL:
             if (memcmp(image + offset + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
-                *track = image[offset + FILETRACKOFFSET];
-                *sector = image[offset + FILESECTOROFFSET];
-                *numblocks = image[offset + FILEBLOCKSLOOFFSET] + 256 * image[offset + FILEBLOCKSHIOFFSET];
+                *entry_offset = offset;
                 return direntryindex;
             }
             break;
-
         default:
             break;
         }
@@ -922,49 +918,6 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, unsign
     } while (next_dir_entry(type, image, &offset));
 
     return -1;
-
-#else
-    int dirsector = (type == IMAGE_D81) ? 3 : 1;
-    int dirblock;
-    int entryOffset;
-
-    do {
-        dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
-        for (int j = 0; j < DIRENTRIESPERBLOCK; ++j) {
-            entryOffset = j * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
-            switch (filetype) {
-            case FILETYPESEQ:
-            case FILETYPEPRG:
-            case FILETYPEUSR:
-            case FILETYPEREL:
-                if (memcmp(image + dirblock + entryOffset + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
-                    *track = image[dirblock + entryOffset + FILETRACKOFFSET];
-                    *sector = image[dirblock + entryOffset + FILESECTOROFFSET];
-                    *numblocks = image[dirblock + entryOffset + FILEBLOCKSLOOFFSET] + 256*image[dirblock + entryOffset + FILEBLOCKSHIOFFSET];
-                    return direntryindex;
-                }
-                break;
-
-            default:
-                break;
-            }
-
-            ++direntryindex;
-        }
-
-        /* file not found in current dir block, try next */
-        if (image[dirblock + TRACKLINKOFFSET] == dirtrack(type)) {
-            dirsector = image[dirblock + SECTORLINKOFFSET];
-
-            continue;
-        }
-
-        break;
-    } while (1);
-
-    return -1;
-#endif
 }
 
 /* Adds the specified new entries to the directory */
@@ -1751,7 +1704,11 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
         if (((file->filetype & 0xf) != FILETYPEDEL) && (file->mode & MODE_LOOPFILE)) {
-            int direntryindex = find_file(type, image, file->plocalname, &track, &sector, &file->nrSectors);
+            int offset;
+            int direntryindex = find_file(type, image, file->plocalname, &offset);
+            track = image[offset + FILETRACKOFFSET];
+            sector = image[offset + FILESECTOROFFSET];
+            file->nrSectors = image[offset + FILEBLOCKSLOOFFSET] + 256 * image[offset + FILEBLOCKSHIOFFSET];
             if (direntryindex >= 0) {
                 /* read track/sector and nrSectors from disk image */
                 int entryOffset = get_dir_entry_offset(type, image, direntryindex);
