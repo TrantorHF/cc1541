@@ -891,7 +891,8 @@ get_dir_entry_offset(image_type type, unsigned char* image, int index)
     return offset;
 }
 
-/* Returns index of file with given filename or -1 if it does not exist */
+/* Returns index of file with given filename or -1 if it does not exist. */
+/* entry_offset points to the dir entry if it exists, or to the first empty slot, or is -1 if the dir is full. */
 static int
 find_file(image_type type, unsigned char* image, unsigned char* filename, int *entry_offset)
 {
@@ -1714,34 +1715,30 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
         if (((file->filetype & 0xf) != FILETYPEDEL) && (file->mode & MODE_LOOPFILE)) {
             int offset;
             int direntryindex = find_file(type, image, file->plocalname, &offset);
-            track = image[offset + FILETRACKOFFSET];
-            sector = image[offset + FILESECTOROFFSET];
-            file->nrSectors = image[offset + FILEBLOCKSLOOFFSET] + 256 * image[offset + FILEBLOCKSHIOFFSET];
             if (direntryindex >= 0) {
                 /* read track/sector and nrSectors from disk image */
-                int entryOffset = get_dir_entry_offset(type, image, direntryindex);
-                file->track = image[entryOffset + FILETRACKOFFSET];
-                file->sector = image[entryOffset + FILESECTOROFFSET];
-                file->nrSectors = image[entryOffset + FILEBLOCKSLOOFFSET] + (image[entryOffset + FILEBLOCKSHIOFFSET] << 8);
+                file->track = image[offset + FILETRACKOFFSET];
+                file->sector = image[offset + FILESECTOROFFSET];
+                file->nrSectors = image[offset + FILEBLOCKSLOOFFSET] + (image[offset + FILEBLOCKSHIOFFSET] << 8);
 
                 /* update directory entry */
-                entryOffset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
-                image[entryOffset + FILETRACKOFFSET] = file->track;
-                image[entryOffset + FILESECTOROFFSET] = file->sector;
+                offset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+                image[offset + FILETRACKOFFSET] = file->track;
+                image[offset + FILESECTOROFFSET] = file->sector;
 
                 if (file->nrSectorsShown == -1) {
                     file->nrSectorsShown = file->nrSectors;
                 }
-                image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
-                image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
+                image[offset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
+                image[offset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
 
                 if (shadowdirtrack > 0) {
-                    entryOffset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
-                    image[entryOffset + FILETRACKOFFSET] = file->track;
-                    image[entryOffset + FILESECTOROFFSET] = file->sector;
+                    offset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+                    image[offset + FILETRACKOFFSET] = file->track;
+                    image[offset + FILESECTOROFFSET] = file->sector;
 
-                    image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
-                    image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
+                    image[offset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
+                    image[offset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
                 }
 
                 continue;
