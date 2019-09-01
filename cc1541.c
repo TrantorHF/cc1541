@@ -952,9 +952,9 @@ find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, in
         return false;
     }
     /* allocate new dir block */
-    int last_sector = (*entry_offset / BLOCKSIZE);
+    int last_sector = *dirsector;
     int next_sector = -1;
-    for (int s = 0; s < num_sectors(type, dirtrack(type)); s++) {
+    for (int s = 1; s < num_sectors(type, dirtrack(type)); s++) {
         int sector = (last_sector + s * dir_sector_interleave) % num_sectors(type, dirtrack(type));
         if (is_sector_free(type, image, dirtrack(type), sector, 0, 0)) {
             next_sector = sector;
