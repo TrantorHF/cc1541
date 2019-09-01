@@ -940,6 +940,51 @@ main(int argc, char* argv[])
     remove("1.prg");
     remove("2.prg");
 
+    description = "After having set type, open and protected flag next file should go back to normal PRG as default";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-T USR -P -O -f file1 -w 1.prg -f file2 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 256 + 32 + 2] == (char)0x82) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "File should be overwritten even if there is a free dir slot before";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary(binary, "-f file1 -w 1.prg -f file2 -w 1.prg -f file1 -T DEL -O -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary_cleanup(binary, "-f file2 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 256 +2] == (char)0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Writing 9 files should allocate new dir sector";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg -f 2 -w 1.prg -f 3 -w 1.prg -f 4 -w 1.prg -f 5 -w 1.prg -f 6 -w 1.prg -f 7 -w 1.prg -f 8 -w 1.prg -f 9 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 256 + 3*256 + 2] == (char)0x82) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
     /* clean up */
     if (image != NULL) {
         free(image);
