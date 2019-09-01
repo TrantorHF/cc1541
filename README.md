@@ -1,6 +1,6 @@
 # README #
 
-This is cc1541 v3.0, a tool for creating Commodore 1541 Floppy disk
+This is cc1541, a tool for creating Commodore 1541 Floppy disk
 images in D64, D71 or D81 format with custom sector interleaving
 etc.  Also supports extended tracks 35-40 using either SPEED DOS or
 DOLPHIN DOS BAM-formatting.
@@ -32,6 +32,13 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
   a completely deleted file in Commodore DOS.
 
 ## Version history ##
+
+v3.1
+
+* Bugfix: overwriting files did not work correctly when there was a
+  free slot in the directory before the file to overwrite
+* Bugfix: Filetype, open and protected flags were not reset after
+  writing a file
 
 v3.0
 
