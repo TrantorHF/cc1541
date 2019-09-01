@@ -23,10 +23,10 @@ DOLPHIN DOS BAM-formatting.
 == Options
 
 *-n diskname*::
-  Disk name, default='DEFAULT'.
+  Disk name, default='cc1541'.
 
 *-i id*::
-  Disk ID, default='LODIS'.
+  Disk ID, default='00 2a'.
 
 *-w localname*::
   Write local file to disk, if filename is not set then the local
