@@ -79,6 +79,9 @@
 #define UNALLOCATED            0
 #define ALLOCATED              1
 #define FILESTART              2
+#define DIRSLOTEXISTS          0
+#define DIRSLOTFOUND           1
+#define DIRSLOTNOTFOUND        2
 
 typedef struct {
     const unsigned char* alocalname;                  /* local file name or name of loop file in ASCII */
@@ -858,21 +861,21 @@ wipe_file(image_type type, unsigned char* image, unsigned int track, unsigned in
     }
 }
 
-/* Sets image offset to the next DIR entry, returns 0 when the DIR end was reached */
-static int
-next_dir_entry(image_type type, unsigned char* image, int *offset)
+/* Sets image offset to the next DIR entry, returns false when the DIR end was reached */
+static bool
+next_dir_entry(image_type type, unsigned char* image, int *track, int *sector, int *offset)
 {
     if (*offset % BLOCKSIZE == 7 * DIRENTRYSIZE) {
         /* last entry in sector */
-        int sector_offset = (*offset / BLOCKSIZE) * BLOCKSIZE;
-        int track = image[sector_offset];
-        if (track == 0) {
+
+        *track = image[linear_sector(type, *track, *sector) * BLOCKSIZE + TRACKLINKOFFSET];
+        if (*track == 0) {
             /* this was the last DIR sector */
-            return 0;
+            return false;
         } else {
             /* follow the t/s link */
-            int sector = image[sector_offset + 1];
-            *offset = linear_sector(type, track, sector) * BLOCKSIZE;
+            *sector = image[linear_sector(type, *track, *sector) * BLOCKSIZE + SECTORLINKOFFSET];
+            *offset = 0;
         }
     } else {
         *offset += DIRENTRYSIZE;
@@ -880,43 +883,110 @@ next_dir_entry(image_type type, unsigned char* image, int *offset)
     return 1;
 }
 
-/* Returns index of file with given filename or -1 if it does not exist. */
-/* entry_offset points to the dir entry if it exists, or to the first empty slot, or is -1 if the dir is full. */
+/* Returns DIRSLOTEXISTS, directory index and offset if file with given filename exists,
+   DIRSLOTFOUND, directory index and offset if an empty slot was found
+   or DIRSLOTNOTFOUND, index and offset of last entry otherwise */
 static int
-find_file(image_type type, unsigned char* image, unsigned char* filename, int *entry_offset)
+find_file(image_type type, unsigned char* image, unsigned char* filename, int *index, int *track, int *sector, int *offset)
 {
-    int direntryindex = 0;
-    int offset = BLOCKSIZE * linear_sector(type, dirtrack(type), (type == IMAGE_D81) ? 3 : 1);
-    *entry_offset = -1;
+    bool found = false;
+    int t = dirtrack(type);
+    int s = (type == IMAGE_D81) ? 3 : 1;
+    int o = 0;
+    *index = -1;
 
     do {
-        int filetype = image[offset + FILETYPEOFFSET] & 0xf;
+        int b = linear_sector(type, t, s) * BLOCKSIZE + o;
+        int filetype = image[b + FILETYPEOFFSET] & 0xf;
         switch (filetype) {
         case FILETYPESEQ:
         case FILETYPEPRG:
         case FILETYPEUSR:
         case FILETYPEREL:
-            if (memcmp(image + offset + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
-                *entry_offset = offset;
-                return direntryindex;
+            if (memcmp(image + b + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
+                *track = t;
+                *sector = s;
+                *offset = o;
+                return DIRSLOTEXISTS;
             }
             break;
         case FILETYPEDEL:
-            if (image[offset + FILETYPEOFFSET] == 0 && *entry_offset == -1) {
-                *entry_offset = offset; /* save offset of first free slot */
-            } else if(memcmp(image + offset + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
-                *entry_offset = offset;
-                return direntryindex;
+            if (image[b + FILETYPEOFFSET] == 0 && !found) {
+                found = true;
+                *track = t;
+                *sector = s;
+                *offset = o;
+            } else if (memcmp(image + b + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
+                *track = t;
+                *sector = s;
+                *offset = o;
+                return DIRSLOTEXISTS;
             }
             break;
         default:
             break;
         }
+        ++index;
+    } while (next_dir_entry(type, image, &t, &s, &o));
+    if (!found) {
+        /* no free slot? then return last one */
+        *track = t;
+        *sector = s;
+        *offset = o;
+        return DIRSLOTNOTFOUND;
+    }
+    return DIRSLOTFOUND;
+}
 
-        ++direntryindex;
-    } while (next_dir_entry(type, image, &offset));
+/* Returns suitable index and offset for given filename (either existing slot when overwriting, first free slot or slot in newly allocated segment) */
+static bool
+find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset)
+{
+    int track;
+    int ret = find_file(type, image, filename, index, &track, dirsector, entry_offset);
 
-    return -1;
+    if (ret == DIRSLOTEXISTS) {
+        return true;
+    }
+    if (ret == DIRSLOTFOUND) {
+        return false;
+    }
+    /* allocate new dir block */
+    int last_sector = (*entry_offset / BLOCKSIZE);
+    int next_sector = -1;
+    for (int s = 0; s < num_sectors(type, dirtrack(type)); s++) {
+        int sector = (last_sector + s * dir_sector_interleave) % num_sectors(type, dirtrack(type));
+        if (is_sector_free(type, image, dirtrack(type), sector, 0, 0)) {
+            next_sector = sector;
+            break;
+        }
+    }
+    if (next_sector == -1) {
+        fprintf(stderr, "ERROR: Dir track full\n");
+        exit(-1);
+    }
+    int b = linear_sector(type, dirtrack(type), last_sector) * BLOCKSIZE;
+    image[b + TRACKLINKOFFSET] = dirtrack(type);
+    image[b + SECTORLINKOFFSET] = next_sector;
+    mark_sector(type, image, dirtrack(type), next_sector, 0 /* not free */);
+
+    b = linear_sector(type, dirtrack(type), next_sector) * BLOCKSIZE;
+    memset(image + b, 0, BLOCKSIZE);
+    image[b + SECTORLINKOFFSET] = 255;
+    *dirsector = next_sector;
+    *entry_offset = 0;
+
+    if (shadowdirtrack > 0) {
+        b = linear_sector(type, shadowdirtrack, last_sector) * BLOCKSIZE;
+        image[b + TRACKLINKOFFSET] = shadowdirtrack;
+        image[b + SECTORLINKOFFSET] = next_sector;
+        mark_sector(type, image, shadowdirtrack, next_sector, 0 /* not free */);
+
+        b = linear_sector(type, shadowdirtrack, next_sector) * BLOCKSIZE;
+        memset(image + b, 0, BLOCKSIZE);
+        image[b + SECTORLINKOFFSET] = 255;
+    }
+    return false;
 }
 
 /* Adds the specified new entries to the directory */
@@ -939,120 +1009,25 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
             printf("  \"%s\"\n", file->afilename);
         }
 
-        /* BUG! Use find_file to search for file here. If it exists, evaluate -o and set dirblock and entry offset accordingly. */
-
-        int direntryindex = 0;
-
-        int dirsector = (type == IMAGE_D81) ? 3 : 1;
-        int dirblock;
-        int shadowdirblock = 0;
-        int entryOffset;
-        int found = 0;
-        do {
-            dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
-            if (shadowdirtrack > 0) {
-                shadowdirblock = linear_sector(type, shadowdirtrack, dirsector) * BLOCKSIZE;
+        if (find_dir_slot(type, image, file->pfilename, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset)) {
+            if (nooverwrite) {
+                fprintf(stderr, "ERROR: Filename exists on disk image already and -o was set\n");
+                exit(-1);
             }
-
-            for (int j = 0; (!found) && (j < DIRENTRIESPERBLOCK); ++j, ++direntryindex) {
-                entryOffset = j * DIRENTRYSIZE;
-                int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
-                switch (filetype) {
-                case FILETYPESEQ:
-                case FILETYPEPRG:
-                case FILETYPEUSR:
-                case FILETYPEREL:
-                    if (memcmp(image + dirblock + entryOffset + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE) == 0) {
-                        if (nooverwrite) {
-                            fprintf(stderr, "ERROR: Filename exists on disk image already and -o was set\n");
-                            exit(-1);
-                        }
-                        wipe_file(type, image, image[dirblock + entryOffset + FILETRACKOFFSET], image[dirblock + entryOffset + FILESECTOROFFSET]);
-                        num_overwritten_files++;
-                        found = 1;
-                    }
-                    break;
-
-                default:
-                    found = 1;
-                    break;
-                }
-
-                if (found) {
-                    break;
-                }
-            }
-
-            if (!found) {
-                if (image[dirblock + TRACKLINKOFFSET] == dirtrack(type)) {
-                    dirsector = image[dirblock + SECTORLINKOFFSET];
-                } else {
-                    /* allocate new dir block */
-                    int next_sector;
-                    for (next_sector = dirsector + dir_sector_interleave; next_sector < dirsector + num_sectors(type, dirtrack(type)); next_sector++) {
-                        int findSector = next_sector % num_sectors(type, dirtrack(type));
-                        if (is_sector_free(type, image, dirtrack(type), findSector, 0, 0)) {
-                            found = 1;
-                            next_sector = findSector;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        fprintf(stderr, "ERROR: Dir track full\n");
-
-                        exit(-1);
-                    }
-
-                    image[dirblock + TRACKLINKOFFSET] = dirtrack(type);
-                    image[dirblock + SECTORLINKOFFSET] = next_sector;
-
-                    mark_sector(type, image, dirtrack(type), next_sector, 0 /* not free */);
-
-                    /* initialize new dir block */
-                    dirblock = linear_sector(type, dirtrack(type), next_sector) * BLOCKSIZE;
-
-                    memset(image + dirblock, 0, BLOCKSIZE);
-                    image[dirblock + TRACKLINKOFFSET] = 0;
-                    image[dirblock + SECTORLINKOFFSET] = 255;
-
-                    if (shadowdirtrack > 0) {
-                        image[shadowdirblock + TRACKLINKOFFSET] = shadowdirtrack;
-                        image[shadowdirblock + SECTORLINKOFFSET] = next_sector;
-
-                        mark_sector(type, image, shadowdirtrack, next_sector, 0 /* not free */);
-
-                        /* initialize new dir block */
-                        shadowdirblock = linear_sector(type, shadowdirtrack, next_sector) * BLOCKSIZE;
-
-                        memset(image + shadowdirblock, 0, BLOCKSIZE);
-                        image[shadowdirblock + TRACKLINKOFFSET] = 0;
-                        image[shadowdirblock + SECTORLINKOFFSET] = 255;
-                    }
-
-                    dirsector = next_sector;
-                    found = 0;
-                }
-            }
-        } while (!found);
-
-        /* set filetype */
-        image[dirblock + entryOffset + FILETYPEOFFSET] = file->filetype;
-
-        /* set filename */
-        memcpy(image + dirblock + entryOffset + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE);
-
-        if (shadowdirtrack > 0) {
-            /* set filetype */
-            image[shadowdirblock + entryOffset + FILETYPEOFFSET] = file->filetype;
-
-            /* set filename */
-            memcpy(image + shadowdirblock + entryOffset + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE);
+            int b = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+            wipe_file(type, image, image[b + FILETRACKOFFSET], image[b + FILESECTOROFFSET]);
+            num_overwritten_files++;
         }
 
-        /* set directory entry reference */
-        file->direntryindex = direntryindex;
-        file->direntrysector = dirsector;
-        file->direntryoffset = entryOffset;
+        int b = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+        image[b + FILETYPEOFFSET] = file->filetype;
+        memcpy(image + b + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE);
+
+        if (shadowdirtrack > 0) {
+            b = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+            image[b + FILETYPEOFFSET] = file->filetype;
+            memcpy(image + b + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE);
+        }
     }
 
     if (!quiet && (num_overwritten_files > 0)) {
@@ -1702,32 +1677,33 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
         if (((file->filetype & 0xf) != FILETYPEDEL) && (file->mode & MODE_LOOPFILE)) {
-            int offset;
-            int direntryindex = find_file(type, image, file->plocalname, &offset);
-            if (direntryindex >= 0) {
+            int track, sector, offset;
+            int index;
+            if (find_file(type, image, file->plocalname, &index, &track, &sector, &offset) == DIRSLOTEXISTS) {
                 /* read track/sector and nrSectors from disk image */
-                file->track = image[offset + FILETRACKOFFSET];
-                file->sector = image[offset + FILESECTOROFFSET];
-                file->nrSectors = image[offset + FILEBLOCKSLOOFFSET] + (image[offset + FILEBLOCKSHIOFFSET] << 8);
+                int b = linear_sector(type, track, sector) * BLOCKSIZE + offset;
+                file->track = image[b + FILETRACKOFFSET];
+                file->sector = image[b + FILESECTOROFFSET];
+                file->nrSectors = image[b + FILEBLOCKSLOOFFSET] + (image[b + FILEBLOCKSHIOFFSET] << 8);
 
                 /* update directory entry */
-                offset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
-                image[offset + FILETRACKOFFSET] = file->track;
-                image[offset + FILESECTOROFFSET] = file->sector;
+                b = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+                image[b + FILETRACKOFFSET] = file->track;
+                image[b + FILESECTOROFFSET] = file->sector;
 
                 if (file->nrSectorsShown == -1) {
                     file->nrSectorsShown = file->nrSectors;
                 }
-                image[offset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
-                image[offset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
+                image[b + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
+                image[b + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
 
                 if (shadowdirtrack > 0) {
-                    offset = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
-                    image[offset + FILETRACKOFFSET] = file->track;
-                    image[offset + FILESECTOROFFSET] = file->sector;
+                    b = linear_sector(type, shadowdirtrack, file->direntrysector) * BLOCKSIZE + file->direntryoffset;
+                    image[b + FILETRACKOFFSET] = file->track;
+                    image[b + FILESECTOROFFSET] = file->sector;
 
-                    image[offset + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
-                    image[offset + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
+                    image[b + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
+                    image[b + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
                 }
 
                 continue;
