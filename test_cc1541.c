@@ -1012,7 +1012,7 @@ main(int argc, char* argv[])
     if (run_binary(binary, "-f 70 -w 1.prg -f 71 -w 1.prg -f 72 -w 1.prg -f 73 -w 1.prg -f 74 -w 1.prg -f 75 -w 1.prg -f 76 -w 1.prg -f 77 -w 1.prg -f 78 -w 1.prg -f 79 -w 1.prg -f 7a -w 1.prg -f 7b -w 1.prg -f 7c -w 1.prg -f 7d -w 1.prg -f 7e -w 1.prg -f 7f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     }
-    if (run_binary(binary, "-f 80 -w 1.prg -f 81 -w 1.prg -f 82 -w 1.prg -f 83 -w 1.prg -f 84 -w 1.prg -f 85 -w 1.prg -f 86 -w 1.prg -f 87 -w 1.prg -f 88 -w 1.prg -f 89 -w 1.prg -f 8a -w 1.prg -f 8b -w 1.prg -f 8c -w 1.prg -f 8d -w 1.prg -f 8e -w 1.prg -f 8f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-f 80 -w 1.prg -f 81 -w 1.prg -f 82 -w 1.prg -f 83 -w 1.prg -f 84 -w 1.prg -f 85 -w 1.prg -f 86 -w 1.prg -f 87 -w 1.prg -f 88 -w 1.prg -f 89 -w 1.prg -f 8a -w 1.prg -f 8b -w 1.prg -f 8c -w 1.prg -f 8d -w 1.prg -f 8e -w 1.prg -f 8f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (strncmp(&image[track_offset[17] + (1+18*3)%19*256 + 7*32 + 5], "8F", 2) == 0) {
         result = TEST_PASS;
