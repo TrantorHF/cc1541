@@ -161,8 +161,8 @@ usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
     printf("Usage: cc1541 -niwfoVTPOlBMmdtuxFsSeErbc45gqvh image.[d64|d71|d81]\n\n");
-    printf("-n diskname   Disk name, default='DEFAULT'.\n");
-    printf("-i id         Disk ID, default='LODIS'.\n");
+    printf("-n diskname   Disk name, default='cc1541'.\n");
+    printf("-i id         Disk ID, default='00 2a'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
     printf("              local name is used. After file written, the filename is unset.\n");
     printf("-f filename   Use filename as name when writing next file, use prefix # to\n");
