@@ -39,6 +39,7 @@ v3.1
   free slot in the directory before the file to overwrite
 * Bugfix: Filetype, open and protected flags were not reset after
   writing a file
+* Bugfix: default disk name and id were wrong in commandline help
 
 v3.0
 
