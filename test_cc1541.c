@@ -985,6 +985,44 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Directory should allow for 144 entries";
+    ++test;
+    create_value_file("1.prg", 1 * 254, 1);
+    if (run_binary(binary, "-f 00 -w 1.prg -f 01 -w 1.prg -f 02 -w 1.prg -f 03 -w 1.prg -f 04 -w 1.prg -f 05 -w 1.prg -f 06 -w 1.prg -f 07 -w 1.prg -f 08 -w 1.prg -f 09 -w 1.prg -f 0a -w 1.prg -f 0b -w 1.prg -f 0c -w 1.prg -f 0d -w 1.prg -f 0e -w 1.prg -f 0f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary(binary, "-f 10 -w 1.prg -f 11 -w 1.prg -f 12 -w 1.prg -f 13 -w 1.prg -f 14 -w 1.prg -f 15 -w 1.prg -f 16 -w 1.prg -f 17 -w 1.prg -f 18 -w 1.prg -f 19 -w 1.prg -f 1a -w 1.prg -f 1b -w 1.prg -f 1c -w 1.prg -f 1d -w 1.prg -f 1e -w 1.prg -f 1f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary(binary, "-f 20 -w 1.prg -f 21 -w 1.prg -f 22 -w 1.prg -f 23 -w 1.prg -f 24 -w 1.prg -f 25 -w 1.prg -f 26 -w 1.prg -f 27 -w 1.prg -f 28 -w 1.prg -f 29 -w 1.prg -f 2a -w 1.prg -f 2b -w 1.prg -f 2c -w 1.prg -f 2d -w 1.prg -f 2e -w 1.prg -f 2f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary(binary, "-f 30 -w 1.prg -f 31 -w 1.prg -f 32 -w 1.prg -f 33 -w 1.prg -f 34 -w 1.prg -f 35 -w 1.prg -f 36 -w 1.prg -f 37 -w 1.prg -f 38 -w 1.prg -f 39 -w 1.prg -f 3a -w 1.prg -f 3b -w 1.prg -f 3c -w 1.prg -f 3d -w 1.prg -f 3e -w 1.prg -f 3f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary(binary, "-f 40 -w 1.prg -f 41 -w 1.prg -f 42 -w 1.prg -f 43 -w 1.prg -f 44 -w 1.prg -f 45 -w 1.prg -f 46 -w 1.prg -f 47 -w 1.prg -f 48 -w 1.prg -f 49 -w 1.prg -f 4a -w 1.prg -f 4b -w 1.prg -f 4c -w 1.prg -f 4d -w 1.prg -f 4e -w 1.prg -f 4f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary(binary, "-f 50 -w 1.prg -f 51 -w 1.prg -f 52 -w 1.prg -f 53 -w 1.prg -f 54 -w 1.prg -f 55 -w 1.prg -f 56 -w 1.prg -f 57 -w 1.prg -f 58 -w 1.prg -f 59 -w 1.prg -f 5a -w 1.prg -f 5b -w 1.prg -f 5c -w 1.prg -f 5d -w 1.prg -f 5e -w 1.prg -f 5f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary(binary, "-f 60 -w 1.prg -f 61 -w 1.prg -f 62 -w 1.prg -f 63 -w 1.prg -f 64 -w 1.prg -f 65 -w 1.prg -f 66 -w 1.prg -f 67 -w 1.prg -f 68 -w 1.prg -f 69 -w 1.prg -f 6a -w 1.prg -f 6b -w 1.prg -f 6c -w 1.prg -f 6d -w 1.prg -f 6e -w 1.prg -f 6f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary(binary, "-f 70 -w 1.prg -f 71 -w 1.prg -f 72 -w 1.prg -f 73 -w 1.prg -f 74 -w 1.prg -f 75 -w 1.prg -f 76 -w 1.prg -f 77 -w 1.prg -f 78 -w 1.prg -f 79 -w 1.prg -f 7a -w 1.prg -f 7b -w 1.prg -f 7c -w 1.prg -f 7d -w 1.prg -f 7e -w 1.prg -f 7f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if (run_binary(binary, "-f 80 -w 1.prg -f 81 -w 1.prg -f 82 -w 1.prg -f 83 -w 1.prg -f 84 -w 1.prg -f 85 -w 1.prg -f 86 -w 1.prg -f 87 -w 1.prg -f 88 -w 1.prg -f 89 -w 1.prg -f 8a -w 1.prg -f 8b -w 1.prg -f 8c -w 1.prg -f 8d -w 1.prg -f 8e -w 1.prg -f 8f -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (strncmp(&image[track_offset[17] + (1+18*3)%19*256 + 7*32 + 5], "8F", 2) == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
     /* clean up */
     if (image != NULL) {
         free(image);
