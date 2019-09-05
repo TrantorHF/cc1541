@@ -301,7 +301,7 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
-    description = "Diskname hex escape should be evalauted correctly";
+    description = "Diskname hex escape should be evaluated correctly";
     ++test;
     create_value_file("1.prg", 254, 37);
     if (run_binary_cleanup(binary, "-n 0123456789abcde#ef -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
