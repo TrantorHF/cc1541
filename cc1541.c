@@ -187,7 +187,7 @@ usage()
     printf("-t            Use dirtrack to also store files (makes -x useless) (default no).\n");
     printf("-u numblocks  When using -t, amount of dir blocks to leave free (default=2).\n");
     printf("-x            Don't split files over dirtrack hole (default split files).\n");
-    printf("-F            Next file first sector on a new track (default=3).\n");
+    printf("-F            Next file first sector on a new track (default=0).\n");
     printf("              Any negative value assumes aligned tracks and uses current\n");
     printf("              sector + interleave. After each file, the value falls back to the\n");
     printf("              default. Not applicable for D81.\n");
@@ -893,7 +893,7 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, int *i
     int t = dirtrack(type);
     int s = (type == IMAGE_D81) ? 3 : 1;
     int o = 0;
-    *index = -1;
+    *index = 0;
 
     do {
         int b = linear_sector(type, t, s) * BLOCKSIZE + o;
@@ -926,7 +926,7 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, int *i
         default:
             break;
         }
-        ++index;
+        ++(*index);
     } while (next_dir_entry(type, image, &t, &s, &o));
     if (!found) {
         /* no free slot? then return last one */
@@ -1064,26 +1064,75 @@ print_file_allocation(image_type type, unsigned char* image, imagefile* files, i
         printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => \"%s\" (SL: %d)", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset,
                files[i].alocalname, files[i].afilename, files[i].sectorInterleave);
 
+        if ((files[i].mode & MODE_LOOPFILE) && (files[i].sectorInterleave != 0)) {
+            printf("\n");
+
+            continue;
+        }
+
         int track = files[i].track;
         int sector = files[i].sector;
+
+        bool firsttrack = true;
+        int firstsector = sector;
+        bool fileblocks[SECTORSPERTRACK_D81];
+        memset(fileblocks, 0, sizeof fileblocks);
+        fileblocks[sector] = true;
+
         int j = 0;
         while (track != 0) {
             if (j == 0) {
                 printf("\n    ");
             }
-            printf("%02d/%02d ", track, sector);
+            printf("%02d/%02d", track, sector);
             int offset = linear_sector(type, track, sector) * BLOCKSIZE;
             int next_track = image[offset + 0];
             int next_sector = image[offset + 1];
             if ((track != next_track) && (next_track != 0)) {
-                printf("-");
+                /* track change */
+                if (next_sector != 0) {
+                    /* interleave violation */
+                    printf("!-");
+                } else {
+                    printf(" -");
+                }
             } else if ((next_sector < sector) && (next_track != 0)) {
-                printf(".");
+                /* sector wrap */
+                int expected_next_sector = ((sector + abs(files[i].sectorInterleave)) % num_sectors(type, track));
+                if (expected_next_sector > 0) {
+                  --expected_next_sector;
+                }
+                bool on_nonempty_firsttrack = (expected_next_sector < next_sector) && firsttrack && (firstsector != 0);
+                if ((expected_next_sector != next_sector) && (!on_nonempty_firsttrack)) {
+                    while ((expected_next_sector < next_sector) && fileblocks[expected_next_sector]) {
+                        ++expected_next_sector;
+                    }
+                    if (expected_next_sector != next_sector) {
+                        /* interleave violation */
+                        printf("!.");
+                    } else {
+                        printf(" .");
+                    }
+                } else {
+                    printf(" .");
+                }
+            } else if (((next_sector - sector) != abs(files[i].sectorInterleave)) && (next_track != 0)) {
+                /* interleave violation */
+                printf(" !");
             } else {
-                printf(" ");
+                printf("  ");
+            }
+
+            if (track != next_track) {
+                memset(fileblocks, 0, sizeof fileblocks);
+                firsttrack = false;
             }
             track = next_track;
-            sector = image[offset + 1];
+            sector = next_sector;
+            if (next_track != 0) {
+                fileblocks[sector] = true;
+            }
+
             j++;
             if (j == 10) {
                 j = 0;
@@ -1416,7 +1465,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                             || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                     ++track; /* skip dir track */
                 }
-                if ((track - lastTrack) > 1) {
+                if (abs(((int) track) - lastTrack) > 1) {
                     /* previous file's last track and this file's beginning track have tracks in between */
                     sector = (type == IMAGE_D81) ? 0 : file->first_sector_new_track;
                 }
@@ -1704,6 +1753,17 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
                     image[b + FILEBLOCKSLOOFFSET] = file->nrSectors & 255;
                     image[b + FILEBLOCKSHIOFFSET] = file->nrSectors >> 8;
+                }
+
+                for (int j = 0; j < num_files; j++) {
+                    imagefile *other_file = files + j;
+                    if ((i != j)
+                     && (file->track == other_file->track)
+                     && (file->sector == other_file->sector)) {
+                        file->sectorInterleave = other_file->sectorInterleave;
+
+                        break;
+                    }
                 }
 
                 continue;
@@ -2064,8 +2124,8 @@ main(int argc, char* argv[])
     int usedirtrack = 0;
     unsigned int shadowdirtrack = 0;
 
-    int default_first_sector_new_track = 3;
-    int first_sector_new_track = 3;
+    int default_first_sector_new_track = 0;
+    int first_sector_new_track = 0;
     int defaultSectorInterleave = 10;
     int sectorInterleave = 0;
     int dir_sector_interleave = 3;
@@ -2239,7 +2299,7 @@ main(int argc, char* argv[])
             files[num_files].afilename = filename;
             evalhexescape(files[num_files].afilename, files[num_files].pfilename, FILENAMEMAXSIZE);
             files[num_files].mode |= MODE_LOOPFILE;
-            files[num_files].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
+            files[num_files].sectorInterleave = 0;
             files[num_files].first_sector_new_track = first_sector_new_track;
             first_sector_new_track = default_first_sector_new_track;
             files[num_files].nrSectorsShown = nrSectorsShown;
