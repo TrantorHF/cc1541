@@ -99,6 +99,7 @@ typedef struct {
     int                  nrSectorsShown;
     int                  filetype;
     int                  mode;
+    int                  force_new;
 } imagefile;
 
 enum mode {
@@ -173,6 +174,8 @@ usage()
     printf("              and DEL. For DEL, the input file is ignored. Default is PRG.\n");
     printf("-P            Set write protect flag for next file.\n");
     printf("-O            Set open flag for next file.\n");
+    printf("-N            Force creation of a new directory entry, even if a file with the\n");
+    printf("              same name exists already.\n");    
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
     printf("              disk, set filename with -f.\n");
     printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
@@ -916,38 +919,22 @@ find_existing_file(image_type type, unsigned char* image, unsigned char* filenam
     return false;
 }
 
-/* Searches for an available DIR slot, returns false if all allocated DIR sectors are full */
-static bool
-find_empty_slot(image_type type, unsigned char* image, int *index, int *track, int *sector, int *offset)
+/* Returns an empty DIR slot, allocates a new DIR sector if required */
+static void
+new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset)
 {
-    *track = dirtrack(type);
-    *sector = (type == IMAGE_D81) ? 3 : 1;
-    *offset = 0;
+    int track = dirtrack(type);
+    *dirsector = (type == IMAGE_D81) ? 3 : 1;
+    *entry_offset = 0;
     *index = 0;
     do {
-        int b = linear_sector(type, *track, *sector) * BLOCKSIZE + *offset;
+        int b = linear_sector(type, track, *dirsector) * BLOCKSIZE + *entry_offset;
         if (image[b + FILETYPEOFFSET] == FILETYPEDEL) {
-			return true; /* found an empty slot */
+			return; /* found an empty slot */
         }
         ++(*index);
-    } while (next_dir_entry(type, image, track, sector, offset));
-	/* no free slot? then return last one */
-	return false;
-}
-
-/* Returns suitable index and offset for given filename (either existing slot when overwriting, first free slot or slot in newly allocated segment) */
-static bool
-find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset)
-{
-    int track;
-    if(find_existing_file(type, image, filename, index, &track, dirsector, entry_offset)) {
-    	return true;
-    }
-
-    if(find_empty_slot(type, image, index, &track, dirsector, entry_offset)) {
-    	return false;
-    }
-    
+    } while (next_dir_entry(type, image, &track, dirsector, entry_offset));
+        
     /* allocate new dir block */
     int last_sector = *dirsector;
     int next_sector = -1;
@@ -982,8 +969,19 @@ find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, in
         b = linear_sector(type, shadowdirtrack, next_sector) * BLOCKSIZE;
         memset(image + b, 0, BLOCKSIZE);
         image[b + SECTORLINKOFFSET] = 255;
+    }	
+}
+
+/* Returns suitable index and offset for given filename (either existing slot when overwriting, first free slot or slot in newly allocated segment) */
+static bool
+find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset)
+{
+    int track;
+    if(find_existing_file(type, image, filename, index, &track, dirsector, entry_offset)) {
+    	return true;
     }
-    return false;
+    new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, index, dirsector, entry_offset);
+	return false;
 }
 
 /* Adds the specified new entries to the directory */
@@ -1006,7 +1004,9 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
             printf("  \"%s\"\n", file->afilename);
         }
 
-        if (find_dir_slot(type, image, file->pfilename, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset)) {
+        if(file->force_new) {
+        	new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset);
+        } else if (find_dir_slot(type, image, file->pfilename, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset)) {
             if (nooverwrite) {
                 fprintf(stderr, "ERROR: Filename exists on disk image already and -o was set\n");
                 exit(-1);
@@ -2253,6 +2253,8 @@ main(int argc, char* argv[])
             filetype &= 0x7f;
         } else if (strcmp(argv[j], "-P") == 0) {
             filetype |= 0x40;
+        } else if (strcmp(argv[j], "-N") == 0) {
+            files[num_files].force_new = 1;            
         } else if (strcmp(argv[j], "-w") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "ERROR: Error parsing argument for -w\n");
