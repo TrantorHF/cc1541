@@ -34,6 +34,7 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 ## Version history ##
 
 v3.2
+
 * -N switch added to allow duplicate file names
 * Trying to create loop file with the same name as the referenced
   file now throws an error, if not -N is also specified
