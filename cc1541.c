@@ -883,20 +883,16 @@ next_dir_entry(image_type type, unsigned char* image, int *track, int *sector, i
     return 1;
 }
 
-/* Returns DIRSLOTEXISTS, directory index and offset if file with given filename exists,
-   DIRSLOTFOUND, directory index and offset if an empty slot was found
-   or DIRSLOTNOTFOUND, index and offset of last entry otherwise */
-static int
-find_file(image_type type, unsigned char* image, unsigned char* filename, int *index, int *track, int *sector, int *offset)
+/* Searches for an existing DIR entry with the given name, returns false if it does not exist */
+static bool
+find_existing_file(image_type type, unsigned char* image, unsigned char* filename, int *index, int *track, int *sector, int *offset)
 {
-    bool found = false;
-    int t = dirtrack(type);
-    int s = (type == IMAGE_D81) ? 3 : 1;
-    int o = 0;
+    *track = dirtrack(type);
+    *sector = (type == IMAGE_D81) ? 3 : 1;
+    *offset = 0;
     *index = 0;
-
     do {
-        int b = linear_sector(type, t, s) * BLOCKSIZE + o;
+        int b = linear_sector(type, *track, *sector) * BLOCKSIZE + *offset;
         int filetype = image[b + FILETYPEOFFSET] & 0xf;
         switch (filetype) {
         case FILETYPESEQ:
@@ -904,38 +900,39 @@ find_file(image_type type, unsigned char* image, unsigned char* filename, int *i
         case FILETYPEUSR:
         case FILETYPEREL:
             if (memcmp(image + b + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
-                *track = t;
-                *sector = s;
-                *offset = o;
-                return DIRSLOTEXISTS;
+                return true;
             }
             break;
         case FILETYPEDEL:
-            if (image[b + FILETYPEOFFSET] == 0 && !found) {
-                found = true;
-                *track = t;
-                *sector = s;
-                *offset = o;
-            } else if (memcmp(image + b + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
-                *track = t;
-                *sector = s;
-                *offset = o;
-                return DIRSLOTEXISTS;
+            if (image[b + FILETYPEOFFSET] != 0 && memcmp(image + b + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
+                return true;
             }
             break;
         default:
             break;
         }
         ++(*index);
-    } while (next_dir_entry(type, image, &t, &s, &o));
-    if (!found) {
-        /* no free slot? then return last one */
-        *track = t;
-        *sector = s;
-        *offset = o;
-        return DIRSLOTNOTFOUND;
-    }
-    return DIRSLOTFOUND;
+    } while (next_dir_entry(type, image, track, sector, offset));
+    return false;
+}
+
+/* Searches for an available DIR slot, returns false if all allocated DIR sectors are full */
+static bool
+find_empty_slot(image_type type, unsigned char* image, int *index, int *track, int *sector, int *offset)
+{
+    *track = dirtrack(type);
+    *sector = (type == IMAGE_D81) ? 3 : 1;
+    *offset = 0;
+    *index = 0;
+    do {
+        int b = linear_sector(type, *track, *sector) * BLOCKSIZE + *offset;
+        if (image[b + FILETYPEOFFSET] == FILETYPEDEL) {
+			return true; /* found an empty slot */
+        }
+        ++(*index);
+    } while (next_dir_entry(type, image, track, sector, offset));
+	/* no free slot? then return last one */
+	return false;
 }
 
 /* Returns suitable index and offset for given filename (either existing slot when overwriting, first free slot or slot in newly allocated segment) */
@@ -943,14 +940,14 @@ static bool
 find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset)
 {
     int track;
-    int ret = find_file(type, image, filename, index, &track, dirsector, entry_offset);
+    if(find_existing_file(type, image, filename, index, &track, dirsector, entry_offset)) {
+    	return true;
+    }
 
-    if (ret == DIRSLOTEXISTS) {
-        return true;
+    if(find_empty_slot(type, image, index, &track, dirsector, entry_offset)) {
+    	return false;
     }
-    if (ret == DIRSLOTFOUND) {
-        return false;
-    }
+    
     /* allocate new dir block */
     int last_sector = *dirsector;
     int next_sector = -1;
@@ -1728,7 +1725,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
         if (((file->filetype & 0xf) != FILETYPEDEL) && (file->mode & MODE_LOOPFILE)) {
             int track, sector, offset;
             int index;
-            if (find_file(type, image, file->plocalname, &index, &track, &sector, &offset) == DIRSLOTEXISTS) {
+            if (find_existing_file(type, image, file->plocalname, &index, &track, &sector, &offset)) {
                 /* read track/sector and nrSectors from disk image */
                 int b = linear_sector(type, track, sector) * BLOCKSIZE + offset;
                 file->track = image[b + FILETRACKOFFSET];
