@@ -52,6 +52,10 @@ and DEL. For DEL, the input file is ignored.  Default is PRG.
 *-O*::
   Set open flag for next file.
 
+*-N*::            
+  Force creation of a new directory entry, even if a file with the 
+  same name exists already.  
+  
 *-l filename*::
   Write loop file (an additional dir entry) to existing file to disk,
 set filename with -f.
@@ -82,7 +86,7 @@ valid BAM).
   Don't split files over dirtrack hole (default split files).
 
 *-F*::
-  Next file first sector on a new track (default=3).  Any negative
+  Next file first sector on a new track (default=0).  Any negative
 value assumes aligned tracks and uses current sector + interleave.
 After each file, the value falls back to the default.  Not applicable
 for D81.
