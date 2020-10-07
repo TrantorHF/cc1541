@@ -2297,6 +2297,10 @@ main(int argc, char* argv[])
             }
             files[num_files].afilename = filename;
             evalhexescape(files[num_files].afilename, files[num_files].pfilename, FILENAMEMAXSIZE);
+            if(memcmp(files[num_files].pfilename, files[num_files].plocalname, FILENAMEMAXSIZE) == 0 && !files[num_files].force_new) {
+                fprintf(stderr, "ERROR: Loop file cannot have the same name as the file they refer to, unless with -N\n");
+                return -1;            
+            }
             files[num_files].mode |= MODE_LOOPFILE;
             files[num_files].sectorInterleave = 0;
             files[num_files].first_sector_new_track = first_sector_new_track;
