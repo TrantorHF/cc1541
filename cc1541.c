@@ -161,7 +161,7 @@ static void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niwfoVTPOlBMmdtuxFsSeErbc45gqvh image.[d64|d71|d81]\n\n");
+    printf("Usage: cc1541 -niwfoVTPONlBMmdtuxFSseErbc45gqvh image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='cc1541'.\n");
     printf("-i id         Disk ID, default='00 2a'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
