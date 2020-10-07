@@ -1023,6 +1023,22 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Writing a duplicate DIR entry with -N should write a new file";
+    ++test;
+    create_value_file("1.prg", 1 * 254, 1);
+    create_value_file("2.prg", 1 * 254, 2);
+    if (run_binary_cleanup(binary, "-m -f 1 -w 1.prg -N -f 1 -w 2.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (block_is_filled(image, 10, 2)) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+    remove("2.prg");
+    
     /* ideas for tests:
        - test -o
        - test -V (is that even possible?)
