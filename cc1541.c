@@ -20,7 +20,7 @@
 * SOFTWARE.
 *******************************************************************************/
 
-#define VERSION "3.1"
+#define VERSION "3.2"
 
 #define _CRT_SECURE_NO_WARNINGS /* avoid security warnings for MSVC */
 
