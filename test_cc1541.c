@@ -249,7 +249,7 @@ main(int argc, char* argv[])
     create_value_file("1.prg", 254, 37);
     if (run_binary_cleanup(binary, "-w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 3, 37) && image[3 * 256] == 0 && image[3 * 256 + 1] == (char)255) {
+    } else if (block_is_filled(image, 0, 37) && image[0 * 256] == 0 && image[0 * 256 + 1] == (char)255) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -401,13 +401,13 @@ main(int argc, char* argv[])
     remove("1.prg");
     remove("2.prg");
 
-    description = "Minimum sector should fall back to 3 after track change";
+    description = "Minimum sector should fall back to 0 after track change";
     ++test;
     create_value_file("1.prg", 254 * 21, 1);
     create_value_file("2.prg", 254, 2);
     if (run_binary_cleanup(binary, "-F 7 -w 1.prg -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 21 + 3, 2)) {
+    } else if (block_is_filled(image, 21 + 0, 2)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -417,12 +417,12 @@ main(int argc, char* argv[])
     remove("1.prg");
     remove("2.prg");
 
-    description = "File with default sector interleave 10 should fill sector 3 and 13 on track 1";
+    description = "File with default sector interleave 7 should fill sector 0 and 7 on track 1";
     ++test;
     create_value_file("1.prg", 254 * 2, 37);
     if (run_binary_cleanup(binary, "-S 7 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 10, 37)) {
+    } else if (block_is_filled(image, 0, 37) && block_is_filled(image, 7, 37)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -431,12 +431,12 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
-    description = "File with sector interleave 9 should fill sector 3 and 12 on track 1";
+    description = "File with sector interleave 9 should fill sector 0 and 9 on track 1";
     ++test;
     create_value_file("1.prg", 254 * 2, 37);
     if (run_binary_cleanup(binary, "-s 9 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 12, 37)) {
+    } else if (block_is_filled(image, 0, 37) && block_is_filled(image, 9, 37)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -448,7 +448,7 @@ main(int argc, char* argv[])
     description = "File with sector interleave 20 should fill sector 3 and 1 on track 1";
     ++test;
     create_value_file("1.prg", 254 * 2, 37);
-    if (run_binary_cleanup(binary, "-s 20 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-F 3 -s 20 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 1, 37)) {
         result = TEST_PASS;
@@ -462,7 +462,7 @@ main(int argc, char* argv[])
     description = "File with sector interleave -20 should fill sector 3 and 2 on track 1";
     ++test;
     create_value_file("1.prg", 254 * 2, 37);
-    if (run_binary_cleanup(binary, "-s -20 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-F 3 -s -20 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 2, 37)) {
         result = TEST_PASS;
@@ -479,7 +479,7 @@ main(int argc, char* argv[])
     create_value_file("2.prg", 254 * 2, 2);
     if (run_binary_cleanup(binary, "-S 3 -s 2 -w 1.prg -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 7, 2) && block_is_filled(image, 10, 2)) {
+    } else if (block_is_filled(image, 4, 2) && block_is_filled(image, 7, 2)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -531,13 +531,13 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("../1.prg");
 
-    description = "Second file should start on track 2 sector 13 for -e";
+    description = "Second file should start on track 2 sector 10 for -e";
     ++test;
     create_value_file("1.prg", 254, 1);
     create_value_file("2.prg", 254, 2);
     if (run_binary_cleanup(binary, "-w 1.prg -e -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 3 + 21 + 10, 2)) {
+    } else if (block_is_filled(image, 0 + 21 + 10, 2)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -600,7 +600,7 @@ main(int argc, char* argv[])
     create_value_file("1.prg", 254, 1);
     if (run_binary_cleanup(binary, "-r 13 -w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, track_offset[12] / 256 + 3, 1)) {
+    } else if (block_is_filled(image, track_offset[12] / 256 + 0, 1)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -630,7 +630,7 @@ main(int argc, char* argv[])
     create_value_file("1.prg", 22 * 254, 1);
     if (run_binary_cleanup(binary, "-c -w 1.prg", "image.d71", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, track_offset_b[0] / 256 + 3, 1)) {
+    } else if (block_is_filled(image, track_offset_b[0] / 256 + 0, 1)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -661,7 +661,7 @@ main(int argc, char* argv[])
     create_value_file("2.prg", 2 * 254, 2);
     if (run_binary_cleanup(binary, "-x -w 1.prg -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, track_offset[18] / 256 + 13, 2)) { /* check only second sector */
+    } else if (block_is_filled(image, track_offset[18] / 256 + 10, 2)) { /* check only second sector */
         result = TEST_PASS;
         ++passed;
     } else {
@@ -677,7 +677,7 @@ main(int argc, char* argv[])
     create_value_file("2.prg", 2 * 254, 2);
     if (run_binary_cleanup(binary, "-t -w 1.prg -w 2.prg", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, track_offset[17] / 256 + 13, 2)) { /* check only second sector */
+    } else if (block_is_filled(image, track_offset[17] / 256 + 12, 2)) { /* check only second sector, 2 sectors are filled by dir */
         result = TEST_PASS;
         ++passed;
     } else {
@@ -1022,6 +1022,15 @@ main(int argc, char* argv[])
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
+
+    /* ideas for tests:
+       - test -o
+       - test -V (is that even possible?)
+       - test filename hash collision with different -M values
+       - -F with negative value?
+       - check -g in more detail?
+       - check output for -q?
+    */
 
     /* clean up */
     if (image != NULL) {
