@@ -175,7 +175,7 @@ usage()
     printf("-P            Set write protect flag for next file.\n");
     printf("-O            Set open flag for next file.\n");
     printf("-N            Force creation of a new directory entry, even if a file with the\n");
-    printf("              same name exists already.\n");    
+    printf("              same name exists already.\n");
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
     printf("              disk, set filename with -f.\n");
     printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
@@ -930,11 +930,11 @@ new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, i
     do {
         int b = linear_sector(type, track, *dirsector) * BLOCKSIZE + *entry_offset;
         if (image[b + FILETYPEOFFSET] == FILETYPEDEL) {
-			return; /* found an empty slot */
+            return; /* found an empty slot */
         }
         ++(*index);
     } while (next_dir_entry(type, image, &track, dirsector, entry_offset));
-        
+
     /* allocate new dir block */
     int last_sector = *dirsector;
     int next_sector = -1;
@@ -969,7 +969,7 @@ new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, i
         b = linear_sector(type, shadowdirtrack, next_sector) * BLOCKSIZE;
         memset(image + b, 0, BLOCKSIZE);
         image[b + SECTORLINKOFFSET] = 255;
-    }	
+    }
 }
 
 /* Returns suitable index and offset for given filename (either existing slot when overwriting, first free slot or slot in newly allocated segment) */
@@ -978,10 +978,10 @@ find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, in
 {
     int track;
     if(find_existing_file(type, image, filename, index, &track, dirsector, entry_offset)) {
-    	return true;
+        return true;
     }
     new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, index, dirsector, entry_offset);
-	return false;
+    return false;
 }
 
 /* Adds the specified new entries to the directory */
@@ -1005,7 +1005,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         }
 
         if(file->force_new) {
-        	new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset);
+            new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset);
         } else if (find_dir_slot(type, image, file->pfilename, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset)) {
             if (nooverwrite) {
                 fprintf(stderr, "ERROR: Filename exists on disk image already and -o was set\n");
@@ -2104,6 +2104,9 @@ validate(image_type type, unsigned char* image)
         }
     }
     free(atab);
+    if(!quiet) {
+        fprintf(stderr, "CBM DOS validation passed\n");
+    }
 }
 
 int
@@ -2120,6 +2123,7 @@ main(int argc, char* argv[])
     int dirtracksplit = 1;
     int usedirtrack = 0;
     unsigned int shadowdirtrack = 0;
+    int modified = 0;
 
     int default_first_sector_new_track = 0;
     int first_sector_new_track = 0;
@@ -2156,6 +2160,7 @@ main(int argc, char* argv[])
             }
             header = (unsigned char*)argv[++j];
             set_header = 1;
+            modified = 1;
         } else if (strcmp(argv[j], "-i") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "ERROR: Error parsing argument for -i\n");
@@ -2163,6 +2168,7 @@ main(int argc, char* argv[])
             }
             id = (unsigned char*)argv[++j];
             set_header = 1;
+            modified = 1;
         } else if (strcmp(argv[j], "-M") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &max_hash_length)) {
                 fprintf(stderr, "ERROR: Error parsing argument for -M\n");
@@ -2254,7 +2260,7 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-P") == 0) {
             filetype |= 0x40;
         } else if (strcmp(argv[j], "-N") == 0) {
-            files[num_files].force_new = 1;            
+            files[num_files].force_new = 1;
         } else if (strcmp(argv[j], "-w") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "ERROR: Error parsing argument for -w\n");
@@ -2283,6 +2289,7 @@ main(int argc, char* argv[])
             nrSectorsShown = -1;
             filetype = 0x82;
             num_files++;
+            modified = 1;
             j++;
         } else if (strcmp(argv[j], "-l") == 0) {
             if (argc < j + 2) {
@@ -2299,7 +2306,7 @@ main(int argc, char* argv[])
             evalhexescape(files[num_files].afilename, files[num_files].pfilename, FILENAMEMAXSIZE);
             if(memcmp(files[num_files].pfilename, files[num_files].plocalname, FILENAMEMAXSIZE) == 0 && !files[num_files].force_new) {
                 fprintf(stderr, "ERROR: Loop file cannot have the same name as the file they refer to, unless with -N\n");
-                return -1;            
+                return -1;
             }
             files[num_files].mode |= MODE_LOOPFILE;
             files[num_files].sectorInterleave = 0;
@@ -2312,6 +2319,7 @@ main(int argc, char* argv[])
             nrSectorsShown = -1;
             filetype = 0x82;
             num_files++;
+            modified = 1;
             j++;
         } else if (strcmp(argv[j], "-x") == 0) {
             dirtracksplit = 0;
@@ -2322,6 +2330,7 @@ main(int argc, char* argv[])
                 fprintf(stderr, "ERROR: Error parsing argument for -d\n");
                 return -1;
             }
+            modified = 1;
         } else if (strcmp(argv[j], "-u") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &numdirblocks)) {
                 fprintf(stderr, "ERROR: Error parsing argument for -u\n");
@@ -2338,8 +2347,10 @@ main(int argc, char* argv[])
             }
         } else if (strcmp(argv[j], "-4") == 0) {
             type = IMAGE_D64_EXTENDED_SPEED_DOS;
+            modified = 1;
         } else if (strcmp(argv[j], "-5") == 0) {
             type = IMAGE_D64_EXTENDED_DOLPHIN_DOS;
+            modified = 1;
         } else if(strcmp(argv[j], "-g") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "ERROR: Error parsing argument for -g\n");
@@ -2420,6 +2431,7 @@ main(int argc, char* argv[])
     }
     FILE* f = fopen(imagepath, "rb");
     if (f == NULL) {
+        modified = 1;
         if (!quiet) {
             printf("Adding %d files to new image %s\n", num_files, basename((unsigned char*)imagepath));
         }
@@ -2472,12 +2484,14 @@ main(int argc, char* argv[])
     }
 
     /* Save image */
-    f = fopen(imagepath, "wb");
-    if (fwrite(image, imagesize, 1, f) != 1) {
-        fprintf(stderr, "ERROR: Failed to write %s\n", image);
-        retval = -1;
+    if(modified) {
+        f = fopen(imagepath, "wb");
+        if (f == NULL || fwrite(image, imagesize, 1, f) != 1) {
+            fprintf(stderr, "ERROR: Failed to write %s\n", imagepath);
+            retval = -1;
+        }
+        fclose(f);
     }
-    fclose(f);
 
     /* Save optional g64 image */
     if (filename_g64 != NULL) {
