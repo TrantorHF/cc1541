@@ -1038,7 +1038,7 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
     remove("2.prg");
-    
+
     /* ideas for tests:
        - test -o
        - test -V (is that even possible?)

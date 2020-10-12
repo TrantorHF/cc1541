@@ -52,10 +52,10 @@ and DEL. For DEL, the input file is ignored.  Default is PRG.
 *-O*::
   Set open flag for next file.
 
-*-N*::            
-  Force creation of a new directory entry, even if a file with the 
-  same name exists already.  
-  
+*-N*::
+  Force creation of a new directory entry, even if a file with the
+  same name exists already.
+
 *-l filename*::
   Write loop file (an additional dir entry) to existing file to disk,
 set filename with -f.

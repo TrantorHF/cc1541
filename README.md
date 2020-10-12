@@ -27,7 +27,8 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 * "cc1541 -s 4 -f program -w program.prg image.d64" writes file
   with a dedicated sector interleave for a fastloader (the best
   value depends on the used fastloader and its configuration)
-* "cc1541 -f start -w start.prg -N -T DEL -f ---------------- -l start" 
+* "cc1541 -f start -w start.prg -N -T DEL -f ---------------- -l
+start"
   creates a DEL entry as separator.
 * "cc1541 -T DEL -O -f program -w program.prg image.d64" effectively
   deletes file "program", as an open DEL file is the marker for
@@ -40,15 +41,15 @@ v3.2
 * -N switch added to allow duplicate file names
 * Trying to create loop file with the same name as the referenced
   file now throws an error, if not -N is also specified
-* Changed default next file first sector on new track to 0 to align 
+* Changed default next file first sector on new track to 0 to align
   with Commodore DOS
 * Interleave violations are now shown in block allocation printout
-* Block allocation for loop files is not displayed anymore when 
+* Block allocation for loop files is not displayed anymore when
   referenced file was also written
 * Bugfix: Fixed file index printout for block allocation
-* Bugfix: Correct interleave is now displayed for loop files when 
+* Bugfix: Correct interleave is now displayed for loop files when
   referenced file was also written
-  
+
 v3.1
 
 * Bugfix: overwriting files did not work correctly when there was a
