@@ -1097,7 +1097,7 @@ print_file_allocation(image_type type, unsigned char* image, imagefile* files, i
                 /* sector wrap */
                 int expected_next_sector = ((sector + abs(files[i].sectorInterleave)) % num_sectors(type, track));
                 if (expected_next_sector > 0) {
-                  --expected_next_sector;
+                    --expected_next_sector;
                 }
                 bool on_nonempty_firsttrack = (expected_next_sector < next_sector) && firsttrack && (firstsector != 0);
                 if ((expected_next_sector != next_sector) && (!on_nonempty_firsttrack)) {
@@ -1453,7 +1453,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 track = (file->mode & MODE_MIN_TRACK_MASK) >> MODE_MIN_TRACK_SHIFT;
                 /* note that track may be smaller than lastTrack now */
                 if (track > image_num_tracks(type)) {
-                    fprintf(stderr, "ERROR: Invalid minimum track %d for file %s (%s) specified\n", track, file->alocalname, file->afilename);
+                    fprintf(stderr, "ERROR: Invalid minimum track %u for file %s (%s) specified\n", track, file->alocalname, file->afilename);
 
                     exit(-1);
                 }
@@ -1487,7 +1487,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                                 /* Emulators tend to reset the disk angle on track changes, so this should rather be 3. */
                                 if (sector >= num_sectors(type, track)) {
                                     if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
-                                        fprintf(stderr, "ERROR: Invalid beginning sector %d on track %d for file %s (%s) specified\n", sector, track, file->alocalname, file->afilename);
+                                        fprintf(stderr, "ERROR: Invalid beginning sector %u on track %u for file %s (%s) specified\n", sector, track, file->alocalname, file->afilename);
 
                                         exit(-1);
                                     }
@@ -1554,7 +1554,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
             if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
                 if (sector != ((file->mode & MODE_BEGINNING_SECTOR_MASK) - 1)) {
-                    fprintf(stderr, "ERROR: Specified beginning sector of file %s (%s) not free on track %d\n", file->alocalname, file->afilename, track);
+                    fprintf(stderr, "ERROR: Specified beginning sector of file %s (%s) not free on track %u\n", file->alocalname, file->afilename, track);
 
                     exit(-1);
                 }
@@ -1676,7 +1676,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 mark_sector(type, image, track, sector, 0 /* not free */);
 
                 if (num_sectors(type, track) <= abs(file->sectorInterleave)) {
-                    fprintf(stderr, "ERROR: Invalid interleave %d on track %d (%d sectors), file %s (%s)\n", file->sectorInterleave, track, num_sectors(type, track), file->alocalname, file->afilename);
+                    fprintf(stderr, "ERROR: Invalid interleave %d on track %u (%d sectors), file %s (%s)\n", file->sectorInterleave, track, num_sectors(type, track), file->alocalname, file->afilename);
 
                     exit(-1);
                 }
@@ -1755,8 +1755,8 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 for (int j = 0; j < num_files; j++) {
                     imagefile *other_file = files + j;
                     if ((i != j)
-                     && (file->track == other_file->track)
-                     && (file->sector == other_file->sector)) {
+                            && (file->track == other_file->track)
+                            && (file->sector == other_file->sector)) {
                         file->sectorInterleave = other_file->sectorInterleave;
 
                         break;
@@ -2039,15 +2039,15 @@ validate(image_type type, unsigned char* image)
                 start_track = image[dirblock + entryOffset + FILETRACKOFFSET];
                 int start_sector = image[dirblock + entryOffset + FILESECTOROFFSET];
                 if (start_track == 0 || start_track > image_num_tracks(type)) {
-                    fprintf(stderr, "ERROR: validation failed, illegal track reference (%d) in directory\n", start_track);
+                    fprintf(stderr, "ERROR: validation failed, illegal track reference (%u) in directory\n", start_track);
                     exit(-1);
                 }
                 if (start_sector >= num_sectors(type, start_track)) {
-                    fprintf(stderr, "ERROR: validation failed, illegal sector reference (track %d, sector %d) in directory\n", start_track, start_sector);
+                    fprintf(stderr, "ERROR: validation failed, illegal sector reference (track %u, sector %d) in directory\n", start_track, start_sector);
                     exit(-1);
                 }
                 if (atab[linear_sector(type, start_track, start_sector)] == ALLOCATED) {
-                    fprintf(stderr, "ERROR: validation failed, file starts in the middle of another file (track %d, sector %d)\n", start_track, start_sector);
+                    fprintf(stderr, "ERROR: validation failed, file starts in the middle of another file (track %u, sector %d)\n", start_track, start_sector);
                     exit(-1);
                 }
                 if (atab[linear_sector(type, start_track, start_sector)] != FILESTART) { /* loop files are allowed */
@@ -2063,15 +2063,15 @@ validate(image_type type, unsigned char* image)
                             break;
                         }
                         if (track > image_num_tracks(type)) {
-                            fprintf(stderr, "ERROR: validation failed, illegal track reference (%d) in file sector chain\n", track);
+                            fprintf(stderr, "ERROR: validation failed, illegal track reference (%u) in file sector chain\n", track);
                             exit(-1);
                         }
                         if (sector >= num_sectors(type, track)) {
-                            fprintf(stderr, "ERROR: validation failed, illegal sector reference in file sector chain (track %d, sector %d)\n", track, sector);
+                            fprintf(stderr, "ERROR: validation failed, illegal sector reference in file sector chain (track %u, sector %d)\n", track, sector);
                             exit(-1);
                         }
                         if (atab[linear_sector(type, track, sector)] != UNALLOCATED) {
-                            fprintf(stderr, "ERROR: validation failed, sector (track %d, sector %d) is referenced more than once\n", track, sector);
+                            fprintf(stderr, "ERROR: validation failed, sector (track %u, sector %d) is referenced more than once\n", track, sector);
                             exit(-1);
                         }
                         atab[linear_sector(type, track, sector)] = ALLOCATED;
@@ -2094,12 +2094,12 @@ validate(image_type type, unsigned char* image)
             int bam_used = ((bitmap[s >> 3] & (1 << (s & 7))) == 0);
             num_free += (1 - bam_used);
             if (bam_used != atab_used) {
-                fprintf(stderr, "ERROR: validation failed, BAM (%s) is not consistent with files (%s) for track %d sector %d\n", bam_used ? "used" : "free", atab_used ? "used" : "free", t, s);
+                fprintf(stderr, "ERROR: validation failed, BAM (%s) is not consistent with files (%s) for track %u sector %d\n", bam_used ? "used" : "free", atab_used ? "used" : "free", t, s);
                 exit(-1);
             }
         }
         if (*(bitmap - 1) != num_free) {
-            fprintf(stderr, "ERROR: validation failed, BAM number of free blocks (%d) is not consistent with bitmap (%#02x%#02x%#02x) for track %d\n", *(bitmap - 1), *bitmap, *(bitmap + 1), *(bitmap + 2), t);
+            fprintf(stderr, "ERROR: validation failed, BAM number of free blocks (%d) is not consistent with bitmap (%#02x%#02x%#02x) for track %u\n", *(bitmap - 1), *bitmap, *(bitmap + 1), *(bitmap + 2), t);
             exit(-1);
         }
     }
@@ -2454,7 +2454,7 @@ main(int argc, char* argv[])
                     }
                 }
             } else {
-                fprintf(stderr, "ERROR: Wrong filesize: expected to read %d bytes, but read %d bytes\n", imagesize, (int) read_size);
+                fprintf(stderr, "ERROR: Wrong filesize: expected to read %u bytes, but read %u bytes\n", imagesize, (unsigned int) read_size);
                 return -1;
             }
         }
