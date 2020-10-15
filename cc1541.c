@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2008-2019 JackAsser, Krill, Claus, Björn Esser
+* Copyright (c) 2008-2020 JackAsser, Krill, Claus, Björn Esser
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,8 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <locale.h>
+#include <wchar.h>
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
@@ -83,6 +85,46 @@
 #define DIRSLOTFOUND           1
 #define DIRSLOTNOTFOUND        2
 
+/* Table for conversion of uppercase PETSCII to Unicode */
+unsigned static int p2u_uppercase_tab[256] = {
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    ' ', '!', '\"', '#', '$', '%', '&', 0x2019, '(', ')', '*', '+', ',', '-', '.', '/',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
+    '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', 0xa3, ']', 0x2191, 0x2190,
+    0x2500, 0x2660, 0x1fb72, 0x2500, 0x1fb77, 0x1fb76, 0x1fb7a, 0x1fb71, 0x1fb74, 0x256e, 0x2570, 0x256f, 0x1fb7c, 0x2572, 0x2571, 0x1fb7d,
+    0x1fb7e, 0x25cf, 0x1fb7b, 0x2665, 0x1fb70, 0x256d, 0x2573, 0x25cb, 0x2663, 0x1fb75, 0x2666, 0x253c, 0x1fb8c, 0x2502, 0x3c0, 0x25e5,
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    ' ', 0x258c, 0x2584, 0x2594, 0x2581, 0x258e, 0x1fb95, 0x1fb75, 0x1fb8f, 0x25e4, 0x1fb75, 0x251c, 0x2597, 0x2514, 0x2510, 0x2581,
+    0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0x2590, 0x2594, 0x2580, 0x2583, 0x1fb7f, 0x2596, 0x259d, 0x2518, 0x2598, 0x259a,
+    0x2500, 0x2660, 0x1fb72, 0x2500, 0x1fb77, 0x1fb76, 0x1fb7a, 0x1fb71, 0x1fb74, 0x256e, 0x2570, 0x256f, 0x1fb7c, 0x2572, 0x2571, 0x1fb7d,
+    0x1fb7e, 0x25cf, 0x1fb7b, 0x2665, 0x1fb70, 0x256d, 0x2573, 0x25cb, 0x2663, 0x1fb75, 0x2666, 0x253c, 0x1fb8c, 0x2502, 0x3c0, 0x25e5,
+    ' ', 0x258c, 0x2584, 0x2594, 0x2581, 0x258e, 0x1fb95, 0x1fb75, 0x1fb8f, 0x25e4, 0x1fb75, 0x251c, 0x2597, 0x2514, 0x2510, 0x2581,
+    0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0x2590, 0x2594, 0x2580, 0x2583, 0x1fb7f, 0x2596, 0x259d, 0x2518, 0x2598, 0x3c0
+};
+
+/* Table for conversion of lowercase PETSCII to Unicode */
+unsigned static int p2u_lowercase_tab[256] = {
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    ' ', '!', '\"', '#', '$', '%', '&', 0x2019, '(', ')', '*', '+', ',', '-', '.', '/',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
+    '@', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '[', 0xa3, ']', 0x2191, 0x2190,
+    0x2500, 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 0x253c, 0x1fb8c, 0x2502, 0x1fb95, 0x1fb98,
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    ' ', 0x258c, 0x2584, 0x2594, 0x2581, 0x258e, 0x1fb95, 0x1fb75, 0x1fb8f, 0x1fb99, 0x1fb75, 0x251c, 0x2597, 0x2514, 0x2510, 0x2581,
+    0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0x2590, 0x2594, 0x2580, 0x2583, 0x1fb7f, 0x2713, 0x259d, 0x2518, 0x2598, 0x259a,
+    0x2500, 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 0x253c, 0x1fb8c, 0x2502, 0x1fb95, 0x1fb98,
+    ' ', 0x258c, 0x2584, 0x2594, 0x2581, 0x258e, 0x1fb95, 0x1fb75, 0x1fb8f, 0x1fb99, 0x1fb75, 0x251c, 0x2597, 0x2514, 0x2510, 0x2581,
+    0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0x2590, 0x2594, 0x2580, 0x2583, 0x2713, 0x2596, 0x259d, 0x2518, 0x2598, 0x1fb96
+};
+
 typedef struct {
     const unsigned char* alocalname;                  /* local file name or name of loop file in ASCII */
     unsigned char        plocalname[FILENAMEMAXSIZE]; /* loop file in PETSCII */
@@ -120,7 +162,12 @@ typedef enum {
     IMAGE_D81
 } image_type;
 
-static const char *filetypename[] = {
+static const char *filetypename_uc[] = {
+    "DEL", "SEQ", "PRG", "USR", "REL", "CBM", "???", "???",
+    "???", "???", "???", "???", "???", "???", "???", "???"
+};
+
+static const char *filetypename_lc[] = {
     "del", "seq", "prg", "usr", "rel", "cbm", "???", "???",
     "???", "???", "???", "???", "???", "???", "???", "???"
 };
@@ -155,13 +202,14 @@ static int quiet           = 0;  /* global quiet flag */
 static int verbose         = 0;  /* global verbose flag */
 static int num_files       = 0;  /* number of files to be written provided by the user */
 static int max_hash_length = 16; /* number of bytes of the filenames to calculate the hash over */
+static int unicode         = 0;  /* which unicode mapping to use: 0 = none, 1 = upper case, 2 = lower case */
 
 /* Prints the commandline help */
 static void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niwfoVTPONlBMmdtuxFSseErbc45gqvh image.[d64|d71|d81]\n\n");
+    printf("Usage: cc1541 -niwfoVTPONlBMmdtuxFSseErbc45gUqvh image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='cc1541'.\n");
     printf("-i id         Disk ID, default='00 2a'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
@@ -213,6 +261,8 @@ usage()
     printf("-4            Use tracks 35-40 with SPEED DOS BAM formatting.\n");
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
+    printf("-U mapping    Print directory as Unicode (requires suitable font, e.g. unscii).\n");
+    printf("              0 for ASCII output, 1 for upper case, 2 for lower case.\n");
     printf("-q            Be quiet.\n");
     printf("-v            Be verbose.\n");
     printf("-h            Print this commandline help.\n");
@@ -367,6 +417,17 @@ p2a(unsigned char p)
         }
     }
     return ((isprint(p) ? p : '.'));
+}
+
+/* Converts a PETSCII character to Unicode */
+static unsigned int
+p2u(unsigned char p)
+{
+    if(unicode == 1) {
+        return p2u_uppercase_tab[p];
+    } else {
+        return p2u_lowercase_tab[p];
+    }
 }
 
 /* Converts an ASCII string to PETSCII filled up with Shift-Space to length */
@@ -1041,7 +1102,11 @@ print_filetype(int filetype)
     } else {
         printf(" ");
     }
-    printf("%s", filetypename[filetype & 0xf]);
+    if(unicode == 1) {
+        printf("%s", filetypename_uc[filetype & 0xf]);
+    } else {
+        printf("%s", filetypename_lc[filetype & 0xf]);
+    }
     if ((filetype & 0x40) != 0) {
         printf("<");
     } else {
@@ -1298,7 +1363,11 @@ print_filename(unsigned char* pfilename)
                 putc(' ', stdout);
             }
         } else {
-            putc(p2a(pfilename[pos]), stdout);
+            if(unicode == 0) {
+                putc(p2a(pfilename[pos]), stdout);
+            } else {
+                putwc(p2u(pfilename[pos]), stdout);
+            }
         }
     }
     if (!ended) {
@@ -1338,6 +1407,10 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
     unsigned char* bam = image + linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
     petscii2ascii(bam + get_header_offset(type), aheader, FILENAMEMAXSIZE);
     petscii2ascii(bam + get_id_offset(type), aid, 5);
+
+    if(unicode != 0) {
+        setlocale(LC_ALL, "");
+    }
 
 #ifdef _WIN32
     /* Avoid escape values for inverse printing under Windows if they are not supported by the console */
@@ -1381,7 +1454,11 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
             dirsector = 0;
         }
     } while (dirsector > 0);
-    printf("%d blocks free.\n", blocks_free);
+    if(unicode == 1) {
+        printf("%d BLOCKS FREE.\n", blocks_free);
+    } else {
+        printf("%d blocks free.\n", blocks_free);
+    }
 }
 
 /* Write files to disk */
@@ -2357,6 +2434,15 @@ main(int argc, char* argv[])
                 return -1;
             }
             filename_g64 = argv[++j];
+        } else if (strcmp(argv[j], "-U") == 0) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%u", &unicode)) {
+                fprintf(stderr, "ERROR: Error parsing argument for -U\n");
+                return -1;
+            }
+            if(unicode < 0 || unicode > 2) {
+                fprintf(stderr, "ERROR: Argument must be between 0 and 2 for -U\n");
+                return -1;
+            }
         } else if (strcmp(argv[j], "-q") == 0) {
             quiet = 1;
         } else if (strcmp(argv[j], "-v") == 0) {
@@ -2490,7 +2576,9 @@ main(int argc, char* argv[])
             fprintf(stderr, "ERROR: Failed to write %s\n", imagepath);
             retval = -1;
         }
-        fclose(f);
+        if (f != NULL) {
+            fclose(f);
+        }
     }
 
     /* Save optional g64 image */
