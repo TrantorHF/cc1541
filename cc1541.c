@@ -542,11 +542,11 @@ print_filename(FILE *file, unsigned char* pfilename)
     putc('\"', file);
     for (int pos = 0; pos < FILENAMEMAXSIZE; pos++) {
         if (pfilename[pos] == FILENAMEEMPTYCHAR) {
-        	break;
+            break;
         }
-		putp(pfilename[pos], file);
+        putp(pfilename[pos], file);
     }
-	putc('\"', file);
+    putc('\"', file);
 }
 
 /* Calculates the overall sector index from a given track and sector */
@@ -1111,7 +1111,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         if (verbose) {
             printf("  ");
             print_filename(stdout, file->pfilename);
-            printf("\n");            
+            printf("\n");
         }
 
         if(file->force_new) {
@@ -1152,7 +1152,7 @@ print_file_allocation(image_type type, unsigned char* image, imagefile* files, i
 
     for (int i = 0; i < num_files; i++) {
         printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => ", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset, files[i].alocalname);
-        print_filename(stdout, files[i].pfilename);        
+        print_filename(stdout, files[i].pfilename);
         printf(" (SL: %d)", files[i].sectorInterleave);
 
         if ((files[i].mode & MODE_LOOPFILE) && (files[i].sectorInterleave != 0)) {
