@@ -35,6 +35,11 @@
 #include <locale.h>
 #include <wchar.h>
 
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 #ifdef _WIN32
@@ -417,17 +422,6 @@ p2a(unsigned char p)
         }
     }
     return ((isprint(p) ? p : '.'));
-}
-
-/* Converts a PETSCII character to Unicode */
-static unsigned int
-p2u(unsigned char p)
-{
-    if(unicode == 1) {
-        return p2u_uppercase_tab[p];
-    } else {
-        return p2u_lowercase_tab[p];
-    }
 }
 
 /* Converts an ASCII string to PETSCII filled up with Shift-Space to length */
@@ -1348,6 +1342,38 @@ check_bam(image_type type, unsigned char* image)
     return sectorsFree;
 }
 
+/* Prints a PETSCII character */
+static void
+putp(unsigned char petscii)
+{
+    if(unicode) {
+        int u;
+        if(unicode == 1) {
+            u = p2u_uppercase_tab[petscii];
+        } else {
+            u = p2u_lowercase_tab[petscii];
+        }
+#ifdef _WIN32
+        _setmode(_fileno(stdout), _O_U16TEXT);
+#endif
+        putwc(u, stdout);
+#ifdef _WIN32
+        _setmode(_fileno(stdout), _O_TEXT);
+#endif
+    } else {
+        putc(p2a(petscii), stdout);
+    }
+}
+
+/* Prints a PETSCII string */
+static void
+print_petscii(unsigned char *petscii, int len)
+{
+    for(int i = 0; i < len; i++) {
+        putp(petscii[i]);
+    }
+}
+
 /* Prints the given PETSCII filename like the C64 when listing the directory */
 static void
 print_filename(unsigned char* pfilename)
@@ -1363,11 +1389,8 @@ print_filename(unsigned char* pfilename)
                 putc(' ', stdout);
             }
         } else {
-            if(unicode == 0) {
-                putc(p2a(pfilename[pos]), stdout);
-            } else {
-                putwc(p2u(pfilename[pos]), stdout);
-            }
+
+            putp(pfilename[pos]);
         }
     }
     if (!ended) {
@@ -1402,26 +1425,30 @@ EnableVTMode()
 static void
 print_directory(image_type type, unsigned char* image, int blocks_free)
 {
-    unsigned char aheader[FILENAMEMAXSIZE + 1];
-    unsigned char aid[6];
     unsigned char* bam = image + linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
-    petscii2ascii(bam + get_header_offset(type), aheader, FILENAMEMAXSIZE);
-    petscii2ascii(bam + get_id_offset(type), aid, 5);
-
-    if(unicode != 0) {
-        setlocale(LC_ALL, "");
-    }
 
 #ifdef _WIN32
     /* Avoid escape values for inverse printing under Windows if they are not supported by the console */
     if (EnableVTMode()) {
-        printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
+        printf("\n0 \033[7m\"");
+        print_petscii(bam + get_header_offset(type), 16);
+        printf("\" ");
+        print_petscii(bam + get_id_offset(type), 5);
+        printf("\033[m");
     } else {
-        printf("\n0 \"%-16s\" %-5s", aheader, aid);
+        printf("\n0 \"");
+        print_petscii(bam + get_header_offset(type), 16);
+        printf("\" ");
+        print_petscii(bam + get_id_offset(type), 5);
     }
 #else
-    printf("\n0 \033[7m\"%-16s\" %-5s\033[m", aheader, aid);
+    printf("\n0 \033[7m\"");
+    print_petscii(bam + get_header_offset(type), 16);
+    printf("\" ");
+    print_petscii(bam + get_id_offset(type), 5);
+    printf("\033[m");
 #endif
+
     if (verbose) {
         printf("    hash");
     }
@@ -2501,6 +2528,12 @@ main(int argc, char* argv[])
             fprintf(stderr, "ERROR: -b is not supported for D81 images\n");
             return -1;
         }
+    }
+
+    /* Change locale from C to default to allow unicode printouts */
+    if(unicode != 0) {
+        char *locale;
+        locale = setlocale(LC_ALL, "");
     }
 
     /* quiet has precedence over verbose */
