@@ -129,6 +129,11 @@ applicable for D81.
 *-g filename*::
   Write additional g64 output file with given name.
 
+*-U mapping*::
+  Print PETSCII as Unicode (requires Unicode 13.0 font, e.g. UNSCII).
+Use mapping 0 for ASCII output, 1 for upper case, 2 for lower case,
+default is 0.
+
 *-q*::
   Be quiet.
 

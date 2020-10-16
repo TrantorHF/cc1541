@@ -265,8 +265,9 @@ usage()
     printf("-4            Use tracks 35-40 with SPEED DOS BAM formatting.\n");
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
-    printf("-U mapping    Print directory as Unicode (requires suitable font, e.g. unscii).\n");
-    printf("              0 for ASCII output, 1 for upper case, 2 for lower case.\n");
+    printf("-U mapping    Print PETSCII as Unicode (requires Unicode 13.0 font, e.g.\n");
+    printf("              UNSCII). Use mapping 0 for ASCII output, 1 for upper case, 2 for\n");
+    printf("              lower case, default is 0.\n");
     printf("-q            Be quiet.\n");
     printf("-v            Be verbose.\n");
     printf("-h            Print this commandline help.\n");
