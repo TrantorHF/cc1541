@@ -91,7 +91,7 @@
 #define DIRSLOTNOTFOUND        2
 
 /* Table for conversion of uppercase PETSCII to Unicode */
-unsigned static int p2u_uppercase_tab[256] = {
+static unsigned int p2u_uppercase_tab[256] = {
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     ' ', '!', '\"', '#', '$', '%', '&', 0x2019, '(', ')', '*', '+', ',', '-', '.', '/',
@@ -111,7 +111,7 @@ unsigned static int p2u_uppercase_tab[256] = {
 };
 
 /* Table for conversion of lowercase PETSCII to Unicode */
-unsigned static int p2u_lowercase_tab[256] = {
+static unsigned int p2u_lowercase_tab[256] = {
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     ' ', '!', '\"', '#', '$', '%', '&', 0x2019, '(', ')', '*', '+', ',', '-', '.', '/',
@@ -2462,7 +2462,7 @@ main(int argc, char* argv[])
             }
             filename_g64 = argv[++j];
         } else if (strcmp(argv[j], "-U") == 0) {
-            if ((argc < j + 2) || !sscanf(argv[++j], "%u", &unicode)) {
+            if ((argc < j + 2) || !sscanf(argv[++j], "%d", &unicode)) {
                 fprintf(stderr, "ERROR: Error parsing argument for -U\n");
                 return -1;
             }
@@ -2532,7 +2532,6 @@ main(int argc, char* argv[])
 
     /* Change locale from C to default to allow unicode printouts */
     if(unicode != 0) {
-        char *locale;
         locale = setlocale(LC_ALL, "");
     }
 
