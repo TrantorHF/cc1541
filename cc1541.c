@@ -2532,7 +2532,7 @@ main(int argc, char* argv[])
 
     /* Change locale from C to default to allow unicode printouts */
     if(unicode != 0) {
-        locale = setlocale(LC_ALL, "");
+        setlocale(LC_ALL, "");
     }
 
     /* quiet has precedence over verbose */
