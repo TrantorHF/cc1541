@@ -133,7 +133,6 @@ static unsigned int p2u_lowercase_tab[256] = {
 typedef struct {
     const unsigned char* alocalname;                  /* local file name or name of loop file in ASCII */
     unsigned char        plocalname[FILENAMEMAXSIZE]; /* loop file in PETSCII */
-    const unsigned char* afilename;                   /* disk file name in ASCII */
     unsigned char        pfilename[FILENAMEMAXSIZE];  /* disk file name in PETSCII */
     int                  direntryindex;
     int                  direntrysector;
@@ -439,23 +438,6 @@ ascii2petscii(const unsigned char* ascii, unsigned char* petscii, int len)
     }
 }
 
-/* Converts an PETSCII string to ASCII with length restriction */
-static int
-petscii2ascii(const unsigned char* petscii, unsigned char* ascii, int len)
-{
-    int pos = 0;
-    int last = pos;
-    while (pos < len) {
-        ascii[pos] = p2a(petscii[pos]);
-        if (petscii[pos] != FILENAMEEMPTYCHAR) {
-            last = pos;
-        }
-        ++pos;
-    }
-    ascii[last+1] = '\0';
-    return pos;
-}
-
 /* Converts a two digit hex string to an int */
 static unsigned int
 hex2int(char hex)
@@ -494,6 +476,77 @@ evalhexescape(const unsigned char* ascii, unsigned char* petscii, int len)
         petscii[write] = FILENAMEEMPTYCHAR;
         ++write;
     }
+}
+
+/* Prints a PETSCII character */
+static void
+putp(unsigned char petscii, FILE *file)
+{
+    if(unicode) {
+        int u;
+        if(unicode == 1) {
+            u = p2u_uppercase_tab[petscii];
+        } else {
+            u = p2u_lowercase_tab[petscii];
+        }
+#ifdef _WIN32
+        _setmode(_fileno(file), _O_U16TEXT);
+#endif
+        putwc(u, file);
+#ifdef _WIN32
+        _setmode(_fileno(file), _O_TEXT);
+#endif
+    } else {
+        putc(p2a(petscii), stdout);
+    }
+}
+
+/* Prints a PETSCII string to the given file */
+static void
+print_petscii(unsigned char *petscii, int len)
+{
+    for(int i = 0; i < len; i++) {
+        putp(petscii[i], stdout);
+    }
+}
+
+/* Prints the given PETSCII filename like the C64 when listing the directory */
+static void
+print_dirfilename(unsigned char* pfilename)
+{
+    int ended = 0;
+    putc('\"', stdout);
+    for (int pos = 0; pos < FILENAMEMAXSIZE; pos++) {
+        if (pfilename[pos] == FILENAMEEMPTYCHAR) {
+            if (!ended) {
+                putc('\"', stdout);
+                ended = 1;
+            } else {
+                putc(' ', stdout);
+            }
+        } else {
+            putp(pfilename[pos], stdout);
+        }
+    }
+    if (!ended) {
+        putc('\"', stdout);
+    } else {
+        putc(' ', stdout);
+    }
+}
+
+/* Prints the given PETSCII filename */
+static void
+print_filename(FILE *file, unsigned char* pfilename)
+{
+    putc('\"', file);
+    for (int pos = 0; pos < FILENAMEMAXSIZE; pos++) {
+        if (pfilename[pos] == FILENAMEEMPTYCHAR) {
+        	break;
+        }
+		putp(pfilename[pos], file);
+    }
+	putc('\"', file);
 }
 
 /* Calculates the overall sector index from a given track and sector */
@@ -541,9 +594,9 @@ count_hashes(image_type type, unsigned char* image, unsigned int hash, bool prin
                     ++num;
 
                     if (print) {
-                        unsigned char afilename[FILENAMEMAXSIZE + 1];
-                        petscii2ascii(filename, afilename, FILENAMEMAXSIZE);
-                        printf(" [$%04x] \"%s\"\n", filenamehash(filename), afilename);
+                        printf(" [$%04x] ", filenamehash(filename));
+                        print_filename(stdout, filename);
+                        printf("\n");
                     }
                 }
             }
@@ -577,9 +630,9 @@ check_hashes(image_type type, unsigned char* image)
                 unsigned char *filename = (unsigned char *) image + dirblock + entryOffset + FILENAMEOFFSET;
                 if (count_hashes(type, image, filenamehash(filename), false /* print */) > 1) {
                     collision = 1;
-                    unsigned char afilename[FILENAMEMAXSIZE + 1];
-                    petscii2ascii(filename, afilename, FILENAMEMAXSIZE);
-                    fprintf(stderr, "Hash of filename \"%s\" [$%04x] is not unique\n", afilename, filenamehash(filename));
+                    fprintf(stderr, "Hash of filename ");
+                    print_filename(stderr, filename);
+                    fprintf(stderr, " [$%04x] is not unique\n", filenamehash(filename));
                     count_hashes(type, image, filenamehash(filename), true /* print */);
                 }
             }
@@ -1056,7 +1109,9 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         imagefile *file = files + i;
 
         if (verbose) {
-            printf("  \"%s\"\n", file->afilename);
+            printf("  ");
+            print_filename(stdout, file->pfilename);
+            printf("\n");            
         }
 
         if(file->force_new) {
@@ -1087,27 +1142,6 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
     }
 }
 
-/* Prints the filetype like the C64 when listing the directory */
-static void
-print_filetype(int filetype)
-{
-    if ((filetype & 0x80) == 0) {
-        printf("*");
-    } else {
-        printf(" ");
-    }
-    if(unicode == 1) {
-        printf("%s", filetypename_uc[filetype & 0xf]);
-    } else {
-        printf("%s", filetypename_lc[filetype & 0xf]);
-    }
-    if ((filetype & 0x40) != 0) {
-        printf("<");
-    } else {
-        printf(" ");
-    }
-}
-
 /* Prints the allocated tracks and sectors for every new file */
 static void
 print_file_allocation(image_type type, unsigned char* image, imagefile* files, int num_files)
@@ -1117,8 +1151,9 @@ print_file_allocation(image_type type, unsigned char* image, imagefile* files, i
     }
 
     for (int i = 0; i < num_files; i++) {
-        printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => \"%s\" (SL: %d)", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset,
-               files[i].alocalname, files[i].afilename, files[i].sectorInterleave);
+        printf("%3d (0x%02x 0x%02x:0x%02x) \"%s\" => ", files[i].nrSectors, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset, files[i].alocalname);
+        print_filename(stdout, files[i].pfilename);        
+        printf(" (SL: %d)", files[i].sectorInterleave);
 
         if ((files[i].mode & MODE_LOOPFILE) && (files[i].sectorInterleave != 0)) {
             printf("\n");
@@ -1235,9 +1270,8 @@ print_track_usage(image_type type, unsigned char *image, int track)
                 bool ontrack = (type == IMAGE_D71) ? fileontrack(type, image, track, (filetrack > D64NUMTRACKS) ? filetrack - D64NUMTRACKS : filetrack + D64NUMTRACKS, filesector) : false;
                 if (ontrack || fileontrack(type, image, track, filetrack, filesector)) {
                     unsigned char *filename = (unsigned char *) image + dirblock + entryOffset + FILENAMEOFFSET;
-                    unsigned char afilename[FILENAMEMAXSIZE + 1];
-                    petscii2ascii(filename, afilename, FILENAMEMAXSIZE);
-                    printf("\"%s\" ", afilename);
+                    print_filename(stdout, filename);
+                    printf(" ");
                 }
             }
         }
@@ -1342,61 +1376,24 @@ check_bam(image_type type, unsigned char* image)
     return sectorsFree;
 }
 
-/* Prints a PETSCII character */
+/* Prints the filetype like the C64 when listing the directory */
 static void
-putp(unsigned char petscii)
+print_filetype(int filetype)
 {
-    if(unicode) {
-        int u;
-        if(unicode == 1) {
-            u = p2u_uppercase_tab[petscii];
-        } else {
-            u = p2u_lowercase_tab[petscii];
-        }
-#ifdef _WIN32
-        _setmode(_fileno(stdout), _O_U16TEXT);
-#endif
-        putwc(u, stdout);
-#ifdef _WIN32
-        _setmode(_fileno(stdout), _O_TEXT);
-#endif
+    if ((filetype & 0x80) == 0) {
+        printf("*");
     } else {
-        putc(p2a(petscii), stdout);
+        printf(" ");
     }
-}
-
-/* Prints a PETSCII string */
-static void
-print_petscii(unsigned char *petscii, int len)
-{
-    for(int i = 0; i < len; i++) {
-        putp(petscii[i]);
-    }
-}
-
-/* Prints the given PETSCII filename like the C64 when listing the directory */
-static void
-print_filename(unsigned char* pfilename)
-{
-    int ended = 0;
-    putc('\"', stdout);
-    for (int pos = 0; pos < FILENAMEMAXSIZE; pos++) {
-        if (pfilename[pos] == FILENAMEEMPTYCHAR) {
-            if (!ended) {
-                putc('\"', stdout);
-                ended = 1;
-            } else {
-                putc(' ', stdout);
-            }
-        } else {
-
-            putp(pfilename[pos]);
-        }
-    }
-    if (!ended) {
-        putc('\"', stdout);
+    if(unicode == 1) {
+        printf("%s", filetypename_uc[filetype & 0xf]);
     } else {
-        putc(' ', stdout);
+        printf("%s", filetypename_lc[filetype & 0xf]);
+    }
+    if ((filetype & 0x40) != 0) {
+        printf("<");
+    } else {
+        printf(" ");
     }
 }
 
@@ -1466,7 +1463,7 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
             if (filetype != FILETYPEDEL) {
                 unsigned char* filename = (unsigned char*)image + dirblock + entryOffset + FILENAMEOFFSET;
                 printf("%-5d", blocks);
-                print_filename(filename);
+                print_dirfilename(filename);
                 print_filetype(filetype);
                 if (verbose) {
                     printf(" [$%04x]", filenamehash(filename));
@@ -1557,7 +1554,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 track = (file->mode & MODE_MIN_TRACK_MASK) >> MODE_MIN_TRACK_SHIFT;
                 /* note that track may be smaller than lastTrack now */
                 if (track > image_num_tracks(type)) {
-                    fprintf(stderr, "ERROR: Invalid minimum track %u for file %s (%s) specified\n", track, file->alocalname, file->afilename);
+                    fprintf(stderr, "ERROR: Invalid minimum track %u for file %s (", track, file->alocalname);
+                    print_filename(stderr, file->pfilename);
+                    fprintf(stderr, ") specified\n");
 
                     exit(-1);
                 }
@@ -1591,7 +1590,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                                 /* Emulators tend to reset the disk angle on track changes, so this should rather be 3. */
                                 if (sector >= num_sectors(type, track)) {
                                     if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
-                                        fprintf(stderr, "ERROR: Invalid beginning sector %u on track %u for file %s (%s) specified\n", sector, track, file->alocalname, file->afilename);
+                                        fprintf(stderr, "ERROR: Invalid beginning sector %u on track %u for file %s (", sector, track, file->alocalname);
+                                        print_filename(stderr, file->pfilename);
+                                        fprintf(stderr, ") specified\n");
 
                                         exit(-1);
                                     }
@@ -1640,7 +1641,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                             }
 
                             if (track > image_num_tracks(type)) {
-                                fprintf(stderr, "ERROR: Disk full, file %s (%s)\n", file->alocalname, file->afilename);
+                                fprintf(stderr, "ERROR: Disk full, file %s (", file->alocalname);
+                                print_filename(stderr, file->pfilename);
+                                fprintf(stderr, ")\n");
 
                                 exit(-1);
                             }
@@ -1658,7 +1661,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
             if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
                 if (sector != ((file->mode & MODE_BEGINNING_SECTOR_MASK) - 1)) {
-                    fprintf(stderr, "ERROR: Specified beginning sector of file %s (%s) not free on track %u\n", file->alocalname, file->afilename, track);
+                    fprintf(stderr, "ERROR: Specified beginning sector of file %s (", file->alocalname);
+                    print_filename(stderr, file->pfilename);
+                    fprintf(stderr, ") not free on track %u\n", track);
 
                     exit(-1);
                 }
@@ -1744,7 +1749,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                                 check_bam(type, image);
                             }
 
-                            fprintf(stderr, "ERROR: Disk full, file %s (%s)\n", file->alocalname, file->afilename);
+                            fprintf(stderr, "ERROR: Disk full, file %s (", file->alocalname);
+                            print_filename(stderr, file->pfilename);
+                            fprintf(stderr, ")\n");
                             free(filedata);
 
                             exit(-1);
@@ -1780,7 +1787,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 mark_sector(type, image, track, sector, 0 /* not free */);
 
                 if (num_sectors(type, track) <= abs(file->sectorInterleave)) {
-                    fprintf(stderr, "ERROR: Invalid interleave %d on track %u (%d sectors), file %s (%s)\n", file->sectorInterleave, track, num_sectors(type, track), file->alocalname, file->afilename);
+                    fprintf(stderr, "ERROR: Invalid interleave %d on track %u (%d sectors), file %s (", file->sectorInterleave, track, num_sectors(type, track), file->alocalname);
+                    print_filename(stderr, file->pfilename);
+                    fprintf(stderr, ")\n");
 
                     exit(-1);
                 }
@@ -2377,11 +2386,9 @@ main(int argc, char* argv[])
             }
             files[num_files].alocalname = (unsigned char*)argv[j + 1];
             if (filename == NULL) {
-                files[num_files].afilename = basename(files[num_files].alocalname);
-                ascii2petscii(files[num_files].afilename, files[num_files].pfilename, FILENAMEMAXSIZE); /* do not eval escapes when converting the filename, as the local filename could contain the escape char */
+                ascii2petscii(basename(files[num_files].alocalname), files[num_files].pfilename, FILENAMEMAXSIZE); /* do not eval escapes when converting the filename, as the local filename could contain the escape char */
             } else {
-                files[num_files].afilename = filename;
-                evalhexescape(files[num_files].afilename, files[num_files].pfilename, FILENAMEMAXSIZE);
+                evalhexescape(filename, files[num_files].pfilename, FILENAMEMAXSIZE);
             }
             files[num_files].sectorInterleave = sectorInterleave ? sectorInterleave : defaultSectorInterleave;
             files[num_files].first_sector_new_track = first_sector_new_track;
@@ -2406,8 +2413,7 @@ main(int argc, char* argv[])
                 fprintf(stderr, "ERROR: Loop files require a filename set with -f\n");
                 return -1;
             }
-            files[num_files].afilename = filename;
-            evalhexescape(files[num_files].afilename, files[num_files].pfilename, FILENAMEMAXSIZE);
+            evalhexescape(filename, files[num_files].pfilename, FILENAMEMAXSIZE);
             if(memcmp(files[num_files].pfilename, files[num_files].plocalname, FILENAMEMAXSIZE) == 0 && !files[num_files].force_new) {
                 fprintf(stderr, "ERROR: Loop file cannot have the same name as the file they refer to, unless with -N\n");
                 return -1;
