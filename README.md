@@ -7,7 +7,7 @@ DOLPHIN DOS BAM-formatting.
 
 Originally written by JackAsser, with improvements and fixes by
 Krill, some more improvements by Claus and further improvements by
-Bj√∂rn Esser.
+Björn Esser.
 
 The program is provided under the terms of the MIT license, please
 refer to the included LICENSE.txt file for its terms and conditions.
@@ -24,12 +24,11 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
   exist yet) using the name "program"
 * "cc1541 -f program1 -w program1.prg -f program2 -w program2.prg
   image.d64" adds two files under the names program1 and program2
-* "cc1541 -s 4 -f program -w program.prg image.d64" writes file
+* "cc1541 -s 4 -f program -w program.prg image.d64" writes a file
   with a dedicated sector interleave for a fastloader (the best
   value depends on the used fastloader and its configuration)
-* "cc1541 -f start -w start.prg -N -T DEL -f ---------------- -l
-start"
-  creates a DEL entry as separator.
+* "cc1541 -f start -w start.prg -N -T DEL -f ---------------- -l 
+  start" creates a DEL entry as separator.
 * "cc1541 -T DEL -O -f program -w program.prg image.d64" effectively
   deletes file "program", as an open DEL file is the marker for
   a completely deleted file in Commodore DOS.
