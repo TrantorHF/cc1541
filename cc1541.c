@@ -479,11 +479,33 @@ evalhexescape(const unsigned char* ascii, unsigned char* petscii, int len)
     }
 }
 
+/* Convert a unicode character to utf8 */
+char* utf8_encode(int c, char* out)
+{
+    if (c < 0x80)
+        *out++ =(c & 0xff);
+    else if (c < 0x800) {
+        *out++ = (0xC0 | ((c >> 6) & 0x1f));
+        *out++ = (0x80 | (c & 0x3f));
+    } else if (c < 0x10000) {
+        *out++ = (0xE0 | ((c >> 12) & 0xf));
+        *out++ = (0x80 | ((c >> 6) & 0x3f));
+        *out++ = (0x80 | (c & 0x3f));
+    } else {
+        *out++ = (0xF0 | ((c >> 18) & 0x07));
+        *out++ = (0x80 | ((c >> 12) & 0x3f));
+        *out++ = (0x80 | ((c >> 6) & 0x3f));
+        *out++ = (0x80 | (c & 0x3f));
+    }
+    return out;
+}
+
 /* Prints a PETSCII character */
 static void
 putp(unsigned char petscii, FILE *file)
 {
     if(unicode) {
+        char temp[5];
         int u;
         if(unicode == 1) {
             u = p2u_uppercase_tab[petscii];
@@ -492,13 +514,14 @@ putp(unsigned char petscii, FILE *file)
         }
 #ifdef _WIN32
         _setmode(_fileno(file), _O_U16TEXT);
-#endif
         putwc(u, file);
-#ifdef _WIN32
         _setmode(_fileno(file), _O_TEXT);
+#else
+        *utf8_encode(u, temp) = 0;
+        fputs(temp, file);
 #endif
     } else {
-        putc(p2a(petscii), stdout);
+        putc(p2a(petscii), file);
     }
 }
 
