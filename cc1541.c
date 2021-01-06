@@ -551,20 +551,19 @@ void reverse_print_off()
 static void
 putp(unsigned char petscii, FILE *file)
 {
-    if(unicode) {
-        char temp[5];
+    if (unicode) {
         int u;
         int reverse = 0;
 
         /* TODO: if petscii == 0, the C64 writes a line break and a line number */
 
-        if(petscii < 0x20 || (petscii >= 0x80 && petscii <= 0x9f)) {
+        if (petscii < 0x20 || (petscii >= 0x80 && petscii <= 0x9f)) {
             reverse = 1;
             reverse_print_on();
             petscii += 0x40;
         }
 
-        if(unicode == 1) {
+        if (unicode == 1) {
             u = p2u_uppercase_tab[petscii];
         } else {
             u = p2u_lowercase_tab[petscii];
@@ -575,8 +574,11 @@ putp(unsigned char petscii, FILE *file)
         putwc(u, file);
         _setmode(_fileno(file), _O_TEXT);
 #else
-        *utf8_encode(u, temp) = 0; /* fancy way to zero-terminate temp after conversion */
-        fputs(temp, file);
+        {
+            char temp[5];
+            *utf8_encode(u, temp) = 0; /* fancy way to zero-terminate temp after conversion */
+            fputs(temp, file);
+        }
 #endif
 
         if(reverse) {
