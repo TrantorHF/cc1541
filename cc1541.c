@@ -555,8 +555,6 @@ putp(unsigned char petscii, FILE *file)
         int u;
         int reverse = 0;
 
-        /* TODO: if petscii == 0, the C64 writes a line break and a line number */
-
         if (petscii < 0x20 || (petscii >= 0x80 && petscii <= 0x9f)) {
             reverse = 1;
             reverse_print_on();
@@ -605,7 +603,8 @@ print_dirfilename(unsigned char* pfilename)
     int ended = 0;
     putc('\"', stdout);
     for (int pos = 0; pos < FILENAMEMAXSIZE; pos++) {
-        if (pfilename[pos] == FILENAMEEMPTYCHAR) {
+        unsigned char c = pfilename[pos];
+        if (c == FILENAMEEMPTYCHAR) {
             if (!ended) {
                 putc('\"', stdout);
                 ended = 1;
@@ -613,7 +612,7 @@ print_dirfilename(unsigned char* pfilename)
                 putc(' ', stdout);
             }
         } else {
-            putp(pfilename[pos], stdout);
+            putp(c, stdout);
         }
     }
     if (!ended) {
@@ -1515,7 +1514,7 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
 
             if (filetype != FILETYPEDEL) {
                 unsigned char* filename = (unsigned char*)image + dirblock + entryOffset + FILENAMEOFFSET;
-                printf("%-5d", blocks);
+                printf("%-3d  ", blocks);
                 print_dirfilename(filename);
                 print_filetype(filetype);
                 if (verbose) {
