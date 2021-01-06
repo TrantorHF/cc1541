@@ -98,7 +98,7 @@ static unsigned int p2u_uppercase_tab[256] = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
     '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
     'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', 0xa3, ']', 0x2191, 0x2190,
-    0x2500, 0x2660, 0x1fb72, 0x2500, 0x1fb77, 0x1fb76, 0x1fb7a, 0x1fb71, 0x1fb74, 0x256e, 0x2570, 0x256f, 0x1fb7c, 0x2572, 0x2571, 0x1fb7d,
+    0x1fb79, 0x2660, 0x1fb72, 0x1fb78, 0x1fb77, 0x1fb76, 0x1fb7a, 0x1fb71, 0x1fb74, 0x256e, 0x2570, 0x256f, 0x1fb7c, 0x2572, 0x2571, 0x1fb7d,
     0x1fb7e, 0x25cf, 0x1fb7b, 0x2665, 0x1fb70, 0x256d, 0x2573, 0x25cb, 0x2663, 0x1fb75, 0x2666, 0x253c, 0x1fb8c, 0x2502, 0x3c0, 0x25e5,
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
@@ -107,7 +107,7 @@ static unsigned int p2u_uppercase_tab[256] = {
     0x2500, 0x2660, 0x1fb72, 0x2500, 0x1fb77, 0x1fb76, 0x1fb7a, 0x1fb71, 0x1fb74, 0x256e, 0x2570, 0x256f, 0x1fb7c, 0x2572, 0x2571, 0x1fb7d,
     0x1fb7e, 0x25cf, 0x1fb7b, 0x2665, 0x1fb70, 0x256d, 0x2573, 0x25cb, 0x2663, 0x1fb75, 0x2666, 0x253c, 0x1fb8c, 0x2502, 0x3c0, 0x25e5,
     ' ', 0x258c, 0x2584, 0x2594, 0x2581, 0x258e, 0x1fb95, 0x1fb75, 0x1fb8f, 0x25e4, 0x1fb75, 0x251c, 0x2597, 0x2514, 0x2510, 0x2581,
-    0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0x2590, 0x2594, 0x2580, 0x2583, 0x1fb7f, 0x2596, 0x259d, 0x2518, 0x2598, 0x3c0
+    0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0x1fb88, 0x1fb82, 0x1fb83, 0x2583, 0x1fb7f, 0x2596, 0x259d, 0x2518, 0x2598, 0x3c0
 };
 
 /* Table for conversion of lowercase PETSCII to Unicode */
@@ -479,11 +479,33 @@ evalhexescape(const unsigned char* ascii, unsigned char* petscii, int len)
     }
 }
 
+/* Convert a unicode character to utf8 */
+char* utf8_encode(int c, char* out)
+{
+    if (c < 0x80)
+        *out++ =(c & 0xff);
+    else if (c < 0x800) {
+        *out++ = (0xC0 | ((c >> 6) & 0x1f));
+        *out++ = (0x80 | (c & 0x3f));
+    } else if (c < 0x10000) {
+        *out++ = (0xE0 | ((c >> 12) & 0xf));
+        *out++ = (0x80 | ((c >> 6) & 0x3f));
+        *out++ = (0x80 | (c & 0x3f));
+    } else {
+        *out++ = (0xF0 | ((c >> 18) & 0x07));
+        *out++ = (0x80 | ((c >> 12) & 0x3f));
+        *out++ = (0x80 | ((c >> 6) & 0x3f));
+        *out++ = (0x80 | (c & 0x3f));
+    }
+    return out;
+}
+
 /* Prints a PETSCII character */
 static void
 putp(unsigned char petscii, FILE *file)
 {
     if(unicode) {
+        char temp[5];
         int u;
         if(unicode == 1) {
             u = p2u_uppercase_tab[petscii];
@@ -492,13 +514,14 @@ putp(unsigned char petscii, FILE *file)
         }
 #ifdef _WIN32
         _setmode(_fileno(file), _O_U16TEXT);
-#endif
         putwc(u, file);
-#ifdef _WIN32
         _setmode(_fileno(file), _O_TEXT);
+#else
+        *utf8_encode(u, temp) = 0;
+        fputs(temp, file);
 #endif
     } else {
-        putc(p2a(petscii), stdout);
+        putc(p2a(petscii), file);
     }
 }
 
@@ -526,7 +549,18 @@ print_dirfilename(unsigned char* pfilename)
                 putc(' ', stdout);
             }
         } else {
-            putp(pfilename[pos], stdout);
+            unsigned char c = pfilename[pos];
+            if(c >= 0x80 && c <= 0x9f) {
+#ifdef _WIN32
+                putp(c + 0x40, stdout);
+#else
+                printf("\033[7m");
+                putp(c + 0x40, stdout);
+                printf("\033[m");
+#endif
+            } else {
+                putp(c, stdout);
+            }
         }
     }
     if (!ended) {
