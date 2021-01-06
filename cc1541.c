@@ -118,7 +118,7 @@ static unsigned int p2u_lowercase_tab[256] = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
     '@', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
     'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '[', 0xa3, ']', 0x2191, 0x2190,
-    0x2500, 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    0x1fb79, 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
     'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 0x253c, 0x1fb8c, 0x2502, 0x1fb95, 0x1fb98,
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
@@ -127,7 +127,7 @@ static unsigned int p2u_lowercase_tab[256] = {
     0x2500, 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
     'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 0x253c, 0x1fb8c, 0x2502, 0x1fb95, 0x1fb98,
     ' ', 0x258c, 0x2584, 0x2594, 0x2581, 0x258e, 0x1fb95, 0x1fb75, 0x1fb8f, 0x1fb99, 0x1fb75, 0x251c, 0x2597, 0x2514, 0x2510, 0x2581,
-    0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0x2590, 0x2594, 0x2580, 0x2583, 0x2713, 0x2596, 0x259d, 0x2518, 0x2598, 0x1fb96
+    0x250c, 0x2534, 0x252c, 0x2524, 0x258e, 0x258d, 0x1fb88, 0x1fb82, 0x1fb83, 0x2583, 0x2713, 0x2596, 0x259d, 0x2518, 0x2598, 0x1fb96
 };
 
 typedef struct {
@@ -479,7 +479,7 @@ evalhexescape(const unsigned char* ascii, unsigned char* petscii, int len)
     }
 }
 
-/* Convert a unicode character to utf8 */
+/* Converts a unicode character to utf8 */
 char* utf8_encode(int c, char* out)
 {
     if (c < 0x80)
@@ -500,6 +500,32 @@ char* utf8_encode(int c, char* out)
     return out;
 }
 
+/* Enables reverse printing to console */
+void reverse_print_on()
+{
+#ifdef _WIN32
+    /* Avoid escape values for inverse printing under Windows if they are not supported by the console */
+    if (EnableVTMode()) {
+        printf("\033[7m");
+    }
+#else
+    printf("\033[7m");
+#endif
+}
+
+/* Disables reverse printing to console */
+void reverse_print_off()
+{
+#ifdef _WIN32
+    /* Avoid escape values for inverse printing under Windows if they are not supported by the console */
+    if (EnableVTMode()) {
+        printf("\033[m");
+    }
+#else
+    printf("\033[m");
+#endif
+}
+
 /* Prints a PETSCII character */
 static void
 putp(unsigned char petscii, FILE *file)
@@ -507,19 +533,34 @@ putp(unsigned char petscii, FILE *file)
     if(unicode) {
         char temp[5];
         int u;
+        int reverse = 0;
+
+        /* TODO: if petscii == 0, the C64 writes a line break and a line number */
+
+        if(petscii < 0x20 || (petscii >= 0x80 && petscii <= 0x9f)) {
+            reverse = 1;
+            reverse_print_on();
+            petscii += 0x40;
+        }
+
         if(unicode == 1) {
             u = p2u_uppercase_tab[petscii];
         } else {
             u = p2u_lowercase_tab[petscii];
         }
+
 #ifdef _WIN32
         _setmode(_fileno(file), _O_U16TEXT);
         putwc(u, file);
         _setmode(_fileno(file), _O_TEXT);
 #else
-        *utf8_encode(u, temp) = 0;
+        *utf8_encode(u, temp) = 0; /* fancy way to zero-terminate temp after conversion */
         fputs(temp, file);
 #endif
+
+        if(reverse) {
+            reverse_print_off();
+        }
     } else {
         putc(p2a(petscii), file);
     }
@@ -549,18 +590,7 @@ print_dirfilename(unsigned char* pfilename)
                 putc(' ', stdout);
             }
         } else {
-            unsigned char c = pfilename[pos];
-            if(c >= 0x80 && c <= 0x9f) {
-#ifdef _WIN32
-                putp(c + 0x40, stdout);
-#else
-                printf("\033[7m");
-                putp(c + 0x40, stdout);
-                printf("\033[m");
-#endif
-            } else {
-                putp(c, stdout);
-            }
+            putp(pfilename[pos], stdout);
         }
     }
     if (!ended) {
@@ -1459,27 +1489,13 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
 {
     unsigned char* bam = image + linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
 
-#ifdef _WIN32
-    /* Avoid escape values for inverse printing under Windows if they are not supported by the console */
-    if (EnableVTMode()) {
-        printf("\n0 \033[7m\"");
-        print_petscii(bam + get_header_offset(type), 16);
-        printf("\" ");
-        print_petscii(bam + get_id_offset(type), 5);
-        printf("\033[m");
-    } else {
-        printf("\n0 \"");
-        print_petscii(bam + get_header_offset(type), 16);
-        printf("\" ");
-        print_petscii(bam + get_id_offset(type), 5);
-    }
-#else
-    printf("\n0 \033[7m\"");
+    printf("\n0 ");
+    reverse_print_on();
+    printf("\"");
     print_petscii(bam + get_header_offset(type), 16);
     printf("\" ");
     print_petscii(bam + get_id_offset(type), 5);
-    printf("\033[m");
-#endif
+    reverse_print_off();
 
     if (verbose) {
         printf("    hash");
