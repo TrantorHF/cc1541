@@ -500,6 +500,27 @@ char* utf8_encode(int c, char* out)
     return out;
 }
 
+#ifdef _WIN32
+/* Enables console formatting under Windows if possible */
+static bool
+EnableVTMode()
+{
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) {
+        return false;
+    }
+    dwMode |= 0x0004; /* ENABLE_VIRTUAL_TERMINAL_PROCESSING not defined for older SDKs */
+    if (!SetConsoleMode(hOut, dwMode)) {
+        return false;
+    }
+    return true;
+}
+#endif
+
 /* Enables reverse printing to console */
 void reverse_print_on()
 {
@@ -1461,27 +1482,6 @@ print_filetype(int filetype)
         printf(" ");
     }
 }
-
-#ifdef _WIN32
-/* Enables console formatting under Windows if possible */
-static bool
-EnableVTMode()
-{
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut == INVALID_HANDLE_VALUE) {
-        return false;
-    }
-    DWORD dwMode = 0;
-    if (!GetConsoleMode(hOut, &dwMode)) {
-        return false;
-    }
-    dwMode |= 0x0004; /* ENABLE_VIRTUAL_TERMINAL_PROCESSING not defined for older SDKs */
-    if (!SetConsoleMode(hOut, dwMode)) {
-        return false;
-    }
-    return true;
-}
-#endif
 
 /* Prints the directory like the C64 when listing the directory */
 static void
