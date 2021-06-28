@@ -482,7 +482,7 @@ hex2int(char hex)
     return (unsigned int)hex;
 }
 
-/* Converts an ASCII string to PETSCII with escape evaluation filled up with emptychare to length */
+/* Converts an ASCII string to PETSCII with escape evaluation filled up with emptychar to length */
 static void
 evalhexescape(const unsigned char* ascii, unsigned char* petscii, int len, unsigned char emptychar)
 {
@@ -2498,7 +2498,12 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
             }
 
             unsigned char decoded[256];
-            decode_gcr_block(gcr_to_nibble, encoded, decoded);
+            int checksum = decode_gcr_block(gcr_to_nibble, encoded, decoded);
+            if (checksum < 0) {
+                printf("decoding error on t%d/s%d\n", track, sector);
+
+                exit(-7);
+            }
 
             int offset = linear_sector(type, track, sector) * BLOCKSIZE;
             memcpy(image + offset, decoded, BLOCKSIZE);
@@ -2925,7 +2930,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                     } else {
                         printf("Encoding error with \"%s\", 0x%x\n", file->alocalname, dirdata_checksum);
 
-                        exit(-7);
+                        exit(-8);
                     }
                 }
 
@@ -3550,7 +3555,7 @@ main(int argc, char* argv[])
         } else if ((strcmp(argv[j], "-w") == 0)
                 || (strcmp(argv[j], "-W") == 0)) {
             if (argc < j + 2) {
-                fprintf(stderr, "ERROR: Error parsing argument for -w\n");
+                fprintf(stderr, "ERROR: Error parsing argument for %s\n", argv[j]);
                 return -1;
             }
             struct stat st;
