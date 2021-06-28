@@ -35,6 +35,12 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 
 ## Version history ##
 
+v3.3
+
+* Transwarp encoding added
+* Verbose mode displays file allocation on unmodified images
+* Optimised non-standard interleave scheme
+
 v3.2
 
 * -N switch added to allow duplicate file names
