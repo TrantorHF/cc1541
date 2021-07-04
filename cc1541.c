@@ -2582,10 +2582,12 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             }
         } else if (!(file->mode & MODE_LOOPFILE)) { /* loop files are handled later */
 
-            struct stat st;
-            stat((char*)files[i].alocalname, &st);
+            int fileSize = 0;
 
-            int fileSize = st.st_size;
+            struct stat st;
+            if (stat((char*)files[i].alocalname, &st) == 0) {
+                fileSize = st.st_size;
+            }
 
             unsigned char* filedata = (unsigned char*)calloc(fileSize + TRANSWARPBLOCKSIZE, sizeof(unsigned char));
             if (filedata == NULL) {
@@ -2617,8 +2619,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                     exit(-1);
                 }
                 while ((!file_usedirtrack)
-                        && ((track == dirtrack(type)) || (track == shadowdirtrack)
-                            || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                    && ((track == dirtrack(type))
+                     || (track == shadowdirtrack)
+                     || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                     ++track; /* skip dir track */
                 }
                 if (abs(((int) track) - lastTrack) > 1) {
@@ -3556,11 +3559,6 @@ main(int argc, char* argv[])
                 || (strcmp(argv[j], "-W") == 0)) {
             if (argc < j + 2) {
                 fprintf(stderr, "ERROR: Error parsing argument for %s\n", argv[j]);
-                return -1;
-            }
-            struct stat st;
-            if (stat(argv[j + 1], &st) != 0) {
-                fprintf(stderr, "ERROR: File '%s' (%d) not found\n", argv[j + 1], num_files + 1);
                 return -1;
             }
             files[num_files].alocalname = (unsigned char*)argv[j + 1];
