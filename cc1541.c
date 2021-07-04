@@ -1066,12 +1066,28 @@ initialize_directory(image_type type, unsigned char* image, unsigned char* heade
     update_directory(type, image, header, id, shadowdirtrack);
 }
 
+/* Computes Transwarp dirdata checksum */
+static unsigned char
+transwarp_dirdata_checksum(const unsigned char *image, int dir_entry_offset)
+{
+    int dirdata_checksum = 0;
+    int carry = 1;
+    for (int offset = DIRDATACHECKSUMOFFSET; offset <= FILEBLOCKSLOOFFSET; ++offset) {
+        dirdata_checksum += (image[dir_entry_offset + offset] + carry);
+        carry = (dirdata_checksum >= 0x0100) ? 1 : 0;
+        dirdata_checksum &= 0xff;
+    }
+
+    return dirdata_checksum;
+}
+
 /* Checks if a given dir entry points to a Transwarp file */
 static bool
 is_transwarp_file(const unsigned char *image, int dir_entry_offset)
 {
     return (image[dir_entry_offset + TRANSWARPSIGNATROFFSLO] == TRANSWARPSIGNATURELO)
-        && (image[dir_entry_offset + TRANSWARPSIGNATROFFSHI] == TRANSWARPSIGNATUREHI);
+        && (image[dir_entry_offset + TRANSWARPSIGNATROFFSHI] == TRANSWARPSIGNATUREHI)
+        && (transwarp_dirdata_checksum(image, dir_entry_offset) == 0);
 }
 
 /* Checks if a given dir entry points to the Transwarp bootfile */
@@ -2912,25 +2928,14 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 image[entryOffset + FILECHECKSUMOFFSET] = file_checksum;
 
                 image[entryOffset + DIRDATACHECKSUMOFFSET] = 0;
-                int dirdata_checksum = 0;
-                int carry = 1;
-                for (int offset = DIRDATACHECKSUMOFFSET; offset <= FILEBLOCKSLOOFFSET; ++offset) {
-                    dirdata_checksum += (image[entryOffset + offset] + carry);
-                    carry = (dirdata_checksum >= 0x0100) ? 1 : 0;
-                    dirdata_checksum &= 0xff;
-                }
-                image[entryOffset + DIRDATACHECKSUMOFFSET] = (0x0100 - dirdata_checksum);
-                dirdata_checksum = 0;
-                carry = 1;
-                for (int offset = DIRDATACHECKSUMOFFSET; offset <= FILEBLOCKSLOOFFSET; ++offset) {
-                    dirdata_checksum += (image[entryOffset + offset] + carry);
-                    carry = (dirdata_checksum >= 0x0100) ? 1 : 0;
-                    dirdata_checksum &= 0xff;
-                }
+                image[entryOffset + DIRDATACHECKSUMOFFSET] = (0x0100 - transwarp_dirdata_checksum(image, entryOffset));
+                unsigned char dirdata_checksum = transwarp_dirdata_checksum(image, entryOffset);
                 if (dirdata_checksum != 0) {
                     if (dirdata_checksum == 1) {
                         --image[entryOffset + DIRDATACHECKSUMOFFSET];
-                    } else {
+                    }
+                    dirdata_checksum = transwarp_dirdata_checksum(image, entryOffset);
+                    if (dirdata_checksum != 0) {
                         printf("Encoding error with \"%s\", 0x%x\n", file->alocalname, dirdata_checksum);
 
                         exit(-8);
