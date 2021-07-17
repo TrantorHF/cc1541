@@ -1446,7 +1446,8 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
     }
 
     for (int i = 0; i < num_files; i++) {
-        printf("%3d (0x%02x 0x%02x:0x%02x) ", files[i].nrSectors & 0xffff, files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset);
+        printf("%02d/%02d %3d (0x%02x 0x%02x:0x%02x) ", files[i].track, files[i].sector, files[i].nrSectors & 0xffff,
+                                                        files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset);
         if (files[i].alocalname) {
             printf("\"%s\" => ", files[i].alocalname);
         }
@@ -1484,7 +1485,7 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
               filesize -= 254;
             }
 
-            printf("\n    Transwarp: %d total/%d actual (%d standard) blocks, tracks %d-%d, %d used and %d redundant blocks on last track, 0x%x spare bytes in last block, size 0x%x\n",
+            printf("\n          Transwarp: %d total/%d actual (%d standard) blocks, tracks %d-%d, %d used and %d redundant blocks on last track, 0x%x spare bytes in last block, size 0x%x\n",
                    transwarp_blocks, nonredundant_blocks, num_blocks, first_track, last_track,
                    last_track_sectors - transwarp_blocks + nonredundant_blocks, transwarp_blocks - nonredundant_blocks, spare_bytes, files[i].size);
 
@@ -1503,7 +1504,7 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
         int j = 0;
         while (track != 0) {
             if (j == 0) {
-                printf("\n    ");
+                printf("\n          ");
             }
             printf("%02d/%02d", track, sector);
             int offset = linear_sector(type, track, sector) * BLOCKSIZE;
@@ -1655,7 +1656,7 @@ check_bam(image_type type, const unsigned char* image)
         for (int s = 0; s < num_sectors(type, t); s++) {
             if (is_sector_free(type, image, t, s, 0, 0)) {
                 if (verbose) {
-                    printf("0");
+                    printf(".");
                 }
                 if (t != dirtrack(type)) {
                     sectorsFree++;
@@ -1664,7 +1665,7 @@ check_bam(image_type type, const unsigned char* image)
                 }
             } else {
                 if (verbose) {
-                    printf("1");
+                    printf("#");
                 }
                 if (t != dirtrack(type)) {
                     sectorsOccupied++;
@@ -1688,7 +1689,7 @@ check_bam(image_type type, const unsigned char* image)
             for (int s = 0; s < num_sectors(type, t2); s++) {
                 if (is_sector_free(type, image, t2, s, 0, 0)) {
                     if (verbose) {
-                        printf("0");
+                        printf(".");
                     }
                     if (t2 != dirtrack(type)) {
                         sectorsFree++;
@@ -1698,7 +1699,7 @@ check_bam(image_type type, const unsigned char* image)
                     }
                 } else {
                     if (verbose) {
-                        printf("1");
+                        printf("#");
                     }
                     sectorsOccupied++;
                 }
@@ -2554,6 +2555,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     int lastTrack = track;
     int lastSector = sector;
     int lastOffset = linear_sector(type, lastTrack, lastSector) * BLOCKSIZE;
+    int lastMinTrack = track;
 
     /* make sure the first file already takes first sector per track into account */
     if (num_files > 0) {
@@ -2625,25 +2627,31 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
             if ((file->filetype != FILETYPETRANSWARP)
              && ((file->mode & MODE_MIN_TRACK_MASK) > 0)) {
-                track = (file->mode & MODE_MIN_TRACK_MASK) >> MODE_MIN_TRACK_SHIFT;
-                /* note that track may be smaller than lastTrack now */
-                if (track > image_num_tracks(type)) {
-                    fprintf(stderr, "ERROR: Invalid minimum track %u for file %s (", track, file->alocalname);
-                    print_filename(stderr, file->pfilename);
-                    fprintf(stderr, ") specified\n");
+                int minTrack = (file->mode & MODE_MIN_TRACK_MASK) >> MODE_MIN_TRACK_SHIFT;
+                if (lastMinTrack != minTrack) {
+                    lastMinTrack = minTrack;
+                    track = minTrack;
+                    /* note that track may be smaller than lastTrack now */
+                    if (track > image_num_tracks(type)) {
+                        fprintf(stderr, "ERROR: Invalid minimum track %u for file %s (", track, file->alocalname);
+                        print_filename(stderr, file->pfilename);
+                        fprintf(stderr, ") specified\n");
 
-                    exit(-1);
+                        exit(-1);
+                    }
+                    while ((!file_usedirtrack)
+                        && ((track == dirtrack(type))
+                         || (track == shadowdirtrack)
+                         || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                        ++track; /* skip dir track */
+                    }
+                    if (abs(((int) track) - lastTrack) > 1) {
+                        /* previous file's last track and this file's beginning track have tracks in between */
+                        sector = (type == IMAGE_D81) ? 0 : file->first_sector_new_track;
+                    }
                 }
-                while ((!file_usedirtrack)
-                    && ((track == dirtrack(type))
-                     || (track == shadowdirtrack)
-                     || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
-                    ++track; /* skip dir track */
-                }
-                if (abs(((int) track) - lastTrack) > 1) {
-                    /* previous file's last track and this file's beginning track have tracks in between */
-                    sector = (type == IMAGE_D81) ? 0 : file->first_sector_new_track;
-                }
+            } else {
+               lastMinTrack = 0;
             }
 
             if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
@@ -2693,8 +2701,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                                 ++track;
                             }
                             while ((!file_usedirtrack)
-                                    && ((track == dirtrack(type)) || (track == shadowdirtrack)
-                                        || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                                && ((track == dirtrack(type))
+                                 || (track == shadowdirtrack)
+                                 || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                                 ++track; /* skip dir track */
                             }
                             if (file->mode & MODE_FITONSINGLETRACK) {
@@ -2728,7 +2737,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                     } /* for each sector on track */
 
                     if ((track == (lastTrack + 2))
-                            && (file->mode & MODE_BEGINNING_SECTOR_MASK) == 0) {
+                     && ((file->mode & MODE_BEGINNING_SECTOR_MASK) == 0)) {
                         /* previous file's last track and this file's beginning track have tracks in between now */
                         sector = 0;
                     }
@@ -2807,8 +2816,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         sector %= num_sectors(type, prev_track);
 
                         while ((!file_usedirtrack)
-                                && ((track == dirtrack(type)) || (track == shadowdirtrack)
-                                    || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                            && ((track == dirtrack(type))
+                             || (track == shadowdirtrack)
+                             || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                             /* Delete old fragments and restart file */
                             if (!dirtracksplit) {
                                 if (file->nrSectors > 0) {
