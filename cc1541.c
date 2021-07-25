@@ -108,7 +108,7 @@
 #define TRANSWARPBUFFERBLOCKSIZE 0x1f
 #define TRANSWARPBLOCKSIZE       (TRANSWARPBASEBLOCKSIZE + TRANSWARPBUFFERBLOCKSIZE)
 #define TRANSWARPKEYSIZE         29 /* 232 bits */
-#define TRANSWARKEYHASHROUNDS    33
+#define TRANSWARPKEYHASHROUNDS   33
 
 /* Table for conversion of uppercase PETSCII to Unicode */
 static unsigned int p2u_uppercase_tab[256] = {
@@ -1477,6 +1477,7 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
             }
 
             int nonredundant_blocks = (files[i].size / TRANSWARPBLOCKSIZE) + ((spare_bytes == 0) ? 0 : 1);
+            int redundant_blocks = transwarp_blocks - nonredundant_blocks;
 
             int num_blocks = 0;
             int filesize = files[i].size + 2;
@@ -1485,9 +1486,10 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
               filesize -= 254;
             }
 
-            printf("\n          Transwarp: %d total/%d actual (%d standard) blocks, tracks %d-%d, %d used and %d redundant blocks on last track, 0x%x spare bytes in last block, size 0x%x\n",
+            printf("\n          Transwarp: %d total/%d actual (%d standard) blocks, tracks %d-%d, %d used and %d redundant block%s on last track, 0x%x spare bytes in last block, size 0x%x\n",
                    transwarp_blocks, nonredundant_blocks, num_blocks, first_track, last_track,
-                   last_track_sectors - transwarp_blocks + nonredundant_blocks, transwarp_blocks - nonredundant_blocks, spare_bytes, files[i].size);
+                   last_track_sectors - redundant_blocks, redundant_blocks, (redundant_blocks == 1) ? "" : "s",
+                   spare_bytes, files[i].size);
 
             continue;
         }
@@ -2342,14 +2344,37 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
         if ((filedata[0] == 0x01)
          && (filedata[1] == 0x08)) {
             srand((unsigned int) time(NULL));
+
+            unsigned int linelink = ((filedata[3] << 8) | filedata[2]) - 0x0801 + 2;
+            if ((linelink > 0)
+             && ((linelink - 2) < (unsigned int) file->size)
+             && ((filedata[linelink - 1] | filedata[linelink] | filedata[linelink + 1]) == 0)) {
+                while (filedata[linelink] == 0) {
+                    filedata[linelink] = rand();
+                }
+            }
+
             filedata[2] = rand();
             while ((filedata[3] == 0)
                 || (filedata[3] == 8)) {
                 filedata[3] = rand();
             }
 
+            int file_size = file->size;
+            int filetrack = track;
+            while (file_size > 0) {
+                file_size -= (TRANSWARPBLOCKSIZE * num_sectors(type, filetrack));
+                if (file_size > 0) {
+                    filetrack = (filetrack < DIRTRACK_D41_D71) ? (filetrack - 1) : (filetrack + 1);
+                }
+            }
+            int spare_blocks = (0 - file_size) / TRANSWARPBLOCKSIZE;
             int spare_bytes = TRANSWARPBLOCKSIZE - (file->size % TRANSWARPBLOCKSIZE);
-            if (spare_bytes != TRANSWARPBLOCKSIZE) {
+            spare_bytes = (spare_blocks * TRANSWARPBLOCKSIZE) + ((spare_bytes != TRANSWARPBLOCKSIZE) ? spare_bytes : 0);
+            while (spare_bytes > (0x0801 - 0x0400)) {
+                spare_bytes -= TRANSWARPBLOCKSIZE;
+            }
+            if (spare_bytes > 0) {
                 int loadaddress = (filedata[1] << 8) | filedata[0];
                 loadaddress -= spare_bytes;
                 filedata[0] = loadaddress;
@@ -2366,7 +2391,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
         memcpy(key, file->key, sizeof key);
 
-        for (int round = TRANSWARKEYHASHROUNDS; round > 0; --round) {
+        for (int round = TRANSWARPKEYHASHROUNDS; round > 0; --round) {
             for (int i = 0; i < (TRANSWARPKEYSIZE - 1); ++i) {
                 key[i] ^= key[i + 1];
             }
@@ -2607,7 +2632,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 fileSize = st.st_size;
             }
 
-            unsigned char* filedata = (unsigned char*)calloc(fileSize + TRANSWARPBLOCKSIZE, sizeof(unsigned char));
+            unsigned char* filedata = (unsigned char*)calloc(fileSize + ((file->filetype == FILETYPETRANSWARP) ? (21 * TRANSWARPBLOCKSIZE) : 0), sizeof(unsigned char));
             if (filedata == NULL) {
                 fprintf(stderr, "ERROR: Memory allocation error\n");
 
