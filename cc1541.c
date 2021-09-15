@@ -2307,7 +2307,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
         if (track <= 0) {
             /* above dir track */
-            track = DIRTRACK_D41_D71 + 2;
+            track = DIRTRACK_D41_D71 + 1;
             while (track < 40) {
                 if (free_tracks[track - 1]) {
                     int filesize = file->size;
@@ -2596,15 +2596,6 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
         int file_usedirtrack = usedirtrack;
         int file_numdirblocks = numdirblocks;
 
-        if ((file->mode & MODE_TRANSWARPBOOTFILE) != 0) {
-            file_usedirtrack = true;
-            file_numdirblocks = 4;
-            file->sectorInterleave = -4;
-            file->mode = (file->mode & ~MODE_BEGINNING_SECTOR_MASK) | (10 + 1);
-            file->first_sector_new_track = 10;
-            track = DIRTRACK_D41_D71;
-        }
-
         if ((file->filetype & 0xf) == FILETYPEDEL) {
             if (file->nrSectorsShown == -1) {
                 file->nrSectorsShown = file->nrSectors;
@@ -2630,6 +2621,17 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             struct stat st;
             if (stat((char*)files[i].alocalname, &st) == 0) {
                 fileSize = st.st_size;
+            }
+
+            if ((file->mode & MODE_TRANSWARPBOOTFILE) != 0) {
+                int num_blocks = (fileSize / 254) + ((fileSize % 254 == 0) ? 0 : 1);
+
+                file_usedirtrack = true;
+                file_numdirblocks = (num_blocks <= 17) ? 2 : 4;
+                file->sectorInterleave = -4;
+                file->mode = (file->mode & ~MODE_BEGINNING_SECTOR_MASK) | (10 + 1);
+                file->first_sector_new_track = 10;
+                track = DIRTRACK_D41_D71;
             }
 
             unsigned char* filedata = (unsigned char*)calloc(fileSize + ((file->filetype == FILETYPETRANSWARP) ? (21 * TRANSWARPBLOCKSIZE) : 0), sizeof(unsigned char));
