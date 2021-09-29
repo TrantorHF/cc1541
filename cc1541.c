@@ -2964,6 +2964,12 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 image[entryOffset + TRANSWARPTRACKOFFSET] = file->track;
 
                 image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors;
+                image[entryOffset + FILEBLOCKSHIOFFSET] = (file->nrSectors >> 8);
+                if (image[entryOffset + FILEBLOCKSHIOFFSET] > 0) {
+                    printf("Transwarp file \"%s\" is %d > 255 blocks big\n", file->alocalname, file->nrSectors);
+
+                    exit(-8);
+                }
 
                 int loadaddress = (filedata[1] << 8) | filedata[0];
                 image[entryOffset + LOADADDRESSLOOFFSET] = loadaddress;
@@ -2990,7 +2996,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                     if (dirdata_checksum != 0) {
                         printf("Encoding error with \"%s\", 0x%x\n", file->alocalname, dirdata_checksum);
 
-                        exit(-8);
+                        exit(-9);
                     }
                 }
 
@@ -3071,7 +3077,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             if (transwarp_boot_track == 0) {
                 printf("No Transwarp bootfile provided\n");
 
-                exit(-1);
+                exit(-10);
             }
 
             int b = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
