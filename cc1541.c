@@ -1348,6 +1348,26 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
             if (verbose) {
                 printf(" [Transwarp bootfile]");
             }
+
+            if (i != 0) {
+                // allocate Transwarp bootfile first
+                if ((files[0].mode & MODE_TRANSWARPBOOTFILE) != 0) {
+                    if (verbose) {
+                      printf("\n");
+                    }
+
+                    fprintf(stderr, "ERROR: Multiple Transwarp bootfiles\n");
+
+                    exit(-1);
+                }
+
+                imagefile transwarp_bootfile = *file;
+                for (int j = i; j > 0; --j) {
+                    files[j] = files[j - 1];
+                }
+                files[0] = transwarp_bootfile;
+                file = files;
+            }
         }
 
         if (shadowdirtrack > 0) {
@@ -2483,7 +2503,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
     for (; !done; (track >= DIRTRACK_D41_D71) ? ++track : --track) {
         if ((track < 1)
          || (track > image_num_tracks(type))) {
-            printf("Disk full while writing Transwarp file ");
+            printf("Disk full (track %d out of range) while writing Transwarp file ", track);
             print_filename(stdout, file->pfilename);
             printf("\n");
 
