@@ -35,6 +35,10 @@ name is used.  After file written, the filename is unset.
 *-W localname*::
   Like -w, but encode file in Transwarp format.
 
+*-K key*::
+  Set an encryption key for Transwarp files, a string of up to 29
+  characters.
+
 *-f filename*::
   Use filename as name when writing next file, use prefix _#_ to
 include arbitrary PETSCII characters (e.g. -f "START#a0,8,1").
