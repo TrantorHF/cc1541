@@ -1957,9 +1957,7 @@ encode_read_diff(const int encode[64], unsigned char *accu, unsigned char *carry
 
     unsigned char check = DECODE[encode[value]];
     if ((*accu & 0x7e) != (check & 0x7e)) {
-        printf("Encoding error, 0x%x: actual 0x%x != 0x%x expected\n", DECODE[encode[check & 0x3f]], *accu, check);
-
-        fprintf(stderr, "ERROR: Transwarp encoding error\n");
+        fprintf(stderr, "ERROR: Transwarp encoding error, 0x%x: actual 0x%x != 0x%x expected\n", DECODE[encode[check & 0x3f]], *accu, check);
         exit(-3);
     }
 
@@ -2206,9 +2204,8 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
         unsigned char target_check = ENCODE[2][odd_bits(target_accu)];
 
         if (target != target_check) {
-            printf("Encoding error, [%d] 0x%x != 0x%x <- 0x%x\n", i, target, target_check, DECODE[target]);
+            fprintf(stderr, "ERROR: Transwarp encoding error, [%d] 0x%x != 0x%x <- 0x%x\n", i, target, target_check, DECODE[target]);
 
-            fprintf(stderr, "ERROR: Transwarp encoding error\n");
             exit(-4);
         }
 
@@ -2219,16 +2216,14 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
         ctx->accu ^= stored;
 
         if (ctx->accu != target_accu) {
-            printf("Encoding error, [%d] actual 0x%x != 0x%x expected <- 0x%x\n", i, ctx->accu, target_accu, stored);
+            fprintf(stderr, "ERROR: Transwarp encoding error, [%d] actual 0x%x != 0x%x expected <- 0x%x\n", i, ctx->accu, target_accu, stored);
 
-            fprintf(stderr, "ERROR: Transwarp encoding error\n");
             exit(-5);
         }
     }
     if (carry != ctx->recvcarry) {
-        printf("Encoding error, carry %d != %d recvcarry\n", carry, ctx->recvcarry);
+        fprintf(stderr, "ERROR: Transwarp encoding error, carry %d != %d recvcarry\n", carry, ctx->recvcarry);
 
-        fprintf(stderr, "ERROR: Transwarp encoding error\n");
         exit(-6);
     }
 
@@ -2244,9 +2239,8 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
     block_checksum ^= (top_2_bits & 0xa);
 
     if (block_checksum != checksum) {
-        printf("Encoding error, actual 0x%x != 0x%x expected, 0x%x -> [0x%x] -> 0x%x -> 0x%x -> [0x%x]\n", block_checksum, checksum, checksum & 0xaa, ((checksum & 0xaa) >> 1) | (checksum & 0xaa), odd, ENCODE[2][odd], DECODE[encoded[317]]);
+        fprintf(stderr, "ERROR: Transwarp encoding error, actual 0x%x != 0x%x expected, 0x%x -> [0x%x] -> 0x%x -> 0x%x -> [0x%x]\n", block_checksum, checksum, checksum & 0xaa, ((checksum & 0xaa) >> 1) | (checksum & 0xaa), odd, ENCODE[2][odd], DECODE[encoded[317]]);
 
-        fprintf(stderr, "ERROR: Transwarp encoding error\n");
         exit(-1);
     }
 
