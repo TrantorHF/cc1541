@@ -39,6 +39,7 @@
 #ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
+#include <stdint.h>
 #endif
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
