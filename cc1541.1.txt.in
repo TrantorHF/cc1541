@@ -32,6 +32,9 @@ DOLPHIN DOS BAM-formatting.
   Write local file to disk, if filename is not set then the local
 name is used.  After file written, the filename is unset.
 
+*-W localname*::
+  Like -w, but encode file in Transwarp format.
+
 *-f filename*::
   Use filename as name when writing next file, use prefix _#_ to
 include arbitrary PETSCII characters (e.g. -f "START#a0,8,1").
