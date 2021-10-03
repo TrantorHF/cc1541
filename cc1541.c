@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2008-2021 JackAsser, Krill, Claus, Bj√∂rn Esser
+* Copyright (c) 2008-2021 JackAsser, Krill, Claus, Björn Esser
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -239,7 +239,7 @@ static void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niwfoVTPONlBMmdtuxFSseErbc45gUqvh image.[d64|d71|d81]\n\n");
+    printf("Usage: cc1541 -niwWfoVTPONlBMmdtuxFSseErbc45gUqvh image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='cc1541'.\n");
     printf("-i id         Disk ID, default='00 2a'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
