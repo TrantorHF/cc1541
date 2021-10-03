@@ -1087,8 +1087,8 @@ static bool
 is_transwarp_file(const unsigned char *image, int dir_entry_offset)
 {
     return (image[dir_entry_offset + TRANSWARPSIGNATROFFSLO] == TRANSWARPSIGNATURELO)
-        && (image[dir_entry_offset + TRANSWARPSIGNATROFFSHI] == TRANSWARPSIGNATUREHI)
-        && (transwarp_dirdata_checksum(image, dir_entry_offset) == 0);
+           && (image[dir_entry_offset + TRANSWARPSIGNATROFFSHI] == TRANSWARPSIGNATUREHI)
+           && (transwarp_dirdata_checksum(image, dir_entry_offset) == 0);
 }
 
 /* Checks if a given dir entry points to the Transwarp bootfile */
@@ -1108,7 +1108,7 @@ transwarp_stat(image_type type, const unsigned char *image, int dir_entry_offset
     *high_track = 0;
 
     int filesize = (image[dir_entry_offset + ENDADDRESSLOOFFSET]  | (image[dir_entry_offset + ENDADDRESSHIOFFSET] << 8))
-                 - (image[dir_entry_offset + LOADADDRESSLOOFFSET] | (image[dir_entry_offset + LOADADDRESSHIOFFSET] << 8));
+                   - (image[dir_entry_offset + LOADADDRESSLOOFFSET] | (image[dir_entry_offset + LOADADDRESSHIOFFSET] << 8));
     if (filesize <= 0) {
         return 0;
     }
@@ -1344,7 +1344,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         memcpy(image + file_entry_offset + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE);
 
         if ((file->filetype != FILETYPETRANSWARP)
-         && is_transwarp_bootfile(image, file_entry_offset)) {
+                && is_transwarp_bootfile(image, file_entry_offset)) {
             file->mode |= MODE_TRANSWARPBOOTFILE;
             if (verbose) {
                 printf(" [Transwarp bootfile]");
@@ -1354,7 +1354,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
                 // allocate Transwarp bootfile first
                 if ((files[0].mode & MODE_TRANSWARPBOOTFILE) != 0) {
                     if (verbose) {
-                      printf("\n");
+                        printf("\n");
                     }
 
                     fprintf(stderr, "ERROR: Multiple Transwarp bootfiles\n");
@@ -1403,60 +1403,60 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
             int b = linear_sector(type, t, s) * BLOCKSIZE + o;
             int filetype = image[b + FILETYPEOFFSET] & 0xf;
             switch (filetype) {
-                case FILETYPEPRG: {
-                    unsigned char *filename = (unsigned char *) image + b + FILENAMEOFFSET;
-                    memcpy(existing_files[num_files].pfilename, filename, FILENAMEMAXSIZE);
-                    existing_files[num_files].track = image[b + FILETRACKOFFSET];
-                    existing_files[num_files].sector = image[b + FILESECTOROFFSET];
-                    existing_files[num_files].direntryindex = num_files;
-                    existing_files[num_files].direntrysector = s;
-                    existing_files[num_files].direntryoffset = o;
-                    existing_files[num_files].nrSectors = image[b + FILEBLOCKSLOOFFSET] + 256 * image[b + FILEBLOCKSHIOFFSET];
+            case FILETYPEPRG: {
+                unsigned char *filename = (unsigned char *) image + b + FILENAMEOFFSET;
+                memcpy(existing_files[num_files].pfilename, filename, FILENAMEMAXSIZE);
+                existing_files[num_files].track = image[b + FILETRACKOFFSET];
+                existing_files[num_files].sector = image[b + FILESECTOROFFSET];
+                existing_files[num_files].direntryindex = num_files;
+                existing_files[num_files].direntrysector = s;
+                existing_files[num_files].direntryoffset = o;
+                existing_files[num_files].nrSectors = image[b + FILEBLOCKSLOOFFSET] + 256 * image[b + FILEBLOCKSHIOFFSET];
 
-                    if (is_transwarp_file(image, b)) {
-                        existing_files[num_files].filetype = FILETYPETRANSWARP;
-                        existing_files[num_files].sectorInterleave = 1;
+                if (is_transwarp_file(image, b)) {
+                    existing_files[num_files].filetype = FILETYPETRANSWARP;
+                    existing_files[num_files].sectorInterleave = 1;
 
-                        int start_track;
-                        int end_track;
-                        int low_track;
-                        int high_track;
-                        int filesize = transwarp_stat(type, image, b, &start_track, &end_track, &low_track, &high_track);
+                    int start_track;
+                    int end_track;
+                    int low_track;
+                    int high_track;
+                    int filesize = transwarp_stat(type, image, b, &start_track, &end_track, &low_track, &high_track);
 
-                        existing_files[num_files].size = filesize;
+                    existing_files[num_files].size = filesize;
 
-                        existing_files[num_files].track = start_track;
-                        existing_files[num_files].last_track = end_track;
-
-                        ++num_files;
-
-                        break;
-                    }
-
-                    int track = existing_files[num_files].track;
-                    int sector = existing_files[num_files].sector;
-                    while (true) {
-                        int offset = linear_sector(type, track, sector) * BLOCKSIZE;
-                        int next_track = image[offset + 0];
-                        int next_sector = image[offset + 1];
-                        if ((track == 0) || (next_track == 0)) {
-                            break;
-                        }
-                        if ((track == next_track) && (next_sector > sector)) {
-                            existing_files[num_files].sectorInterleave = next_sector - sector;
-                            break;
-                        }
-                        track = next_track;
-                        sector = next_sector;
-                    }
+                    existing_files[num_files].track = start_track;
+                    existing_files[num_files].last_track = end_track;
 
                     ++num_files;
 
                     break;
                 }
 
-                default:
-                    break;
+                int track = existing_files[num_files].track;
+                int sector = existing_files[num_files].sector;
+                while (true) {
+                    int offset = linear_sector(type, track, sector) * BLOCKSIZE;
+                    int next_track = image[offset + 0];
+                    int next_sector = image[offset + 1];
+                    if ((track == 0) || (next_track == 0)) {
+                        break;
+                    }
+                    if ((track == next_track) && (next_sector > sector)) {
+                        existing_files[num_files].sectorInterleave = next_sector - sector;
+                        break;
+                    }
+                    track = next_track;
+                    sector = next_sector;
+                }
+
+                ++num_files;
+
+                break;
+            }
+
+            default:
+                break;
             }
         } while (next_dir_entry(type, image, &t, &s, &o));
         files = existing_files;
@@ -1468,7 +1468,7 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
 
     for (int i = 0; i < num_files; i++) {
         printf("%02d/%02d %3d (0x%02x 0x%02x:0x%02x) ", files[i].track, files[i].sector, files[i].nrSectors & 0xffff,
-                                                        files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset);
+               files[i].direntryindex, files[i].direntrysector, files[i].direntryoffset);
         if (files[i].alocalname) {
             printf("\"%s\" => ", files[i].alocalname);
         }
@@ -1503,8 +1503,8 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
             int num_blocks = 0;
             int filesize = files[i].size + 2;
             while (filesize > 0) {
-              ++num_blocks;
-              filesize -= 254;
+                ++num_blocks;
+                filesize -= 254;
             }
 
             printf("\n          Transwarp: %d total/%d actual (%d standard) blocks, tracks %d-%d, %d used and %d redundant block%s on last track, 0x%x spare bytes in last block, size 0x%x\n",
@@ -1858,18 +1858,18 @@ static unsigned char
 even_bits(unsigned char value)
 {
     return (((value >> 6) & 1) << 3)
-         | (((value >> 4) & 1) << 2)
-         | (((value >> 2) & 1) << 1)
-         | (((value >> 0) & 1) << 0);
+           | (((value >> 4) & 1) << 2)
+           | (((value >> 2) & 1) << 1)
+           | (((value >> 0) & 1) << 0);
 }
 
 static unsigned char
 odd_bits(unsigned char value)
 {
     return (((value >> 7) & 1) << 3)
-         | (((value >> 5) & 1) << 2)
-         | (((value >> 3) & 1) << 1)
-         | (((value >> 1) & 1) << 0);
+           | (((value >> 5) & 1) << 2)
+           | (((value >> 3) & 1) << 1)
+           | (((value >> 1) & 1) << 0);
 }
 
 typedef struct transwarp_encode_context {
@@ -1885,48 +1885,49 @@ typedef struct transwarp_encode_context {
 } transwarp_encode_context;
 
 static const int ENCODE[5][64] = {
-{
-    0xf6, 0xee, 0xf5, 0xed, 0x9a, 0xde, 0x96, 0xda, 0xf3, 0xea, 0xf2, 0x9e, 0x93, 0xd6, 0x92, 0xd3,
-    0xd2, 0xca, 0xce, 0xbe, 0xb3, 0x7e, 0xb2, 0x7d, 0xcd, 0xba, 0xcb, 0xb6, 0xae, 0x7b, 0xaa, 0x7a,
-    0x76, 0x6e, 0x75, 0x6d, 0x5e, 0x5b, 0x5d, 0x5a, 0x73, 0x6b, 0x72, 0x6a, 0xdb, 0x9d, 0xeb, 0xd5,
-    0x56, 0x4e, 0x55, 0x4d, 0xbd, 0xb5, 0xbb, 0xad, 0x53, 0x4b, 0x52, 0xdd, 0xab, 0x4a, 0x9b, 0x95
-}, {
-    0xf6, 0xee, 0xf5, 0xed, 0x9a, 0xde, 0x96, 0xda, 0xf3, 0xea, 0xf2, 0x9e, 0x93, 0xd6, 0x92, 0xef,
-    0xe7, 0x7c, 0x9f, 0x74, 0xe6, 0x6c, 0xdf, 0xa6, 0x9c, 0xba, 0x94, 0xb6, 0xae, 0x7b, 0xaa, 0x7a,
-    0x76, 0x6e, 0x75, 0x6d, 0x5e, 0x5b, 0x5d, 0x5a, 0x73, 0x6b, 0x72, 0x6a, 0xdb, 0xd7, 0xeb, 0xe5,
-    0x56, 0x64, 0x55, 0x5c, 0xbd, 0xb5, 0xbb, 0xad, 0x65, 0x54, 0x5f, 0xdd, 0xab, 0xa7, 0x9b, 0xa5
-}, {
-    0xa5, 0xa7, 0xa9, 0xab, 0xd5, 0xd7, 0xd9, 0xdb, 0x95, 0x99, 0x9b, 0x97, 0xe5, 0x9d, 0xeb, 0xe9
-}, {
-    0xf6, 0xee, 0xf5, 0xed, 0x69, 0xde, 0x59, 0xda, 0xb9, 0xea, 0xb7, 0x6f, 0x57, 0xd6, 0x4f, 0xef,
-    0xe7, 0xca, 0xce, 0xbe, 0xe6, 0xbf, 0xdf, 0xa6, 0xcd, 0xba, 0xcb, 0xb6, 0xae, 0x7b, 0xaa, 0x7a,
-    0x76, 0x6e, 0x75, 0x6d, 0x5e, 0x5b, 0x5d, 0x5a, 0x67, 0x6b, 0x66, 0x6a, 0xe9, 0xd7, 0xeb, 0xe5,
-    0x56, 0x4e, 0x55, 0x4d, 0xbd, 0xb5, 0xbb, 0xad, 0x65, 0x4b, 0x5f, 0xdd, 0xab, 0xa7, 0xa9, 0xa5
-}, {
-    0xcf, 0xaf, 0xc9, 0x79, 0x69, 0xde, 0x59, 0xda, 0xb9, 0x77, 0xb7, 0x6f, 0x57, 0xd6, 0x4f, 0xd3,
-    0xd2, 0xca, 0xce, 0xbe, 0xb3, 0x7e, 0xb2, 0x7d, 0xcd, 0xba, 0xcb, 0xb6, 0xae, 0x7b, 0xaa, 0x7a,
-    0x76, 0x6e, 0x75, 0x6d, 0x5e, 0x5b, 0x5d, 0x5a, 0x73, 0x6b, 0x72, 0x6a, 0xdb, 0xd7, 0xd9, 0xd5,
-    0x56, 0x4e, 0x55, 0x4d, 0xbd, 0xb5, 0xbb, 0xad, 0x53, 0x4b, 0x52, 0xdd, 0xab, 0x4a, 0xa9, 0x49
-} };
+    {
+        0xf6, 0xee, 0xf5, 0xed, 0x9a, 0xde, 0x96, 0xda, 0xf3, 0xea, 0xf2, 0x9e, 0x93, 0xd6, 0x92, 0xd3,
+        0xd2, 0xca, 0xce, 0xbe, 0xb3, 0x7e, 0xb2, 0x7d, 0xcd, 0xba, 0xcb, 0xb6, 0xae, 0x7b, 0xaa, 0x7a,
+        0x76, 0x6e, 0x75, 0x6d, 0x5e, 0x5b, 0x5d, 0x5a, 0x73, 0x6b, 0x72, 0x6a, 0xdb, 0x9d, 0xeb, 0xd5,
+        0x56, 0x4e, 0x55, 0x4d, 0xbd, 0xb5, 0xbb, 0xad, 0x53, 0x4b, 0x52, 0xdd, 0xab, 0x4a, 0x9b, 0x95
+    }, {
+        0xf6, 0xee, 0xf5, 0xed, 0x9a, 0xde, 0x96, 0xda, 0xf3, 0xea, 0xf2, 0x9e, 0x93, 0xd6, 0x92, 0xef,
+        0xe7, 0x7c, 0x9f, 0x74, 0xe6, 0x6c, 0xdf, 0xa6, 0x9c, 0xba, 0x94, 0xb6, 0xae, 0x7b, 0xaa, 0x7a,
+        0x76, 0x6e, 0x75, 0x6d, 0x5e, 0x5b, 0x5d, 0x5a, 0x73, 0x6b, 0x72, 0x6a, 0xdb, 0xd7, 0xeb, 0xe5,
+        0x56, 0x64, 0x55, 0x5c, 0xbd, 0xb5, 0xbb, 0xad, 0x65, 0x54, 0x5f, 0xdd, 0xab, 0xa7, 0x9b, 0xa5
+    }, {
+        0xa5, 0xa7, 0xa9, 0xab, 0xd5, 0xd7, 0xd9, 0xdb, 0x95, 0x99, 0x9b, 0x97, 0xe5, 0x9d, 0xeb, 0xe9
+    }, {
+        0xf6, 0xee, 0xf5, 0xed, 0x69, 0xde, 0x59, 0xda, 0xb9, 0xea, 0xb7, 0x6f, 0x57, 0xd6, 0x4f, 0xef,
+        0xe7, 0xca, 0xce, 0xbe, 0xe6, 0xbf, 0xdf, 0xa6, 0xcd, 0xba, 0xcb, 0xb6, 0xae, 0x7b, 0xaa, 0x7a,
+        0x76, 0x6e, 0x75, 0x6d, 0x5e, 0x5b, 0x5d, 0x5a, 0x67, 0x6b, 0x66, 0x6a, 0xe9, 0xd7, 0xeb, 0xe5,
+        0x56, 0x4e, 0x55, 0x4d, 0xbd, 0xb5, 0xbb, 0xad, 0x65, 0x4b, 0x5f, 0xdd, 0xab, 0xa7, 0xa9, 0xa5
+    }, {
+        0xcf, 0xaf, 0xc9, 0x79, 0x69, 0xde, 0x59, 0xda, 0xb9, 0x77, 0xb7, 0x6f, 0x57, 0xd6, 0x4f, 0xd3,
+        0xd2, 0xca, 0xce, 0xbe, 0xb3, 0x7e, 0xb2, 0x7d, 0xcd, 0xba, 0xcb, 0xb6, 0xae, 0x7b, 0xaa, 0x7a,
+        0x76, 0x6e, 0x75, 0x6d, 0x5e, 0x5b, 0x5d, 0x5a, 0x73, 0x6b, 0x72, 0x6a, 0xdb, 0xd7, 0xd9, 0xd5,
+        0x56, 0x4e, 0x55, 0x4d, 0xbd, 0xb5, 0xbb, 0xad, 0x53, 0x4b, 0x52, 0xdd, 0xab, 0x4a, 0xa9, 0x49
+    }
+};
 
 static const int DECODE[256] = {
-      -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-      -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-      -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-      -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-      -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1, 0x00, 0x02, 0x12,   -1, 0x14, 0x16, 0x68,
-      -1,   -1, 0x18, 0x1a, 0x12, 0x1c, 0x1e, 0x6a,   -1, 0x6c, 0x24, 0x26, 0x14, 0x2c, 0x2e, 0x18,
-      -1,   -1,   -1,   -1, 0x16, 0x1a, 0x38, 0x3a,   -1, 0x6e, 0x30, 0x32, 0x46, 0x34, 0x36, 0x70,
-      -1,   -1, 0x38, 0x3a, 0x54, 0x3c, 0x3e, 0x72,   -1, 0x74, 0x40, 0x42, 0x56, 0x44, 0x46,   -1,
-      -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-      -1,   -1, 0x68, 0x6a, 0x58, 0x80, 0x6c, 0x8a,   -1, 0x82, 0x6e, 0x88, 0x5a, 0xa2, 0x70, 0x5c,
-      -1,   -1,   -1,   -1,   -1, 0x00, 0x44, 0x02,   -1, 0x08, 0x48, 0x0a,   -1, 0x04, 0x4a, 0x76,
-      -1,   -1, 0x4c, 0x4e,   -1, 0x06, 0x50, 0x78,   -1, 0x7a, 0x52, 0x0c,   -1, 0x0e, 0x54, 0x46,
-      -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1, 0x7c, 0x56, 0x58,   -1, 0x5a, 0x5c, 0x7e,
-      -1,   -1, 0x5e, 0x60,   -1, 0x20, 0x62, 0x22,   -1, 0x28, 0x64, 0x2a,   -1, 0x10, 0x66, 0x4c,
-      -1,   -1,   -1,   -1,   -1, 0xa0, 0x4e, 0x5e,   -1, 0xaa, 0x72, 0xa8,   -1, 0x74, 0x76, 0x60,
-      -1,   -1, 0x78, 0x7a,   -1, 0x7c, 0x7e,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1
-};
+    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+        -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+        -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+        -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+        -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1, 0x00, 0x02, 0x12,   -1, 0x14, 0x16, 0x68,
+        -1,   -1, 0x18, 0x1a, 0x12, 0x1c, 0x1e, 0x6a,   -1, 0x6c, 0x24, 0x26, 0x14, 0x2c, 0x2e, 0x18,
+        -1,   -1,   -1,   -1, 0x16, 0x1a, 0x38, 0x3a,   -1, 0x6e, 0x30, 0x32, 0x46, 0x34, 0x36, 0x70,
+        -1,   -1, 0x38, 0x3a, 0x54, 0x3c, 0x3e, 0x72,   -1, 0x74, 0x40, 0x42, 0x56, 0x44, 0x46,   -1,
+        -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+        -1,   -1, 0x68, 0x6a, 0x58, 0x80, 0x6c, 0x8a,   -1, 0x82, 0x6e, 0x88, 0x5a, 0xa2, 0x70, 0x5c,
+        -1,   -1,   -1,   -1,   -1, 0x00, 0x44, 0x02,   -1, 0x08, 0x48, 0x0a,   -1, 0x04, 0x4a, 0x76,
+        -1,   -1, 0x4c, 0x4e,   -1, 0x06, 0x50, 0x78,   -1, 0x7a, 0x52, 0x0c,   -1, 0x0e, 0x54, 0x46,
+        -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1, 0x7c, 0x56, 0x58,   -1, 0x5a, 0x5c, 0x7e,
+        -1,   -1, 0x5e, 0x60,   -1, 0x20, 0x62, 0x22,   -1, 0x28, 0x64, 0x2a,   -1, 0x10, 0x66, 0x4c,
+        -1,   -1,   -1,   -1,   -1, 0xa0, 0x4e, 0x5e,   -1, 0xaa, 0x72, 0xa8,   -1, 0x74, 0x76, 0x60,
+        -1,   -1, 0x78, 0x7a,   -1, 0x7c, 0x7e,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1
+    };
 
 static unsigned char
 encode_read_diff(const int encode[64], unsigned char *accu, unsigned char *carry, unsigned char value)
@@ -1983,11 +1984,11 @@ encode_send_diff(unsigned char value, unsigned char *accu, unsigned char *carry)
     *accu = value;
 
     *accu = (((*accu >> 7) & 1) << 7)
-          | (((*accu >> 1) & 1) << 6)
-          | (((*accu >> 7) & 1) << 5)
-          | (*carry << 4)
-          | (((*accu >> 6) & 1) << 2)
-          | (((*accu >> 5) & 1) << 1);
+            | (((*accu >> 1) & 1) << 6)
+            | (((*accu >> 7) & 1) << 5)
+            | (*carry << 4)
+            | (((*accu >> 6) & 1) << 2)
+            | (((*accu >> 5) & 1) << 1);
     *carry = (*accu >> 6) & 1;
 
     return diff;
@@ -2035,11 +2036,11 @@ encode_base_bytes(const unsigned char scramble[][256],
     out[0] = encode_read_diff(ENCODE[3], &(ctx->accu), &(ctx->carry), val3);
 
     unsigned char val4 = ((in0 >> 6)
-                  | (in1 << 2)) & 0x3f;
+                          | (in1 << 2)) & 0x3f;
     out[1] = encode_read_diff(ENCODE[4], &(ctx->accu), &(ctx->carry), val4);
 
     unsigned char val0 = ((in1 >> 4)
-                  | (in2 << 4)) & 0x3f;
+                          | (in2 << 4)) & 0x3f;
     out[2] = encode_read_diff(ENCODE[0], &(ctx->accu), &(ctx->carry), val0);
 
     unsigned char val1 = in2 >> 2;
@@ -2309,7 +2310,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
                 int filesize = file->size;
                 int t = track;
                 while ((filesize > 0)
-                    && (t > 0)) {
+                        && (t > 0)) {
                     filesize -= (TRANSWARPBLOCKSIZE * num_sectors(type, t));
                     if (filesize >= 0) {
                         if (free_tracks[t - 1] == false) {
@@ -2363,13 +2364,13 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
     if (file->have_key != 0) {
         if ((filedata[0] == 0x01)
-         && (filedata[1] == 0x08)) {
+                && (filedata[1] == 0x08)) {
             srand((unsigned int) time(NULL));
 
             unsigned int linelink = ((filedata[3] << 8) | filedata[2]) - 0x0801 + 2;
             if ((linelink > 0)
-             && ((linelink - 2) < (unsigned int) file->size)
-             && ((filedata[linelink - 1] | filedata[linelink] | filedata[linelink + 1]) == 0)) {
+                    && ((linelink - 2) < (unsigned int) file->size)
+                    && ((filedata[linelink - 1] | filedata[linelink] | filedata[linelink + 1]) == 0)) {
                 while (filedata[linelink] == 0) {
                     filedata[linelink] = rand();
                 }
@@ -2377,7 +2378,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
             filedata[2] = rand();
             while ((filedata[3] == 0)
-                || (filedata[3] == 8)) {
+                    || (filedata[3] == 8)) {
                 filedata[3] = rand();
             }
 
@@ -2438,13 +2439,13 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
     }
 
     unsigned long long dirdatakey = (key[TRANSWARPKEYSIZE - 1] * (1ULL << 56))
-                                  + (key[TRANSWARPKEYSIZE - 2] * (1ULL << 48))
-                                  + (key[TRANSWARPKEYSIZE - 3] * (1ULL << 40))
-                                  + (key[TRANSWARPKEYSIZE - 4] * (1ULL << 32))
-                                  + (key[TRANSWARPKEYSIZE - 5] * (1ULL << 24))
-                                  + (key[TRANSWARPKEYSIZE - 6] * (1ULL << 16))
-                                  + (key[TRANSWARPKEYSIZE - 7] * (1ULL << 8))
-                                  + key[TRANSWARPKEYSIZE - 8];
+                                    + (key[TRANSWARPKEYSIZE - 2] * (1ULL << 48))
+                                    + (key[TRANSWARPKEYSIZE - 3] * (1ULL << 40))
+                                    + (key[TRANSWARPKEYSIZE - 4] * (1ULL << 32))
+                                    + (key[TRANSWARPKEYSIZE - 5] * (1ULL << 24))
+                                    + (key[TRANSWARPKEYSIZE - 6] * (1ULL << 16))
+                                    + (key[TRANSWARPKEYSIZE - 7] * (1ULL << 8))
+                                    + key[TRANSWARPKEYSIZE - 8];
 
     int initial_buffer_store_value = key[TRANSWARPKEYSIZE - 9];
     int initial_buffer_recvaccu_value = key[TRANSWARPKEYSIZE - 10];
@@ -2475,12 +2476,12 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
         for (int j = 0; j < 256; ++j) {
             unsigned char scrambled = (set2[0][(((j >> set[0]) & 1) << 0)
-                                             | (((j >> set[3]) & 1) << 1)] << 0)
-                                    | (set2[1][(((j >> set[1]) & 1) << 0)
-                                             | (((j >> set[4]) & 1) << 1)] << 2)
-                                    | (set2[2][(((j >> set[2]) & 1) << 0)
-                                             | (((j >> set[5]) & 1) << 1)] << 4)
-                                    | (j & 0xc0);
+                                               | (((j >> set[3]) & 1) << 1)] << 0)
+                                      | (set2[1][(((j >> set[1]) & 1) << 0)
+                                                 | (((j >> set[4]) & 1) << 1)] << 2)
+                                      | (set2[2][(((j >> set[2]) & 1) << 0)
+                                                 | (((j >> set[5]) & 1) << 1)] << 4)
+                                      | (j & 0xc0);
             scramble[i][j] = scrambled;
         }
     }
@@ -2503,7 +2504,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
     for (; !done; (track >= DIRTRACK_D41_D71) ? ++track : --track) {
         if ((track < 1)
-         || (track > image_num_tracks(type))) {
+                || (track > image_num_tracks(type))) {
             printf("Disk full (track %d out of range) while writing Transwarp file ", track);
             print_filename(stdout, file->pfilename);
             printf("\n");
@@ -2689,7 +2690,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             fclose(f);
 
             if ((file->filetype != FILETYPETRANSWARP)
-             && ((file->mode & MODE_MIN_TRACK_MASK) > 0)) {
+                    && ((file->mode & MODE_MIN_TRACK_MASK) > 0)) {
                 int minTrack = (file->mode & MODE_MIN_TRACK_MASK) >> MODE_MIN_TRACK_SHIFT;
                 if (lastMinTrack != minTrack) {
                     lastMinTrack = minTrack;
@@ -2703,9 +2704,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         exit(-1);
                     }
                     while ((!file_usedirtrack)
-                        && ((track == dirtrack(type))
-                         || (track == shadowdirtrack)
-                         || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                            && ((track == dirtrack(type))
+                                || (track == shadowdirtrack)
+                                || ((type == IMAGE_D71) && (track == (D64NUMTRACKS + dirtrack(type)))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                         ++track; /* skip dir track */
                     }
                     if (abs(((int) track) - lastTrack) > 1) {
@@ -2714,7 +2715,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                     }
                 }
             } else {
-               lastMinTrack = 0;
+                lastMinTrack = 0;
             }
 
             if ((file->mode & MODE_BEGINNING_SECTOR_MASK) > 0) {
@@ -2722,8 +2723,8 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             }
 
             if ((file->filetype != FILETYPETRANSWARP)
-             && (((file->mode & MODE_SAVETOEMPTYTRACKS) != 0)
-              || ((file->mode & MODE_FITONSINGLETRACK) != 0))) {
+                    && (((file->mode & MODE_SAVETOEMPTYTRACKS) != 0)
+                        || ((file->mode & MODE_FITONSINGLETRACK) != 0))) {
 
                 /* find first empty track */
                 int found = 0;
@@ -2764,9 +2765,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                                 ++track;
                             }
                             while ((!file_usedirtrack)
-                                && ((track == dirtrack(type))
-                                 || (track == shadowdirtrack)
-                                 || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                                    && ((track == dirtrack(type))
+                                        || (track == shadowdirtrack)
+                                        || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                                 ++track; /* skip dir track */
                             }
                             if (file->mode & MODE_FITONSINGLETRACK) {
@@ -2800,7 +2801,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                     } /* for each sector on track */
 
                     if ((track == (lastTrack + 2))
-                     && ((file->mode & MODE_BEGINNING_SECTOR_MASK) == 0)) {
+                            && ((file->mode & MODE_BEGINNING_SECTOR_MASK) == 0)) {
                         /* previous file's last track and this file's beginning track have tracks in between now */
                         sector = 0;
                     }
@@ -2870,7 +2871,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         } else if (file->first_sector_new_track < 0) {
                             sector += seek_delay - 1;
                         } else if ((file->sectorInterleave < 0)
-                                && ((file->mode & MODE_TRANSWARPBOOTFILE) == 0)) {
+                                   && ((file->mode & MODE_TRANSWARPBOOTFILE) == 0)) {
                             sector += seek_delay;
                         } else {
                             sector = file->first_sector_new_track;
@@ -2879,9 +2880,9 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         sector %= num_sectors(type, prev_track);
 
                         while ((!file_usedirtrack)
-                            && ((track == dirtrack(type))
-                             || (track == shadowdirtrack)
-                             || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
+                                && ((track == dirtrack(type))
+                                    || (track == shadowdirtrack)
+                                    || ((type == IMAGE_D71) && (track == D64NUMTRACKS + dirtrack(type))))) { /* .d71 track 53 is usually empty except the extra BAM block */
                             /* Delete old fragments and restart file */
                             if (!dirtracksplit) {
                                 if (file->nrSectors > 0) {
@@ -3640,7 +3641,7 @@ main(int argc, char* argv[])
             evalhexescape((unsigned char *) argv[++j], files[num_files].key, TRANSWARPKEYSIZE, 0);
             files[num_files].have_key = true;
         } else if ((strcmp(argv[j], "-w") == 0)
-                || (strcmp(argv[j], "-W") == 0)) {
+                   || (strcmp(argv[j], "-W") == 0)) {
             if (argc < j + 2) {
                 fprintf(stderr, "ERROR: Error parsing argument for %s\n", argv[j]);
                 return -1;
@@ -3782,8 +3783,8 @@ main(int argc, char* argv[])
 
     if (type != IMAGE_D64) {
         if (transwarp_set
-         && (type != IMAGE_D64_EXTENDED_SPEED_DOS)
-         && (type != IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
+                && (type != IMAGE_D64_EXTENDED_SPEED_DOS)
+                && (type != IMAGE_D64_EXTENDED_DOLPHIN_DOS)) {
             fprintf(stderr, "ERROR: Transwarp encoding is not supported for non-D64 images\n");
             return -1;
         }
