@@ -34,7 +34,7 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
   a completely deleted file in Commodore DOS.
 * "cc1541 -f game -W game.prg -f 'transwarp v0.82' -w transwarp.prg
   Transwarp-Game.d64" creates a Transwarp disk image with the
-  required transwarp boot file.
+  required boot file.
 
 ## Version history ##
 
