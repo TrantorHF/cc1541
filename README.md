@@ -32,6 +32,8 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 * "cc1541 -T DEL -O -f program -w program.prg image.d64" effectively
   deletes file "program", as an open DEL file is the marker for
   a completely deleted file in Commodore DOS.
+* "cc1541 -f game -W game.prg -f 'transwarp v0.82' -w transwarp.prg 
+  Transwarp-Game.d64" creates a Transwarp disk image with 
 
 ## Version history ##
 
@@ -40,6 +42,11 @@ v3.3
 * Transwarp encoding added
 * Verbose mode displays file allocation on unmodified images
 * Optimised non-standard interleave scheme
+* Added unicode printout option for PETSCII
+* Output file is not touched when no change is requested
+* Bugfix: Fixed crash on write protected output file
+* Bugfix: Spacing in directory printout was not correct when 
+  filesize is more than 999 blocks
 
 v3.2
 
