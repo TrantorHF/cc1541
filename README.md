@@ -3,7 +3,8 @@
 This is cc1541, a tool for creating Commodore 1541 Floppy disk
 images in D64, D71 or D81 format with custom sector interleaving
 etc.  Also supports extended tracks 35-40 using either SPEED DOS or
-DOLPHIN DOS BAM-formatting.
+DOLPHIN DOS BAM-formatting. Furthermore supports writing Transwarp
+disk images for the fantastically fast loader by Krill.
 
 Originally written by JackAsser, with improvements and fixes by
 Krill, some more improvements by Claus and further improvements by
@@ -43,7 +44,9 @@ v3.3
 * Transwarp encoding added
 * Verbose mode displays file allocation on unmodified images
 * Optimised non-standard interleave scheme
-* Added unicode printout option for PETSCII
+* Added unicode printout option for PETSCII, special thanks to
+  Jonas Minnberg for helping with Linux support and inverse
+  characters!
 * Output file is not touched when no change is requested
 * Bugfix: Fixed crash on write protected output file
 * Bugfix: Spacing in directory printout was not correct when
