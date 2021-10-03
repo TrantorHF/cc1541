@@ -38,7 +38,7 @@ pipelines:
               image: purplekarrot/mingw-w64-i686
               script:
                 - make -j2 cc1541 test_cc1541
-                  CC=i686-w64-mingw32-gcc
+                  CC=i686-w64-mingw32-gcc CFLAGS="-m32"
                   ENABLE_WERROR=1
                 - mv cc1541 cc1541.exe
                 - mv test_cc1541 test_cc1541.exe
