@@ -1144,9 +1144,9 @@ wipe_file(image_type type, unsigned char* image, imagefile* file)
         int high_track;
         int filesize = transwarp_stat(type, image, b, &start_track, &end_track, &low_track, &high_track);
         if (filesize <= 0) {
-            printf("Cannot overwrite Transwarp file ");
-            print_filename(stdout, file->pfilename);
-            printf("\n");
+            fprintf(stderr, "ERROR: Cannot overwrite Transwarp file ");
+            print_filename(stderr, file->pfilename);
+            fprintf(stderr, "\n");
 
             exit(-1);
         }
@@ -1358,7 +1358,6 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
                     }
 
                     fprintf(stderr, "ERROR: Multiple Transwarp bootfiles\n");
-
                     exit(-1);
                 }
 
@@ -1948,6 +1947,7 @@ encode_read_diff(const int encode[64], unsigned char *accu, unsigned char *carry
             printf("%d: 0x%x <- 0x%x\n", value_to_encode, val & 0x7e, DECODE[encode[value_to_encode]]);
         }
 
+        fprintf(stderr, "ERROR: Transwarp encoding error\n");
         exit(-2);
     }
 
@@ -1959,6 +1959,7 @@ encode_read_diff(const int encode[64], unsigned char *accu, unsigned char *carry
     if ((*accu & 0x7e) != (check & 0x7e)) {
         printf("Encoding error, 0x%x: actual 0x%x != 0x%x expected\n", DECODE[encode[check & 0x3f]], *accu, check);
 
+        fprintf(stderr, "ERROR: Transwarp encoding error\n");
         exit(-3);
     }
 
@@ -2207,6 +2208,7 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
         if (target != target_check) {
             printf("Encoding error, [%d] 0x%x != 0x%x <- 0x%x\n", i, target, target_check, DECODE[target]);
 
+            fprintf(stderr, "ERROR: Transwarp encoding error\n");
             exit(-4);
         }
 
@@ -2219,12 +2221,14 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
         if (ctx->accu != target_accu) {
             printf("Encoding error, [%d] actual 0x%x != 0x%x expected <- 0x%x\n", i, ctx->accu, target_accu, stored);
 
+            fprintf(stderr, "ERROR: Transwarp encoding error\n");
             exit(-5);
         }
     }
     if (carry != ctx->recvcarry) {
         printf("Encoding error, carry %d != %d recvcarry\n", carry, ctx->recvcarry);
 
+        fprintf(stderr, "ERROR: Transwarp encoding error\n");
         exit(-6);
     }
 
@@ -2242,6 +2246,7 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
     if (block_checksum != checksum) {
         printf("Encoding error, actual 0x%x != 0x%x expected, 0x%x -> [0x%x] -> 0x%x -> 0x%x -> [0x%x]\n", block_checksum, checksum, checksum & 0xaa, ((checksum & 0xaa) >> 1) | (checksum & 0xaa), odd, ENCODE[2][odd], DECODE[encoded[317]]);
 
+        fprintf(stderr, "ERROR: Transwarp encoding error\n");
         exit(-1);
     }
 
@@ -2505,10 +2510,9 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
     for (; !done; (track >= DIRTRACK_D41_D71) ? ++track : --track) {
         if ((track < 1)
                 || (track > image_num_tracks(type))) {
-            printf("Disk full (track %d out of range) while writing Transwarp file ", track);
-            print_filename(stdout, file->pfilename);
-            printf("\n");
-
+            fprintf(stderr, "ERROR: Disk full (track %d out of range) while writing Transwarp file ", track);
+            print_filename(stderr, file->pfilename);
+            fprintf(stderr, "\n");
             exit(-4);
         }
 
@@ -2532,9 +2536,9 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
         for (int sector = 0; sector < num_sectors(type, track); ++sector) {
             if (is_sector_free(type, image, track, sector, 0 /* numdirblocks */, 0 /* dir_sector_interleave */) == false) {
-                printf("t%d/s%d not free for Transwarp file ", track, sector);
-                print_filename(stdout, file->pfilename);
-                printf("\n");
+                fprintf(stderr, "ERROR: t%d/s%d not free for Transwarp file ", track, sector);
+                print_filename(stderr, file->pfilename);
+                fprintf(stderr, "\n");
                 check_bam(type, image);
 
                 exit(-5);
@@ -2556,7 +2560,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
             int error = encode_transwarp_block((const unsigned char (*)[256]) scramble, gcr_to_nibble, &ctx, filedata, pos, encoded);
             if (error) {
-                printf("encoding error on t%d/s%d\n", track, sector);
+                fprintf(stderr, "ERROR: encoding error on t%d/s%d\n", track, sector);
 
                 exit(-6);
             }
@@ -2564,7 +2568,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
             unsigned char decoded[256];
             int checksum = decode_gcr_block(gcr_to_nibble, encoded, decoded);
             if (checksum < 0) {
-                printf("decoding error on t%d/s%d\n", track, sector);
+                fprintf(stderr, "ERROR: decoding error on t%d/s%d\n", track, sector);
 
                 exit(-7);
             }
@@ -2988,7 +2992,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectors;
                 image[entryOffset + FILEBLOCKSHIOFFSET] = (file->nrSectors >> 8);
                 if (image[entryOffset + FILEBLOCKSHIOFFSET] > 0) {
-                    printf("Transwarp file \"%s\" is %d > 255 blocks big\n", file->alocalname, file->nrSectors);
+                    fprintf(stderr, "ERROR: Transwarp file \"%s\" is %d > 255 blocks big\n", file->alocalname, file->nrSectors);
 
                     exit(-8);
                 }
@@ -3016,7 +3020,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                     }
                     dirdata_checksum = transwarp_dirdata_checksum(image, entryOffset);
                     if (dirdata_checksum != 0) {
-                        printf("Encoding error with \"%s\", 0x%x\n", file->alocalname, dirdata_checksum);
+                        fprintf(stderr, "ERROR: Encoding error with \"%s\", 0x%x\n", file->alocalname, dirdata_checksum);
 
                         exit(-9);
                     }
@@ -3097,7 +3101,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             }
 
             if (transwarp_boot_track == 0) {
-                printf("No Transwarp bootfile provided\n");
+                fprintf(stderr, "ERROR: No Transwarp bootfile provided\n");
 
                 exit(-10);
             }
