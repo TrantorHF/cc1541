@@ -239,12 +239,14 @@ static void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niwWfoVTPONlBMmdtuxFSseErbc45gUqvh image.[d64|d71|d81]\n\n");
+    printf("Usage: cc1541 -niwWKfoVTPONlBMmdtuxFSseErbc45gUqvh image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='cc1541'.\n");
     printf("-i id         Disk ID, default='00 2a'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
     printf("              local name is used. After file written, the filename is unset.\n");
     printf("-W localname  Like -w, but encode file in Transwarp format.\n");
+    printf("              Provide Transwarp bootfile as last file using \"-f 'transwarp vX.YZ' -w 'transwarp vX.YZ.prg'\"\n");
+    printf("-K key        Set an encryption key for Transwarp files, a string of up to 29 characters.\n");
     printf("-f filename   Use filename as name when writing next file, use prefix # to\n");
     printf("              include arbitrary PETSCII characters (e.g. -f \"START#a0,8,1\").\n");
     printf("-o            Do not overwrite if file with same name exists already.\n");
