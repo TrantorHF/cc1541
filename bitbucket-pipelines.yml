@@ -39,8 +39,7 @@ pipelines:
               script:
                 - make -j2 cc1541 test_cc1541
                   ENABLE_WERROR=1
-                - mv cc1541 cc1541.exe
-                - mv test_cc1541 test_cc1541.exe
+                - ls
                 - wine ./test_cc1541.exe ./cc1541.exe
               artifacts:
                 - cc1541.exe
