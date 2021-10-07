@@ -35,7 +35,7 @@ pipelines:
                 - cc1541_lin_glibc_x86
           - step:
               name: Build and test Windows
-              image: purplekarrot/mingw-w64-i686
+              image: purplekarrot/wine32-gcc
               script:
                 - make -j2 cc1541 test_cc1541
                   CC=i686-w64-mingw32-gcc
