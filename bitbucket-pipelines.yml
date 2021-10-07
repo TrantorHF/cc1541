@@ -37,7 +37,7 @@ pipelines:
               name: Build and test Windows
               image: purplekarrot/mingw-w64-i686
               script:
-                - apt-get install gnupg
+                - apt-get update && apt-get install gnupg
                 - apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138
                 - apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9
                 - dpkg --add-architecture i386 && apt-get update && apt-get install wine32
