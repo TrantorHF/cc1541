@@ -3647,7 +3647,7 @@ undelete(image_type type, unsigned char* image, int *atab, int level)
         }
     }
     fprintf(stdout, "%d files undeleted.\n", num_undeleted);
-    free(searched);41
+    free(searched);
 }
 
 /* search for wild chains of unallocated sectors and create directory entries for them */
