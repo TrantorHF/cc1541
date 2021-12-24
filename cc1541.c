@@ -106,12 +106,13 @@
 #define FILESTART              2 /* analysed to be the start of a sector chain */
 #define POTENTIALLYALLOCATED   3 /* currently being analysed */
 /* error codes for sector chain validation */
-#define NO_ERROR       0 /* valid chain */
-#define ILLEGAL_TRACK  1 /* ends with illegal track pointer */
-#define ILLEGAL_SECTOR 2 /* ends with illegal sector pointer */
-#define LOOP           3 /* loop in current chain */
-#define COLLISION      4 /* collision with other file */
-#define CHAINED        5 /* ends at another file start */
+#define NO_ERROR               0 /* valid chain */
+#define ILLEGAL_TRACK          1 /* ends with illegal track pointer */
+#define ILLEGAL_SECTOR         2 /* ends with illegal sector pointer */
+#define LOOP                   3 /* loop in current chain */
+#define COLLISION              4 /* collision with other file */
+#define CHAINED                5 /* ends at another file start */
+#define IMMEDIATE_COLLISION    6 /* collision already in first sector */
 
 static const char *error_string[] = {
     "no error", "illegal track", "illegal sector", "loop", "collision", "chained"
@@ -1235,12 +1236,14 @@ wipe_file(image_type type, unsigned char* image, imagefile* file)
         int next_sector = image[block_offset + SECTORLINKOFFSET];
         memset(image + block_offset, 0, BLOCKSIZE);
         mark_sector(type, image, track, sector, 1 /* free */);
+        /* TODO: detect loops */
         track = next_track;
         sector = next_sector;
     }
 }
 
 /* Sets image offset to the next DIR entry, returns false when the DIR end was reached */
+/* TODO: detect loops */
 static bool
 next_dir_entry(image_type type, const unsigned char* image, int *track, int *sector, int *offset)
 {
@@ -3493,8 +3496,9 @@ validate_sector_chain(image_type type, unsigned char* image, int *atab, unsigned
     if(sector >= num_sectors(type, track)) {
         return ILLEGAL_SECTOR;
     }
-    *last_track = track;
-    *last_sector = sector;
+    if(atab[linear_sector(type, track, sector)] != UNALLOCATED) {
+        return IMMEDIATE_COLLISION;
+    }
     while (1) {
         switch(atab[linear_sector(type, *last_track, *last_sector)]) {
         case POTENTIALLYALLOCATED:
@@ -3547,7 +3551,7 @@ init_atab(image_type type, unsigned char* image, int *atab)
     } while(next_dir_entry(type, image, &dt, &ds, &offset));
 }
 
-/* Try to undelete a file given the directory entry */
+/* Try to undelete a file given the directory entry, returns true if successful */
 static bool
 undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset, int *atab, int level)
 {
@@ -3558,7 +3562,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
         int sector = image[dirblock + offset + FILESECTOROFFSET];
         int last_track, last_sector;
         int error = validate_sector_chain(type, image, atab, track, sector, &last_track, &last_sector);
-        if(error == NO_ERROR || level > 2) {
+        if(error == NO_ERROR || (level > 2 && error != IMMEDIATE_COLLISION)) {
             if(error != NO_ERROR) {
                 /* terminate chain */
                 int block_offset = linear_sector(type, last_track, last_sector) * BLOCKSIZE;
@@ -3580,24 +3584,37 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
         } else {
             fprintf(stdout, "Scratched file ");
             print_filename(stdout, &image[dirblock + offset + FILENAMEOFFSET]);
-            fprintf(stdout, " is beyond full repair (%s)\n", error_string[error]);
+            fprintf(stdout, " is beyond repair (%s)\n", error_string[error]);
             return false;
         }
     }
     return false;
 }
 
-/* search for scratched directory entries and restore them if they point to valid chains of unallocated sectors */
+/* search for scratched directory entries and restore them */
 static void
 undelete(image_type type, unsigned char* image, int *atab, int level)
 {
     int dt = dirtrack(type);
     int ds = (type == IMAGE_D81) ? 3 : 1;
+    int nsectors = num_sectors(type, dt);
     int offset = 0;
     int num_undeleted = 0;
+    int final_dt, final_ds; /* last linked directory sector and track */
 
+    bool* searched = calloc(nsectors, sizeof(bool));
+    if(searched == NULL) {
+        fprintf(stderr, "ERROR: error allocating memory");
+        exit(-1);
+    }
+    
     /* go through directory sector chain, might also be outside of dir track */
     do {
+        if(dt == dirtrack(type)) {
+            searched[ds] = true;
+        }
+        final_dt = dt;
+        final_ds = ds;
         if(undelete_file(type, image, dt, ds, offset, atab, level)) {
             num_undeleted++;
             modified = 1;
@@ -3606,15 +3623,31 @@ undelete(image_type type, unsigned char* image, int *atab, int level)
 
     /* check all sectors on dir track, might be unlinked */
     dt = dirtrack(type);
-    for(ds = (type == IMAGE_D81) ? 3 : 1; ds < num_sectors(type, dt); ds++) {
-        for(offset = 0; offset < DIRENTRIESPERBLOCK*DIRENTRYSIZE; offset += DIRENTRYSIZE) {
-            if(undelete_file(type, image, dt, ds, offset, atab, level)) {
-                num_undeleted++;
-                modified = 1;
+    for(ds = (type == IMAGE_D81) ? 3 : 1; ds < nsectors; ds++) {
+        if(!searched[ds]) {
+            int found = 0;
+            for(offset = 0; offset < DIRENTRIESPERBLOCK*DIRENTRYSIZE; offset += DIRENTRYSIZE) {
+                if(undelete_file(type, image, dt, ds, offset, atab, level)) {
+                    num_undeleted++;
+                    found = 1;
+                    modified = 1;
+                }
+            }
+            if(found) {
+                /* link found dir sector */
+                int block_offset = linear_sector(type, final_dt, final_ds) * BLOCKSIZE;
+                image[block_offset + TRACKLINKOFFSET] = dt;
+                image[block_offset + SECTORLINKOFFSET] = ds;
+                /* termimate found dir sector */
+                block_offset = linear_sector(type, dt, ds) * BLOCKSIZE;
+                image[block_offset + TRACKLINKOFFSET] = 0;
+                final_dt = dt;
+                final_ds = ds;
             }
         }
     }
     fprintf(stdout, "%d files undeleted.\n", num_undeleted);
+    free(searched);41
 }
 
 /* search for wild chains of unallocated sectors and create directory entries for them */
@@ -3625,12 +3658,22 @@ unformat(image_type type, unsigned char* image, int level)
     (void)image;
     (void)level;
     // - for every free sector, walk through chain (marking as POTENTIALLYALLOCATED to find cycles)
+    //   - ignore single sectors
+    //   level 2:
     //   - if a sector with illegal t/s is found, replace all POTENTIALLYALLOCATED with UNALLOCATED
     //   - if an ALLOCATED sector is found, replace all POTENTIALLYALLOCATED with UNALLOCATED
     //   - if a POTENTIALLYALLOCATED sector is found, replace all POTENTIALLYALLOCATED with UNALLOCATED
     //   - if a chain end is found, mark first sector as POTENTIALFILESTART and replace all POTENTIALLYALLOCATED with ALLOCATED
     //   - if a POTENTIALFILESTART sector is found, mark that as ALLOCATED, mark first sector as POTENTIALFILESTART and replace all POTENTIALLYALLOCATED with ALLOCATED
     // - for each POTENTIALFILESTART create a DIR entry
+    //   level 3:
+    //   - if a sector with illegal t/s is found, patch with 0, replace all POTENTIALLYALLOCATED with ALLOCATED
+    //   - if an ALLOCATED sector is found, patch with former with 0, replace all POTENTIALLYALLOCATED with ALLOCATED
+    //   - if a POTENTIALLYALLOCATED sector is found, patch with former with 0, replace all POTENTIALLYALLOCATED with ALLOCATED
+    //   - if a chain end is found, mark first sector as POTENTIALFILESTART and replace all POTENTIALLYALLOCATED with ALLOCATED
+    //   - if a POTENTIALFILESTART sector is found, mark that as ALLOCATED, mark first sector as POTENTIALFILESTART and replace all POTENTIALLYALLOCATED with ALLOCATED
+    // - for each POTENTIALFILESTART create a DIR entry
+
 }
 
 /* Write atab into BAM */
@@ -4016,7 +4059,7 @@ main(int argc, char* argv[])
             modified = 1;
         } else if (strcmp(argv[j], "-R") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &dorestore)) {
-                fprintf(stderr, "ERROR: Error parsing argument for -u\n");
+                fprintf(stderr, "ERROR: Error parsing argument for -R\n");
                 return -1;
             }
             if(dorestore < 0 || dorestore > 2) {
