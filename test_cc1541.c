@@ -109,12 +109,29 @@ run_binary_cleanup(const char* binary, const char* options, const char* image_na
     return status;
 }
 
+/* writes image to file */
+int
+write_file(const char* name, size_t size, char *image)
+{
+    FILE* f = fopen(name, "wb");
+    if(f == NULL) {
+        fprintf(stderr, "ERROR: Could not create output file %s\n", name);
+        return ERROR_NO_OUTPUT;
+    }
+    for (size_t i = 0; i < size; i++) {
+        fputc(image[i], f);
+    }
+    fclose(f);
+    return NO_ERROR;
+}
+
 /* creates a file with given name, size and filled with given value */
 int
 create_value_file(const char* name, int size, char value)
 {
     FILE* f = fopen(name, "wb");
     if (f == NULL) {
+        fprintf(stderr, "ERROR: Could not create output file %s\n", name);
         return ERROR_NO_OUTPUT;
     }
     for (int i = 0; i < size; i++) {
@@ -244,7 +261,7 @@ main(int argc, char* argv[])
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
 
-    description = "Writing file with one block should fill track 1 sector 3";
+    description = "Writing file with one block should fill track 1 sector 0";
     ++test;
     create_value_file("1.prg", 254, 37);
     if (run_binary_cleanup(binary, "-w 1.prg", "image.d64", &image, &size) != NO_ERROR) {
@@ -1038,6 +1055,126 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
     remove("2.prg");
+
+    description = "Restoring scratched first file should regenerate the dir entry for -R 0";
+    ++test;
+    create_value_file("1.prg", 1 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 2] = 0; /* scratched */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-R 0 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 2] == 0x82) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Restoring scratched last file should regenerate the dir entry for -R 0";
+    ++test;
+    create_value_file("1.prg", 1 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg -f 2 -w 1.prg -f 3 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 2*32 + 2] = 0; /* scratched */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-R 0 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 2*32 + 2] == 0x82) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Restoring scratched mid file should regenerate the dir entry for -R 0";
+    ++test;
+    create_value_file("1.prg", 1 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg -f 2 -w 1.prg -f 3 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 1*32 + 2] = 0; /* scratched */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-R 0 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 1*32 + 2] == 0x82) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Restoring unlinked dir sector should link it for -R 0";
+    ++test;
+    create_value_file("1.prg", 1 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg -f 2 -w 1.prg -f 3 -w 1.prg -f 4 -w 1.prg -f 5 -w 1.prg -f 6 -w 1.prg -f 7 -w 1.prg -f 8 -w 1.prg -f 9 -w 1.prg -f 10 -w 1.prg -f 11 -w 1.prg -f 12 -w 1.prg -f 13 -w 1.prg -f 14 -w 1.prg -f 15 -w 1.prg -f 16 -w 1.prg -f 17 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 1*256 + 1] = 7; /* make first sector link point to third dir sector */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-R 0 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 7*256 + 1] == 4) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+    
+    description = "Scratched file with conflicting t/s chain should be ignored for -R 0";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg -f 2 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[20*256+1] = 10; /* make t/s link point to second sector of first file */
+    image[track_offset[17] + 256 + 1*32 + 2] = 0; /* scratch second file */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-R 0 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 1*32 + 2] == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Wild valid sector chain should be restored for -R 1";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 2] = 0; /* scratch file */
+    image[track_offset[17] + 256 + 3] = 0; /* delete track pointer */
+    image[track_offset[17] + 256 + 4] = 0; /* delete sector pointer */
+    write_file("image.d64", size, image);
+#if 1
+    if (run_binary_cleanup(binary, "-R 1 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 2] == 0x82) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+#endif
+    remove("1.prg");
+
 
     /* ideas for tests:
        - test -o
