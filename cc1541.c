@@ -1599,8 +1599,8 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
             int num_blocks = 0;
             int filesize = files[i].size + 2;
             while (filesize > 0) {
-              ++num_blocks;
-              filesize -= 254;
+                ++num_blocks;
+                filesize -= 254;
             }
 
             printf("\n          Transwarp: %d total/%d actual (%d standard) blocks, tracks %d-%d, %d used and %d redundant block%s on last track, 0x%x spare bytes in last block, size 0x%x\n",
@@ -1721,7 +1721,7 @@ assign_blocktags(image_type type, const unsigned char *image, int(*blocktags)[SE
 
                     for (int track = low_track; track <= high_track; ++track) {
                         for (int sector = 0; sector < SECTORSPERTRACK_D81; ++sector) {
-                             blocktags[track][sector] = c + (((track == end_track) && (sector >= nonredundant_blocks_on_last_track)) ? 256 : 0);
+                            blocktags[track][sector] = c + (((track == end_track) && (sector >= nonredundant_blocks_on_last_track)) ? 256 : 0);
                         }
                     }
                 } else {
@@ -1740,10 +1740,18 @@ assign_blocktags(image_type type, const unsigned char *image, int(*blocktags)[SE
                 }
 
                 switch (c) {
-                    default:  ++c;     break;
-                    case 'Z': c = '0'; break;
-                    case '9': c = 'a'; break;
-                    case 'z': c = '@'; break;
+                default:
+                    ++c;
+                    break;
+                case 'Z':
+                    c = '0';
+                    break;
+                case '9':
+                    c = 'a';
+                    break;
+                case 'z':
+                    c = '@';
+                    break;
                 }
             }
         }
@@ -1812,11 +1820,11 @@ print_track_usage(image_type type, const unsigned char *image, int(*blocktags)[S
                 if (ontrack || fileontrack(type, image, track, filetrack, filesector)) {
                     unsigned char *filename = (unsigned char *) image + dirblock + entryOffset + FILENAMEOFFSET;
                     if (track == filetrack) {
-                      reverse_print_on();
+                        reverse_print_on();
                     }
                     printf("%c", blocktags[filetrack][filesector]);
                     if (track == filetrack) {
-                      reverse_print_off();
+                        reverse_print_off();
                     }
                     printf(": ");
                     print_filename(stdout, filename);
@@ -1873,14 +1881,14 @@ check_bam(image_type type, const unsigned char* image)
                 if (verbose) {
                     int blocktag = blocktags[t][s];
                     if (blocktag == 0) {
-                      blocktag = '#';
+                        blocktag = '#';
                     }
                     if (blocktag >= 256) {
-                      reverse_print_on();
+                        reverse_print_on();
                     }
                     printf("%c", blocktag);
                     if (blocktag >= 256) {
-                      reverse_print_off();
+                        reverse_print_off();
                     }
                 }
                 if (t != dirtrack(type)) {
@@ -3784,7 +3792,7 @@ undelete(image_type type, unsigned char* image, int *atab, int level)
         fprintf(stderr, "ERROR: error allocating memory");
         exit(-1);
     }
-    
+
     /* go through directory sector chain */
     do {
         if(dt == dirtrack(type)) {
@@ -3896,7 +3904,7 @@ undelete_wild(image_type type, unsigned char* image, int* atab)
     write_atab(type, image, atab);
     add_wild_to_dir(type, image, atab);
 }
-    
+
 /* search for wild invalid chains of unallocated sectors and fix them */
 static void
 undelete_fix_wild(image_type type, unsigned char* image, int* atab)
