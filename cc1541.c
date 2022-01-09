@@ -1198,6 +1198,38 @@ transwarp_stat(image_type type, const unsigned char *image, int dir_entry_offset
     return size;
 }
 
+/* Return Transwarp file stat */
+static int
+transwarp_size(image_type type, int start_track, int end_track, int filesize,
+               int *transwarp_blocks, int *nonredundant_blocks, int *redundant_blocks, int *nonredundant_blocks_on_last_track)
+{
+    *transwarp_blocks = 0;
+
+    int last_track_sectors;
+    if (start_track <= end_track) {
+        for (int track = start_track; track <= end_track; ++track) {
+            last_track_sectors = num_sectors(type, track);
+            *transwarp_blocks += last_track_sectors;
+        }
+    } else {
+        for (int track = start_track; track >= end_track; --track) {
+            last_track_sectors = num_sectors(type, track);
+            *transwarp_blocks += last_track_sectors;
+        }
+    }
+
+    int spare_bytes = TRANSWARPBLOCKSIZE - (filesize % TRANSWARPBLOCKSIZE);
+    if (spare_bytes == TRANSWARPBLOCKSIZE) {
+        spare_bytes = 0;
+    }
+
+    *nonredundant_blocks = (filesize / TRANSWARPBLOCKSIZE) + ((spare_bytes == 0) ? 0 : 1);
+    *redundant_blocks = *transwarp_blocks - *nonredundant_blocks;
+    *nonredundant_blocks_on_last_track = last_track_sectors - *redundant_blocks;
+
+    return spare_bytes;
+}
+
 /* Deletes a file from disk and BAM, but leaves the directory entry */
 static void
 wipe_file(image_type type, unsigned char* image, imagefile* file)
@@ -1557,34 +1589,24 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
         }
 
         if (files[i].filetype == FILETYPETRANSWARP) {
-            int first_track = (files[i].track < files[i].last_track) ? files[i].track : files[i].last_track;
-            int last_track = (files[i].last_track > files[i].track) ? files[i].last_track : files[i].track;
-
-            int transwarp_blocks = 0;
-            int last_track_sectors = 0;
-            for (int track = first_track; track <= last_track; ++track) {
-                last_track_sectors = num_sectors(type, track);
-                transwarp_blocks += last_track_sectors;
-            }
-
-            int spare_bytes = TRANSWARPBLOCKSIZE - (files[i].size % TRANSWARPBLOCKSIZE);
-            if (spare_bytes == TRANSWARPBLOCKSIZE) {
-                spare_bytes = 0;
-            }
-
-            int nonredundant_blocks = (files[i].size / TRANSWARPBLOCKSIZE) + ((spare_bytes == 0) ? 0 : 1);
-            int redundant_blocks = transwarp_blocks - nonredundant_blocks;
+            int transwarp_blocks;
+            int nonredundant_blocks;
+            int redundant_blocks;
+            int nonredundant_blocks_on_last_track;
+            int spare_bytes = transwarp_size(type, files[i].track, files[i].last_track, files[i].size, &transwarp_blocks, &nonredundant_blocks, &redundant_blocks, &nonredundant_blocks_on_last_track);
 
             int num_blocks = 0;
             int filesize = files[i].size + 2;
             while (filesize > 0) {
-                ++num_blocks;
-                filesize -= 254;
+              ++num_blocks;
+              filesize -= 254;
             }
 
             printf("\n          Transwarp: %d total/%d actual (%d standard) blocks, tracks %d-%d, %d used and %d redundant block%s on last track, 0x%x spare bytes in last block, size 0x%x\n",
-                   transwarp_blocks, nonredundant_blocks, num_blocks, first_track, last_track,
-                   last_track_sectors - redundant_blocks, redundant_blocks, (redundant_blocks == 1) ? "" : "s",
+                   transwarp_blocks, nonredundant_blocks, num_blocks,
+                   (files[i].track < files[i].last_track) ? files[i].track : files[i].last_track,
+                   (files[i].track >= files[i].last_track) ? files[i].track : files[i].last_track,
+                   nonredundant_blocks_on_last_track, redundant_blocks, (redundant_blocks == 1) ? "" : "s",
                    spare_bytes, files[i].size);
 
             continue;
@@ -1663,7 +1685,77 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
     printf("\n");
 }
 
-/* Returns if the file starting on the given filetrack and filesector uses the given track */
+
+static void
+assign_blocktags(image_type type, const unsigned char *image, int(*blocktags)[SECTORSPERTRACK_D81])
+{
+    char c = '@';
+
+    int dirsector = (type == IMAGE_D81) ? 3 : 1;
+    do {
+        int dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
+
+        for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
+            int entryOffset = i * DIRENTRYSIZE;
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
+            if (filetype != 0) {
+                int filetrack = image[dirblock + entryOffset + FILETRACKOFFSET];
+                int filesector = image[dirblock + entryOffset + FILESECTOROFFSET];
+
+                if (is_transwarp_file(image, dirblock + entryOffset)) {
+                    int start_track;
+                    int end_track;
+                    int low_track;
+                    int high_track;
+                    int filesize = transwarp_stat(type, image, dirblock + entryOffset, &start_track, &end_track, &low_track, &high_track);
+                    if (filesize <= 0) {
+                        continue;
+                    }
+
+                    int transwarp_blocks;
+                    int nonredundant_blocks;
+                    int redundant_blocks;
+                    int nonredundant_blocks_on_last_track;
+                    transwarp_size(type, start_track, end_track, filesize, &transwarp_blocks, &nonredundant_blocks, &redundant_blocks, &nonredundant_blocks_on_last_track);
+
+                    for (int track = low_track; track <= high_track; ++track) {
+                        for (int sector = 0; sector < SECTORSPERTRACK_D81; ++sector) {
+                             blocktags[track][sector] = c + (((track == end_track) && (sector >= nonredundant_blocks_on_last_track)) ? 256 : 0);
+                        }
+                    }
+                } else {
+                    bool new_track = true;
+                    while (filetrack != 0) {
+                        int block_offset = linear_sector(type, filetrack, filesector) * BLOCKSIZE;
+                        int next_track = image[block_offset + TRACKLINKOFFSET];
+                        int next_sector = image[block_offset + SECTORLINKOFFSET];
+
+                        blocktags[filetrack][filesector] = c + (new_track ? 256 : 0);
+                        new_track = (filetrack != next_track);
+
+                        filetrack = next_track;
+                        filesector = next_sector;
+                    }
+                }
+
+                switch (c) {
+                    default:  ++c;     break;
+                    case 'Z': c = '0'; break;
+                    case '9': c = 'a'; break;
+                    case 'z': c = '@'; break;
+                }
+            }
+        }
+
+        if (image[dirblock + TRACKLINKOFFSET] == dirtrack(type)) {
+            dirsector = image[dirblock + SECTORLINKOFFSET];
+        } else {
+            dirsector = 0;
+        }
+    } while (dirsector > 0);
+}
+
+/* Returns true if the file starting on the given filetrack and filesector uses the given track */
 static bool
 fileontrack(image_type type, const unsigned char *image, int track, int filetrack, int filesector)
 {
@@ -1684,7 +1776,7 @@ fileontrack(image_type type, const unsigned char *image, int track, int filetrac
 
 /* Prints all filenames of files that use the given track */
 static void
-print_track_usage(image_type type, const unsigned char *image, int track)
+print_track_usage(image_type type, const unsigned char *image, int(*blocktags)[SECTORSPERTRACK_D81], int track)
 {
     int dirsector = (type == IMAGE_D81) ? 3 : 1;
     do {
@@ -1692,7 +1784,7 @@ print_track_usage(image_type type, const unsigned char *image, int track)
 
         for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
             int entryOffset = i * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] % 0xf;
+            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
             if (filetype != 0) {
                 int filetrack = image[dirblock + entryOffset + FILETRACKOFFSET];
                 int filesector = image[dirblock + entryOffset + FILESECTOROFFSET];
@@ -1712,10 +1804,20 @@ print_track_usage(image_type type, const unsigned char *image, int track)
                     if (ontrack == false) {
                         continue;
                     }
+
+                    filetrack = start_track;
                 }
 
                 if (ontrack || fileontrack(type, image, track, filetrack, filesector)) {
                     unsigned char *filename = (unsigned char *) image + dirblock + entryOffset + FILENAMEOFFSET;
+                    if (track == filetrack) {
+                      reverse_print_on();
+                    }
+                    printf("%c", blocktags[filetrack][filesector]);
+                    if (track == filetrack) {
+                      reverse_print_off();
+                    }
+                    printf(": ");
                     print_filename(stdout, filename);
                     printf(" ");
                 }
@@ -1739,7 +1841,12 @@ check_bam(image_type type, const unsigned char* image)
     int sectorsOccupied = 0;
     int sectorsOccupiedOnDirTrack = 0;
 
+    int blocktags[D81NUMTRACKS][SECTORSPERTRACK_D81];
+
     if (verbose) {
+        memset(blocktags, 0, sizeof blocktags);
+        assign_blocktags(type, image, blocktags);
+
         printf("Block allocation:\n");
     }
 
@@ -1763,7 +1870,17 @@ check_bam(image_type type, const unsigned char* image)
                 }
             } else {
                 if (verbose) {
-                    printf("#");
+                    int blocktag = blocktags[t][s];
+                    if (blocktag == 0) {
+                      blocktag = '#';
+                    }
+                    if (blocktag >= 256) {
+                      reverse_print_on();
+                    }
+                    printf("%c", blocktag);
+                    if (blocktag >= 256) {
+                      reverse_print_off();
+                    }
                 }
                 if (t != dirtrack(type)) {
                     sectorsOccupied++;
@@ -1810,7 +1927,7 @@ check_bam(image_type type, const unsigned char* image)
             }
         }
         if (verbose) {
-            print_track_usage(type, image, t);
+            print_track_usage(type, image, blocktags, t);
             printf("\n");
         }
     }
@@ -1858,7 +1975,7 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
     reverse_print_off();
 
     if (verbose) {
-        printf("    hash");
+        printf("   fn hash");
     }
     printf("\n");
 
