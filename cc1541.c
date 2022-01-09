@@ -3305,8 +3305,8 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
         filepos += write32(bit_rate, f);
     }
 
-    const unsigned char sync[5] = { 0xff, 0xff, 0xff, 0xff, 0xff };
-    const char gap[9] = { 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55 };
+    const unsigned char sync[] = { 0xff, 0xff, 0xff, 0xff, 0xff };
+    const char gap[] = { 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55 };
     char header_gcr[10];
 
     const unsigned int block_size =
@@ -3406,7 +3406,7 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
             filepos += fwrite(group, 1, sizeof group, f);
 
             for (int i = gap_bytes; i > 0; --i) {
-                filepos += fwrite(&gap, 1, 1, f);
+                filepos += fwrite(gap, 1, 1, f);
             }
 
             image += 0x0100;
@@ -3415,7 +3415,7 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
         size_t tail_gap = track_bytes - filepos + track_begin;
         if (tail_gap > 0) {
             for (size_t i = tail_gap; i > 0; --i) {
-                filepos += fwrite(&gap, 1, 1, f);
+                filepos += fwrite(gap, 1, 1, f);
             }
 
             is_uniform = false;
