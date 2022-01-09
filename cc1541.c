@@ -2065,6 +2065,7 @@ odd_bits(unsigned char value)
 }
 
 typedef struct transwarp_encode_context {
+    unsigned int  version;
     unsigned char previous;
     unsigned char previous1;
     unsigned char previous2;
@@ -2187,9 +2188,11 @@ encode_send_diff(unsigned char value, unsigned char *accu, unsigned char *carry)
 }
 
 static unsigned char
-encode_receive_diff(unsigned char in, unsigned char *previous, unsigned char *carry)
+encode_receive_diff(const transwarp_encode_context *ctx, unsigned char in, unsigned char *previous, unsigned char *carry)
 {
-    int out = in - *carry;
+    int offset = (ctx->version <= 84) ? 0 : 2;
+
+    int out = in - *carry - offset;
     int diff = out - ((*previous & 0xc0) | (out & 0x3f));
     *carry = (diff < 0);
     out = ((out ^ *previous) & 0x3f) | diff;
@@ -2216,9 +2219,9 @@ static void
 encode_base_bytes(const unsigned char scramble[][256],
                   transwarp_encode_context *ctx, const unsigned char in[3], unsigned char *out)
 {
-    unsigned char in0 = encode_receive_diff(in[0], &(ctx->previous), &(ctx->recvcarry));
-    unsigned char in1 = encode_receive_diff(in[1], &(ctx->previous), &(ctx->recvcarry));
-    unsigned char in2 = encode_receive_diff(in[2], &(ctx->previous), &(ctx->recvcarry));
+    unsigned char in0 = encode_receive_diff(ctx, in[0], &(ctx->previous), &(ctx->recvcarry));
+    unsigned char in1 = encode_receive_diff(ctx, in[1], &(ctx->previous), &(ctx->recvcarry));
+    unsigned char in2 = encode_receive_diff(ctx, in[2], &(ctx->previous), &(ctx->recvcarry));
 
     in0 = scramble[0][in0];
     in1 = scramble[1][in1];
@@ -2323,7 +2326,7 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
     unsigned char semiencoded[TRANSWARPBUFFERBLOCKSIZE];
 
     for (int i = TRANSWARPBUFFERBLOCKSIZE - 1; i >= 0; --i) {
-        unsigned char value = encode_receive_diff(unencoded[TRANSWARPBASEBLOCKSIZE + i], &(ctx->previous2), &(ctx->carry2));
+        unsigned char value = encode_receive_diff(ctx, unencoded[TRANSWARPBASEBLOCKSIZE + i], &(ctx->previous2), &(ctx->carry2));
 
         value = scramble[3][value];
 
@@ -2364,7 +2367,7 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
     unsigned char accu = ctx->previous;
     unsigned char carry = 0;
     for (int i = 0; i < TRANSWARPBASEBLOCKSIZE; ++i) {
-        encode_receive_diff(unencoded[i], &accu, &carry);
+        encode_receive_diff(ctx, unencoded[i], &accu, &carry);
     }
 
     unsigned char receive_checksum = (-previous - carry);
@@ -2482,7 +2485,7 @@ permute(unsigned char *key, int len, int *set)
 
 /* Write file to disk using Transwarp encoding */
 static unsigned long long
-write_transwarp_file(image_type type, unsigned char *image, imagefile *file, unsigned char *filedata, int *filesize, bool transwarp_bootfile_fits_on_dir_track)
+write_transwarp_file(image_type type, unsigned char *image, imagefile *file, unsigned char *filedata, int *filesize, unsigned int version, bool transwarp_bootfile_fits_on_dir_track)
 {
     file->size = *filesize - 2;
 
@@ -2694,6 +2697,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
 
     transwarp_encode_context ctx;
     memset(&ctx, 0, sizeof ctx);
+    ctx.version = version;
 
     ctx.previous1 = initial_buffer_store_value;
 
@@ -2810,6 +2814,8 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
         sector = (type == IMAGE_D81) ? 0 : files[0].first_sector_new_track;
     }
 
+    int transwarp_version = 100;
+
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
         if ((file->mode & MODE_TRANSWARPBOOTFILE) != 0) {
@@ -2820,8 +2826,15 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 fileSize = (int)st.st_size;
             }
 
+            int version_major;
+            int version_minor;
+            if (sscanf((char *) basename(files[i].alocalname), "transwarp v%d.%d", &version_major, &version_minor) == 2) {
+                transwarp_version = (version_major * 100) + version_minor;
+            }
+
             int num_blocks = (fileSize / 254) + ((fileSize % 254 == 0) ? 0 : 1);
             transwarp_bootfile_fits_on_dir_track = (num_blocks <= 17);
+
             break;
         }
     }
@@ -3028,7 +3041,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
             unsigned long long key0 = 0;
             if (file->filetype == FILETYPETRANSWARP) {
-                key0 = write_transwarp_file(type, image, file, filedata, &fileSize, transwarp_bootfile_fits_on_dir_track);
+                key0 = write_transwarp_file(type, image, file, filedata, &fileSize, transwarp_version, transwarp_bootfile_fits_on_dir_track);
 
                 bytesLeft = 0;
             }
