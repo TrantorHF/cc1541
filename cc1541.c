@@ -442,10 +442,12 @@ a2p(unsigned char a)
     switch (a) {
     case '\n':
         return 0x0d;
+    case '_':
+        return 0xa4;
     case 0x7e:
         return 0xff;
     default:
-        if ((a >= 0x5b) && (a <= 0x5f)) {
+        if ((a >= 0x5b) && (a < 0x5f)) {
             return a;
         }
         if ((a >= 0x60) && (a <= 0x7e)) {
@@ -472,13 +474,18 @@ p2a(unsigned char p)
     case 0xa0:
     case 0xe0:
         return ' ';
+    case 0xa4:
+    case 0xe4:
+        return '_';
     default:
         switch (p & 0xe0) {
         case 0x40:
         case 0x60:
-            return (p ^ 0x20);
+            p ^= 0x20;
+            break;
         case 0xc0:
-            return (p ^ 0x80);
+            p ^= 0x80;
+            break;
         }
     }
     return ((isprint(p) ? p : '.'));
