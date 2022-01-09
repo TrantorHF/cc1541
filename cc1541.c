@@ -3489,10 +3489,10 @@ validate_sector_chain(image_type type, unsigned char* image, int *atab, unsigned
     *last_track = track;
     *last_sector = sector;
     if(track == 0 || track > image_num_tracks(type)) {
-        return ILLEGAL_TRACK;
+        return IMMEDIATE_COLLISION; /* TODO: rename to FIRST_BROKEN */
     }
     if(sector >= num_sectors(type, track)) {
-        return ILLEGAL_SECTOR;
+        return IMMEDIATE_COLLISION;
     }
     if(atab[linear_sector(type, track, sector)] != UNALLOCATED) {
         return IMMEDIATE_COLLISION;
@@ -3582,6 +3582,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
     int sector = image[dirblock + offset + FILESECTOROFFSET];
     int error = validate_sector_chain(type, image, atab, track, sector, &last_track, &last_sector);
     if(error == NO_ERROR || (level >= 2 && error != IMMEDIATE_COLLISION)) {
+        unsigned char name[17];
         if(error != NO_ERROR) {
             if(level < 4) {
                 /* terminate chain */
@@ -3594,14 +3595,20 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
         }
         // restore dir entry
         print_filename(stdout, &image[dirblock + offset + FILENAMEOFFSET]);
-        if(generate_unique_filename(type, image, &image[offset + FILENAMEOFFSET], track, sector)) { /* bug, cannot work on dir directly! */
+        memcpy(&name, &image[dirblock + offset + FILENAMEOFFSET], 16);
+        name[16] = 0;
+        if(generate_unique_filename(type, image, name, track, sector)) {
             fprintf(stdout, " as ");
-            print_filename(stdout, &image[dirblock + offset + FILENAMEOFFSET]);
+            print_filename(stdout, name);
         }
+        memcpy(&image[dirblock + offset + FILENAMEOFFSET], &name, 16);
         fprintf(stdout, "\n");
         image[dirblock + offset + FILETYPEOFFSET] = 0x82; /* original file type is lost, use closed PRG instead */
         mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, ALLOCATED);
         return true;
+    }
+    if(error != IMMEDIATE_COLLISION) {
+        mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, UNALLOCATED);
     }
     return false;
 }
@@ -3689,8 +3696,9 @@ add_wild_to_dir(image_type type, unsigned char* image, int* atab)
                 image[offset + TRACKLINKOFFSET] = t;
                 image[offset + SECTORLINKOFFSET] = s;
                 image[offset + FILENAMEOFFSET] = 0xa0; /* no proposed filename */
-                generate_unique_filename(type, image, (unsigned char*)&name, t, s); /* bug, cannot work on dir directly! */
-                memcpy(&image[offset + FILENAMEOFFSET], &name, 16);
+                generate_unique_filename(type, image, name, t, s);
+                memcpy(&image[offset + FILENAMEOFFSET], name, 16);
+                modified = 1;
             }
         }
     }
@@ -3717,9 +3725,13 @@ undelete_wild(image_type type, unsigned char* image, int* atab)
                     int chained_block = linear_sector(type, chained_track, chained_sector);
                     atab[chained_block] = ALLOCATED; /* overwrite FILESTART */
                 } else if(error == NO_ERROR) {
-                    mark_sector_chain(type, image, atab, t, s, last_track, last_sector, ALLOCATED);
-                    atab[b] = FILESTART;
-                    image[last_block * BLOCKSIZE + TRACKLINKOFFSET] = 0;
+                    if(last_track == t && last_sector == s) {
+                        atab[b] = UNALLOCATED; /* TODO: validate single block files */
+                    } else {
+                        mark_sector_chain(type, image, atab, t, s, last_track, last_sector, ALLOCATED);
+                        atab[b] = FILESTART;
+                        image[last_block * BLOCKSIZE + TRACKLINKOFFSET] = 0;
+                    }
                 } else {
                     mark_sector_chain(type, image, atab, t, s, last_track, last_sector, UNALLOCATED);
                 }
@@ -3735,7 +3747,7 @@ static void
 undelete_fix_wild(image_type type, unsigned char* image, int* atab)
 {
     /* search for broken sector chains */
-    for(unsigned int t = 0; t < image_num_tracks(type); t++) {
+    for(unsigned int t = 1; t <= image_num_tracks(type); t++) {
         for(int s = 0; s < num_sectors(type, t); s++) {
             int b = linear_sector(type, t, s);
             if(atab[b] == UNALLOCATED) {
@@ -3750,7 +3762,7 @@ undelete_fix_wild(image_type type, unsigned char* image, int* atab)
                     int chained_sector = image[last_block * BLOCKSIZE + SECTORLINKOFFSET];
                     int chained_block = linear_sector(type, chained_track, chained_sector);
                     atab[chained_block] = ALLOCATED; /* overwrite FILESTART */
-                } else if(t != last_track && s != last_sector) {
+                } else if(t != last_track || s != last_sector) {
                     mark_sector_chain(type, image, atab, t, s, last_track, last_sector, ALLOCATED);
                     atab[b] = FILESTART;
                     image[last_block * BLOCKSIZE + TRACKLINKOFFSET] = 0;

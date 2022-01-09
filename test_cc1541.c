@@ -1162,8 +1162,7 @@ main(int argc, char* argv[])
     image[track_offset[17] + 256 + 3] = 0; /* delete track pointer */
     image[track_offset[17] + 256 + 4] = 0; /* delete sector pointer */
     write_file("image.d64", size, image);
-#if 1
-    if (run_binary_cleanup(binary, "-R 1 ", "image.d64", &image, &size) != NO_ERROR) {
+    if (run_binary(binary, "-R 1 ", "image.d64", &image, &size) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if((unsigned char)image[track_offset[17] + 256 + 2] == 0x82) {
         result = TEST_PASS;
@@ -1172,9 +1171,71 @@ main(int argc, char* argv[])
         result = TEST_FAIL;
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
-#endif
     remove("1.prg");
 
+    description = "Wild invalid sector chain should be ignored for -R 1";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 2] = 0; /* scratch file */
+    image[track_offset[17] + 256 + 3] = 0; /* delete track pointer */
+    image[track_offset[17] + 256 + 4] = 0; /* delete sector pointer */
+    image[10 * 256] = 36; /* invalid track pointer */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-R 1 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 2] == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Invalid sector chain should be fixed for -R 2";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 2] = 0; /* scratch file */
+    image[10 * 256] = 36; /* invalid track pointer */
+    write_file("image.d64", size, image);
+    if (run_binary(binary, "-R 2 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 2] == 0x82 && image[10 * 256] == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Invalid wild sector chain should be fixed for -R 3";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 2] = 0; /* scratch file */
+    image[track_offset[17] + 256 + 3] = 0; /* delete track pointer */
+    image[track_offset[17] + 256 + 4] = 0; /* delete sector pointer */
+    image[10 * 256] = 36; /* invalid track pointer */
+    write_file("image.d64", size, image);
+    if (run_binary(binary, "-R 3 ", "image.d64", &image, &size) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 2] == 0x82 && image[10 * 256] == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
 
     /* ideas for tests:
        - test -o
