@@ -1410,8 +1410,17 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         }
         memcpy(image + file_entry_offset + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE);
 
-        if ((file->filetype != FILETYPETRANSWARP)
-                && is_transwarp_bootfile(image, file_entry_offset)) {
+        if (is_transwarp_bootfile(image, file_entry_offset)) {
+            if (file->filetype == FILETYPETRANSWARP) {
+                if (verbose) {
+                    printf("\n");
+                }
+
+                fprintf(stderr, "ERROR: Attempt to write Transwarp bootfile as Transwarp file\n");
+
+                exit(-1);
+            }
+
             file->mode |= MODE_TRANSWARPBOOTFILE;
             if (verbose) {
                 printf(" [Transwarp bootfile]");
@@ -2185,6 +2194,15 @@ encode_transwarp_block(const unsigned char scramble[][256], const int8_t gcr_to_
 {
     const unsigned char *unencoded = indata + filepos;
 
+    unsigned char data[TRANSWARPBLOCKSIZE];
+    if (filepos < 2) {
+        for (int i = filepos, j = 0; j < TRANSWARPBLOCKSIZE; ++i, ++j) {
+            data[j] = (i < 0) ? ' ' : ((i < 2) ? 0 : indata[i]);
+        }
+
+        unencoded = data;
+    }
+
     unsigned char semiencoded[TRANSWARPBUFFERBLOCKSIZE];
 
     for (int i = TRANSWARPBUFFERBLOCKSIZE - 1; i >= 0; --i) {
@@ -2359,7 +2377,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
     } else {
         /* allocate */
         bool free_tracks[40];
-        for (int t = 1; t <= 40; ++t) {
+        for (unsigned int t = 1; t <= image_num_tracks(type); ++t) {
             bool track_free = true;
             for (int sector = 0; sector < num_sectors(type, t); ++sector) {
                 if (is_sector_free(type, image, t, sector, 0 /* numdirblocks */, 0 /* dir_sector_interleave */) == false) {
@@ -2396,7 +2414,7 @@ write_transwarp_file(image_type type, unsigned char *image, imagefile *file, uns
         if (track <= 0) {
             /* above dir track */
             track = DIRTRACK_D41_D71 + (transwarp_bootfile_fits_on_dir_track ? 1 : 2);
-            while (track < 40) {
+            while (track <= image_num_tracks(type)) {
                 if (free_tracks[track - 1]) {
                     int filesize = file->size;
                     int t = track;
