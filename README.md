@@ -39,6 +39,14 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 
 ## Version history ##
 
+v3.4
+
+* Support for Transwarp 0.86 and later
+* Commandline option -R added for restoring deleted or formatted 
+  files
+* Improved verbose allocation printout
+* Added support for underscore in PETSCII filenames
+
 v3.3
 
 * Transwarp encoding added

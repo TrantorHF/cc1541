@@ -250,7 +250,7 @@ static void
 usage()
 {
     printf("\n*** This is cc1541 version " VERSION " built on " __DATE__ " ***\n\n");
-    printf("Usage: cc1541 -niwWKfoVTPONlBMmdtuxFSseErbc45gUqvh image.[d64|d71|d81]\n\n");
+    printf("Usage: cc1541 [options] image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='cc1541'.\n");
     printf("-i id         Disk ID, default='00 2a'.\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
@@ -3794,7 +3794,7 @@ undelete(image_type type, unsigned char* image, int *atab, int level)
     int offset = 0;
     int num_undeleted = 0;
     int final_dt, final_ds; /* last linked directory sector and track */
-    
+
     bool* searched = calloc(nsectors, sizeof(bool));
     if(searched == NULL) {
         fprintf(stderr, "ERROR: error allocating memory");
