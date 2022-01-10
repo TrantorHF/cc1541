@@ -76,9 +76,9 @@ run_binary(const char* binary, const char* options, const char* image_name, char
 
     /* build command line */
     if(silent) {
-    	snprintf(command_line, CMD_LINE_LEN, "%s %s %s %s %s", binary, options, image_name, NULL_DEV, MERGE_OUT_ERR);
+        snprintf(command_line, CMD_LINE_LEN, "%s %s %s %s %s", binary, options, image_name, NULL_DEV, MERGE_OUT_ERR);
     } else {
-    	snprintf(command_line, CMD_LINE_LEN, "%s %s %s %s", binary, options, image_name, NULL_DEV);
+        snprintf(command_line, CMD_LINE_LEN, "%s %s %s %s", binary, options, image_name, NULL_DEV);
     }
 
     if (system(command_line) != 0) {
