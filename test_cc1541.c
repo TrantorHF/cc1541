@@ -1273,8 +1273,8 @@ main(int argc, char* argv[])
         result = TEST_UNRESOLVED;
     }
     image[track_offset[17] + 256 + 2] = 0; /* scratch file */
-    image[track_offset[17] + 256 + 3] = 0xff; /* overwrite track pointer */
-    image[track_offset[17] + 256 + 4] = 0xff; /* overwrite sector pointer */
+    image[track_offset[17] + 256 + 3] = (unsigned char)0xff; /* overwrite track pointer */
+    image[track_offset[17] + 256 + 4] = (unsigned char)0xff; /* overwrite sector pointer */
     write_file("image.d64", size, image);
     if (run_binary_cleanup(binary, "-R 2 ", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
@@ -1404,8 +1404,8 @@ main(int argc, char* argv[])
     }
     image[20*256+1] = 10; /* make t/s link point to second sector of first file */
     image[track_offset[17] + 256 + 1*32 + 2] = 0; /* scratch second file */
-    image[track_offset[17] + 256 + 1*32 + 30] = 0xff; /* overwrite file size */
-    image[track_offset[17] + 256 + 1*32 + 31] = 0xff;
+    image[track_offset[17] + 256 + 1*32 + 30] = (unsigned char)0xff; /* overwrite file size */
+    image[track_offset[17] + 256 + 1*32 + 31] = (unsigned char)0xff;
     write_file("image.d64", size, image);
     if (run_binary_cleanup(binary, "-R 3 ", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
