@@ -133,13 +133,14 @@ applicable for D81.
 *-5*::
   Use tracks 35-40 with DOLPHIN DOS BAM formatting.
 
-*-R mode*::
+*-R level*::
   Try to restore deleted and formatted files.
-mode 0: Fix dir entries for files with valid t/s chains.
-mode 1: Also add wild sector chains with valid t/s chains.
-mode 2: Also fix dir entries with invalid t/s chains.
-mode 3: Also add and fix wild invalid t/s chains.
-mode 4: Only restore all dir entries without touching any t/s links.
+level 0: Only restore all dir entries without touching any t/s links.
+level 1: Fix dir entries for files with valid t/s chains.
+level 2: Also add wild sector chains with valid t/s chains.
+level 3: Also fix dir entries with invalid t/s chains.
+level 4: Also add and fix wild invalid t/s chains.
+level 5: Also try to fix wild single block files.
     
 *-g filename*::
   Write additional g64 output file with given name.

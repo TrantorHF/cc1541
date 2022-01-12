@@ -113,6 +113,13 @@
 #define COLLISION              4 /* collision with other file */
 #define CHAINED                5 /* ends at another file start */
 #define FIRST_BROKEN           6 /* issue already in first sector */
+/* undelete levels */
+#define RESTORE_DIR_ONLY        0 /* Only restore all dir entries without touching any t/s links */
+#define RESTORE_VALID_FILES     1 /* Fix dir entries for files with valid t/s chains */
+#define RESTORE_VALID_CHAINS    2 /* Also add wild sector chains with valid t/s chains */
+#define RESTORE_INVALID_FILES   3 /* Also fix dir entries with invalid t/s chains */
+#define RESTORE_INVALID_CHAINS  4 /* Also add and fix wild invalid t/s chains */
+#define RESTORE_INVALID_SINGLES 5 /* Also include single block files */
 
 #define TRANSWARP                "TRANSWARP"
 #define TRANSWARPBASEBLOCKSIZE   0xc0
@@ -307,12 +314,12 @@ usage()
     printf("-4            Use tracks 35-40 with SPEED DOS BAM formatting.\n");
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
     printf("-R mode       Try to restore deleted and formatted files.\n");
-    printf("              mode 0: Fix dir entries for files with valid t/s chains.\n");
-    printf("              mode 1: Also add wild sector chains with valid t/s chains.\n");
-    printf("              mode 2: Also fix dir entries with invalid t/s chains.\n");
-    printf("              mode 3: Also add and fix wild invalid t/s chains.\n");
-    printf("              mode 4: Also include single block files.\n");
-    printf("              mode 5: Only restore all dir entries without touching any t/s links.\n");
+    printf("              level 0: Only restore all dir entries without touching any t/s links.\n");
+    printf("              level 1: Fix dir entries for files with valid t/s chains.\n");
+    printf("              level 2: Also add wild sector chains with valid t/s chains.\n");
+    printf("              level 3: Also fix dir entries with invalid t/s chains.\n");
+    printf("              level 4: Also add and fix wild invalid t/s chains.\n");
+    printf("              level 5: Also include single block files.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
     printf("-U mapping    Print PETSCII as Unicode (requires Unicode 13.0 font, e.g.\n");
     printf("              UNSCII). Use mapping 0 for ASCII output, 1 for upper case, 2 for\n");
@@ -3756,7 +3763,7 @@ write_atab(image_type type, unsigned char* image, char* atab)
 
 /* Try to undelete a file given the directory entry, returns true if successful */
 static bool
-undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset, char* atab, int mode)
+undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset, char* atab, int level)
 {
     unsigned int last_track;
     int last_sector;
@@ -3764,10 +3771,10 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
     int track = image[dirblock + offset + FILETRACKOFFSET];
     int sector = image[dirblock + offset + FILESECTOROFFSET];
     int error = validate_sector_chain(type, image, atab, track, sector, &last_track, &last_sector);
-    if(error == NO_ERROR || (mode >= 2 && error != FIRST_BROKEN)) {
+    if(error == NO_ERROR || ((level == RESTORE_DIR_ONLY || level >= RESTORE_INVALID_FILES) && error != FIRST_BROKEN)) {
         unsigned char name[17];
         if(error != NO_ERROR) {
-            if(mode < 5) {
+            if(level != RESTORE_DIR_ONLY) {
                 /* terminate chain */
                 int block_offset = linear_sector(type, last_track, last_sector) * BLOCKSIZE;
                 image[block_offset + TRACKLINKOFFSET] = 0;
@@ -3796,7 +3803,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
         }
         image[dirblock + offset + FILETYPEOFFSET] = 0x82; /* original file type is lost, use closed PRG instead */
         mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, ALLOCATED);
-        if(mode != 5) {
+        if(level != RESTORE_DIR_ONLY) {
             int size = count_blocks(type, image, track, sector);
             image[dirblock + offset + FILEBLOCKSHIOFFSET] = size / 256;
             image[dirblock + offset + FILEBLOCKSLOOFFSET] = size % 256;
@@ -3809,9 +3816,9 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
     return false;
 }
 
-/* search for scratched directory entries and restore them, level 0 for valid, 2 for invalid, 4 for leave t/s as is */
+/* search for scratched directory entries and restore them */
 static int
-undelete(image_type type, unsigned char* image, char* atab, int mode)
+undelete(image_type type, unsigned char* image, char* atab, int level)
 {
     int dt = dirtrack(type);
     int ds = (type == IMAGE_D81) ? 3 : 1;
@@ -3837,7 +3844,7 @@ undelete(image_type type, unsigned char* image, char* atab, int mode)
         atab[db] = ALLOCATED;
         int dirblock = db * BLOCKSIZE;
         int filetype = image[dirblock + offset + FILETYPEOFFSET] & 0xf;
-        if(filetype == FILETYPEDEL && image[dirblock + offset + FILENAMEOFFSET] != 0 && undelete_file(type, image, dt, ds, offset, atab, mode)) { /* filename starting with 0 means that likely there was no file */
+        if(filetype == FILETYPEDEL && image[dirblock + offset + FILENAMEOFFSET] != 0 && undelete_file(type, image, dt, ds, offset, atab, level)) { /* filename starting with 0 means that likely there was no file */
             num_undeleted++;
             modified = 1;
         }
@@ -3849,7 +3856,7 @@ undelete(image_type type, unsigned char* image, char* atab, int mode)
         if(!searched[ds]) {
             int found = 0;
             for(offset = 0; offset < DIRENTRIESPERBLOCK*DIRENTRYSIZE; offset += DIRENTRYSIZE) {
-                if(undelete_file(type, image, dt, ds, offset, atab, mode)) {
+                if(undelete_file(type, image, dt, ds, offset, atab, level)) {
                     num_undeleted++;
                     found = 1;
                     modified = 1;
@@ -3860,7 +3867,7 @@ undelete(image_type type, unsigned char* image, char* atab, int mode)
                 int block_offset = linear_sector(type, final_dt, final_ds) * BLOCKSIZE;
                 image[block_offset + TRACKLINKOFFSET] = dt;
                 image[block_offset + SECTORLINKOFFSET] = ds;
-                /* termimate found dir sector */
+                /* terminate found dir sector */
                 int db = linear_sector(type, dt, ds);
                 block_offset = db * BLOCKSIZE;
                 image[block_offset + TRACKLINKOFFSET] = 0;
@@ -3909,7 +3916,7 @@ add_wild_to_dir(image_type type, unsigned char* image, char* atab)
 
 /* search for wild valid chains of unallocated sectors */
 static int
-undelete_wild(image_type type, unsigned char* image, char* atab, int mode)
+undelete_wild(image_type type, unsigned char* image, char* atab, int level)
 {
     int num_undeleted = 0;
     int max_bam_sector = (type == IMAGE_D81) ? 2 : 0;
@@ -3932,7 +3939,7 @@ undelete_wild(image_type type, unsigned char* image, char* atab, int mode)
                     atab[chained_block] = ALLOCATED; /* overwrite FILESTART */
                 } else if(error == NO_ERROR) {
                     if(last_track == t && last_sector == s) {
-                        if(mode == 4) {
+                        if(level == RESTORE_INVALID_SINGLES) {
                             /* single block files should have all 0 after file end */
                             bool valid = false;
                             int last_byte = image[last_block * BLOCKSIZE + SECTORLINKOFFSET];
@@ -4013,7 +4020,7 @@ undelete_fix_wild(image_type type, unsigned char* image, char* atab)
 
 /* Tries to restore any deleted or formatted files */
 static void
-restore(image_type type, unsigned char* image, int mode)
+restore(image_type type, unsigned char* image, int level)
 {
     int num_undeleted = 0;
     /* create block allocation table */
@@ -4023,21 +4030,21 @@ restore(image_type type, unsigned char* image, int mode)
         exit(-1);
     }
     init_atab(type, image, atab);
-    if(mode == 5) {
-        num_undeleted += undelete(type, image, atab, 5);
+    if(level == RESTORE_DIR_ONLY) {
+        num_undeleted += undelete(type, image, atab, RESTORE_DIR_ONLY);
     } else {
-        num_undeleted += undelete(type, image, atab, 0);
-        if(mode > 0) {
-            num_undeleted += undelete_wild(type, image, atab, 1);
+        num_undeleted += undelete(type, image, atab, RESTORE_VALID_FILES);
+        if(level >= RESTORE_VALID_CHAINS) {
+            num_undeleted += undelete_wild(type, image, atab, RESTORE_VALID_CHAINS);
         }
-        if(mode > 1) {
-            num_undeleted += undelete(type, image, atab, 2);
+        if(level >= RESTORE_INVALID_FILES) {
+            num_undeleted += undelete(type, image, atab, RESTORE_INVALID_FILES);
         }
-        if(mode > 2) {
+        if(level >= RESTORE_INVALID_CHAINS) {
             num_undeleted += undelete_fix_wild(type, image, atab);
         }
-        if(mode > 3) {
-            num_undeleted += undelete_wild(type, image, atab, 4);
+        if(level >= RESTORE_INVALID_SINGLES) {
+            num_undeleted += undelete_wild(type, image, atab, RESTORE_INVALID_SINGLES);
         }
     }
     free(atab);
