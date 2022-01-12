@@ -1553,8 +1553,8 @@ main(int argc, char* argv[])
         result = TEST_FAIL;
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
-    remove("1.prg");    
-    
+    remove("1.prg");
+
     description = "Wild valid single sector should be ignored for -R 4";
     ++test;
     create_value_file("1.prg", 1 * 113, 1);
@@ -1575,7 +1575,7 @@ main(int argc, char* argv[])
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
-    
+
     description = "Wild valid single sector should be restored for -R 5";
     ++test;
     create_value_file("1.prg", 1 * 113, 1);
@@ -1621,7 +1621,7 @@ main(int argc, char* argv[])
 
     /* ideas for tests:
        - first broken, illegal sector, chain, loop
-    
+
        - test -V
        - test filename hash collision with different -M values
        - check -g in more detail?
