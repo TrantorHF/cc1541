@@ -4006,6 +4006,7 @@ undelete_fix_wild(image_type type, unsigned char* image, char* atab)
                     mark_sector_chain(type, image, atab, t, s, last_track, last_sector, ALLOCATED);
                     atab[b] = FILESTART;
                     image[last_block * BLOCKSIZE + TRACKLINKOFFSET] = 0;
+                    image[last_block * BLOCKSIZE + SECTORLINKOFFSET] = 255;
                     num_undeleted++;
                 } else {
                     mark_sector_chain(type, image, atab, t, s, last_track, last_sector, UNALLOCATED);
