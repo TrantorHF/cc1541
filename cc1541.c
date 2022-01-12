@@ -3647,7 +3647,7 @@ count_blocks(image_type type, unsigned char *image, unsigned int track, int sect
 
 /* Overwrites all blocks that are marked as potentially allocated with the given value */
 static void
-mark_sector_chain(image_type type, unsigned char *image, int *atab, unsigned int track, int sector, unsigned int last_track, int last_sector, int mark)
+mark_sector_chain(image_type type, unsigned char *image, char* atab, unsigned int track, int sector, unsigned int last_track, int last_sector, int mark)
 {
     if(track <= 0 || track > image_num_tracks(type) || sector < 0 || sector > num_sectors(type, track)) {
         return;
@@ -3665,7 +3665,7 @@ mark_sector_chain(image_type type, unsigned char *image, int *atab, unsigned int
 
 /* Validates sector chain starting at track/sector, returns how and in which t/s the chain ends */
 static int
-validate_sector_chain(image_type type, unsigned char* image, int *atab, unsigned int track, int sector, unsigned int *last_track, int *last_sector)
+validate_sector_chain(image_type type, unsigned char* image, char* atab, unsigned int track, int sector, unsigned int *last_track, int *last_sector)
 {
     *last_track = track;
     *last_sector = sector;
@@ -3708,7 +3708,7 @@ validate_sector_chain(image_type type, unsigned char* image, int *atab, unsigned
 }
 
 static void
-init_atab(image_type type, unsigned char* image, int *atab)
+init_atab(image_type type, unsigned char* image, char* atab)
 {
     int dt = dirtrack(type);
     int ds = (type == IMAGE_D81) ? 3 : 1;
@@ -3740,7 +3740,7 @@ init_atab(image_type type, unsigned char* image, int *atab)
 
 /* Write atab into BAM */
 static void
-write_atab(image_type type, unsigned char* image, int* atab)
+write_atab(image_type type, unsigned char* image, char* atab)
 {
     for(unsigned int t = 1; t <= image_num_tracks(type); t++) {
         for(int s = 0; s < num_sectors(type, t); s++) {
@@ -3756,7 +3756,7 @@ write_atab(image_type type, unsigned char* image, int* atab)
 
 /* Try to undelete a file given the directory entry, returns true if successful */
 static bool
-undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset, int *atab, int mode)
+undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset, char* atab, int mode)
 {
     unsigned int last_track;
     int last_sector;
@@ -3811,7 +3811,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
 
 /* search for scratched directory entries and restore them, level 0 for valid, 2 for invalid, 4 for leave t/s as is */
 static int
-undelete(image_type type, unsigned char* image, int *atab, int mode)
+undelete(image_type type, unsigned char* image, char* atab, int mode)
 {
     int dt = dirtrack(type);
     int ds = (type == IMAGE_D81) ? 3 : 1;
@@ -3879,7 +3879,7 @@ undelete(image_type type, unsigned char* image, int *atab, int mode)
 
 /* add new DIR entries for wild chains */
 static void
-add_wild_to_dir(image_type type, unsigned char* image, int* atab)
+add_wild_to_dir(image_type type, unsigned char* image, char* atab)
 {
     /* create a DIR entry for each FILESTART */
     for(unsigned int t = 1; t <= image_num_tracks(type); t++) {
@@ -3909,7 +3909,7 @@ add_wild_to_dir(image_type type, unsigned char* image, int* atab)
 
 /* search for wild valid chains of unallocated sectors */
 static int
-undelete_wild(image_type type, unsigned char* image, int* atab, int mode)
+undelete_wild(image_type type, unsigned char* image, char* atab, int mode)
 {
     int num_undeleted = 0;
     int max_bam_sector = (type == IMAGE_D81) ? 2 : 0;
@@ -3974,7 +3974,7 @@ undelete_wild(image_type type, unsigned char* image, int* atab, int mode)
 
 /* search for wild invalid chains of unallocated sectors and fix them */
 static int
-undelete_fix_wild(image_type type, unsigned char* image, int* atab)
+undelete_fix_wild(image_type type, unsigned char* image, char* atab)
 {
     int num_undeleted = 0;
     int max_bam_sector = (type == IMAGE_D81) ? 2 : 0;
@@ -4017,7 +4017,7 @@ restore(image_type type, unsigned char* image, int mode)
 {
     int num_undeleted = 0;
     /* create block allocation table */
-    int *atab = (int *)calloc(image_num_blocks(type), sizeof(int));
+    char *atab = (char *)calloc(image_num_blocks(type), sizeof(char));
     if (atab == NULL) {
         fprintf(stderr, "ERROR: error allocating memory");
         exit(-1);
@@ -4054,7 +4054,7 @@ static void
 validate(image_type type, unsigned char* image)
 {
     /* create block allocation table */
-    int *atab = (int *)calloc(image_num_blocks(type), sizeof(int));
+    char *atab = (char *)calloc(image_num_blocks(type), sizeof(int));
     if (atab == NULL) {
         fprintf(stderr, "ERROR: error allocating memory");
         exit(-1);
