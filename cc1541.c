@@ -311,7 +311,8 @@ usage()
     printf("              mode 1: Also add wild sector chains with valid t/s chains.\n");
     printf("              mode 2: Also fix dir entries with invalid t/s chains.\n");
     printf("              mode 3: Also add and fix wild invalid t/s chains.\n");
-    printf("              mode 4: Only restore all dir entries without touching any t/s links.\n");
+    printf("              mode 4: Also include single block files.\n");
+    printf("              mode 5: Only restore all dir entries without touching any t/s links.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
     printf("-U mapping    Print PETSCII as Unicode (requires Unicode 13.0 font, e.g.\n");
     printf("              UNSCII). Use mapping 0 for ASCII output, 1 for upper case, 2 for\n");
@@ -680,7 +681,7 @@ putp(unsigned char petscii, FILE *file)
     }
 }
 
-/* Prints a PETSCII string to the given file */
+/* Prints a PETSCII string */
 static void
 print_petscii(unsigned char *petscii, int len)
 {
@@ -926,7 +927,7 @@ is_sector_free(image_type type, const unsigned char* image, int track, int secto
     return is_not_dir_block && ((bitmap[byte] & (1 << bit)) != 0);
 }
 
-/* Marks given sector as allocated in BAM */
+/* Marks given sector in BAM */
 static void
 mark_sector(image_type type, unsigned char* image, int track, int sector, int free)
 {
@@ -2851,7 +2852,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
         if (type == IMAGE_D81) {
-            file->sectorInterleave = 1; /* TODO: disallow setting interleave in case of D81 */
+            file->sectorInterleave = 1; /* caught in commandline parsing anyway, but does not hurt */
         }
 
         int file_usedirtrack = usedirtrack;
@@ -2864,7 +2865,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             file->track = 0;
             file->sector = 0;
             int entryOffset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
-            image[entryOffset + FILETRACKOFFSET] = file->track; /* TODO: CBM DOS scratch probably does not touch track or sector */
+            image[entryOffset + FILETRACKOFFSET] = file->track;
             image[entryOffset + FILESECTOROFFSET] = file->sector;
             image[entryOffset + FILEBLOCKSLOOFFSET] = file->nrSectorsShown & 255;
             image[entryOffset + FILEBLOCKSHIOFFSET] = file->nrSectorsShown >> 8;
@@ -3630,10 +3631,27 @@ generate_unique_filename(image_type type, unsigned char *image, unsigned char *n
     return changed;
 }
 
+/* Count number of blocks in file, assumes valid t/s chain */
+static int
+count_blocks(image_type type, unsigned char *image, unsigned int track, int sector)
+{
+    int num = 0;
+    while(track != 0) {
+        int block_offset = linear_sector(type, track, sector) * BLOCKSIZE;
+        track = image[block_offset + TRACKLINKOFFSET];
+        sector = image[block_offset + SECTORLINKOFFSET];
+        num++;
+    };
+    return num;
+}
+
 /* Overwrites all blocks that are marked as potentially allocated with the given value */
 static void
-mark_sector_chain(image_type type, unsigned char *image, int *atab, int track, int sector, int last_track, int last_sector, int mark)
+mark_sector_chain(image_type type, unsigned char *image, int *atab, unsigned int track, int sector, unsigned int last_track, int last_sector, int mark)
 {
+    if(track <= 0 || track > image_num_tracks(type) || sector < 0 || sector > num_sectors(type, track)) {
+        return;
+    }
     while(1) {
         atab[linear_sector(type, track, sector)] = mark;
         if(track == last_track && sector == last_sector) {
@@ -3652,7 +3670,7 @@ validate_sector_chain(image_type type, unsigned char* image, int *atab, unsigned
     *last_track = track;
     *last_sector = sector;
     if(track == 0 || track > image_num_tracks(type)) {
-        return FIRST_BROKEN; /* TODO: rename to FIRST_BROKEN */
+        return FIRST_BROKEN;
     }
     if(sector >= num_sectors(type, track)) {
         return FIRST_BROKEN;
@@ -3661,16 +3679,8 @@ validate_sector_chain(image_type type, unsigned char* image, int *atab, unsigned
         return FIRST_BROKEN;
     }
     while (1) {
-        switch(atab[linear_sector(type, *last_track, *last_sector)]) {
-        case POTENTIALLYALLOCATED:
-            return LOOP;
-        case ALLOCATED:
-            return COLLISION;
-        case FILESTART:
-            return CHAINED;
-        }
-        atab[linear_sector(type, *last_track, *last_sector)] = POTENTIALLYALLOCATED;
-        int block_offset = linear_sector(type, *last_track, *last_sector) * BLOCKSIZE;
+        atab[linear_sector(type, track, sector)] = POTENTIALLYALLOCATED;
+        int block_offset = linear_sector(type, track, sector) * BLOCKSIZE;
         unsigned int next_track = image[block_offset + TRACKLINKOFFSET];
         int next_sector = image[block_offset + SECTORLINKOFFSET];
         if (next_track == 0) {
@@ -3682,8 +3692,18 @@ validate_sector_chain(image_type type, unsigned char* image, int *atab, unsigned
         if (next_sector >= num_sectors(type, next_track)) {
             return ILLEGAL_SECTOR;
         }
-        *last_track = next_track;
-        *last_sector = next_sector;
+        switch(atab[linear_sector(type, next_track, next_sector)]) {
+        case POTENTIALLYALLOCATED:
+            return LOOP;
+        case ALLOCATED:
+            return COLLISION;
+        case FILESTART:
+            return CHAINED;
+        }
+        track = next_track;
+        sector = next_sector;
+        *last_track = track;
+        *last_sector = sector;
     }
 }
 
@@ -3736,7 +3756,7 @@ write_atab(image_type type, unsigned char* image, int* atab)
 
 /* Try to undelete a file given the directory entry, returns true if successful */
 static bool
-undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset, int *atab, int level)
+undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset, int *atab, int mode)
 {
     unsigned int last_track;
     int last_sector;
@@ -3744,10 +3764,10 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
     int track = image[dirblock + offset + FILETRACKOFFSET];
     int sector = image[dirblock + offset + FILESECTOROFFSET];
     int error = validate_sector_chain(type, image, atab, track, sector, &last_track, &last_sector);
-    if(error == NO_ERROR || (level >= 2 && error != FIRST_BROKEN)) {
+    if(error == NO_ERROR || (mode >= 2 && error != FIRST_BROKEN)) {
         unsigned char name[17];
         if(error != NO_ERROR) {
-            if(level < 4) {
+            if(mode < 5) {
                 /* terminate chain */
                 int block_offset = linear_sector(type, last_track, last_sector) * BLOCKSIZE;
                 image[block_offset + TRACKLINKOFFSET] = 0;
@@ -3760,7 +3780,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
                 printf("Restoring scratched file ");
             }
         }
-        // restore dir entry
+        /* restore dir entry */
         if(!quiet) {
             print_filename(stdout, &image[dirblock + offset + FILENAMEOFFSET]);
         }
@@ -3776,9 +3796,14 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
         }
         image[dirblock + offset + FILETYPEOFFSET] = 0x82; /* original file type is lost, use closed PRG instead */
         mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, ALLOCATED);
+        if(mode != 5) {
+            int size = count_blocks(type, image, track, sector);
+            image[dirblock + offset + FILEBLOCKSHIOFFSET] = size / 256;
+            image[dirblock + offset + FILEBLOCKSLOOFFSET] = size % 256;
+        }
         return true;
     }
-    if(error != FIRST_BROKEN) {
+    if(error != FIRST_BROKEN) { // TODO: condition needed?
         mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, UNALLOCATED);
     }
     return false;
@@ -3786,7 +3811,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
 
 /* search for scratched directory entries and restore them, level 0 for valid, 2 for invalid, 4 for leave t/s as is */
 static int
-undelete(image_type type, unsigned char* image, int *atab, int level)
+undelete(image_type type, unsigned char* image, int *atab, int mode)
 {
     int dt = dirtrack(type);
     int ds = (type == IMAGE_D81) ? 3 : 1;
@@ -3812,7 +3837,7 @@ undelete(image_type type, unsigned char* image, int *atab, int level)
         atab[db] = ALLOCATED;
         int dirblock = db * BLOCKSIZE;
         int filetype = image[dirblock + offset + FILETYPEOFFSET] & 0xf;
-        if(filetype == FILETYPEDEL && image[dirblock + offset + FILENAMEOFFSET] != 0 && undelete_file(type, image, dt, ds, offset, atab, level)) { /* filename starting with 0 means that likely there was no file */
+        if(filetype == FILETYPEDEL && image[dirblock + offset + FILENAMEOFFSET] != 0 && undelete_file(type, image, dt, ds, offset, atab, mode)) { /* filename starting with 0 means that likely there was no file */
             num_undeleted++;
             modified = 1;
         }
@@ -3824,7 +3849,7 @@ undelete(image_type type, unsigned char* image, int *atab, int level)
         if(!searched[ds]) {
             int found = 0;
             for(offset = 0; offset < DIRENTRIESPERBLOCK*DIRENTRYSIZE; offset += DIRENTRYSIZE) {
-                if(undelete_file(type, image, dt, ds, offset, atab, level)) {
+                if(undelete_file(type, image, dt, ds, offset, atab, mode)) {
                     num_undeleted++;
                     found = 1;
                     modified = 1;
@@ -3865,14 +3890,17 @@ add_wild_to_dir(image_type type, unsigned char* image, int* atab)
                 name[0] = 0xa0;
                 int dir_index, dir_sector, dir_offset;
                 new_dir_slot(type, image, (type == IMAGE_D81 ? 1 : 3), 0, &dir_index, &dir_sector, &dir_offset);
-                /* TODO: catch case when dir track is full */
+                /* TODO: handle full directory more gracefully */
                 int offset = linear_sector(type, dirtrack(type), dir_sector) * BLOCKSIZE + dir_offset;
                 image[offset + FILETYPEOFFSET] = 0x82; /* closed PRG */
-                image[offset + TRACKLINKOFFSET] = t;
-                image[offset + SECTORLINKOFFSET] = s;
+                image[offset + FILETRACKOFFSET] = t;
+                image[offset + FILESECTOROFFSET] = s;
                 image[offset + FILENAMEOFFSET] = 0xa0; /* no proposed filename */
                 generate_unique_filename(type, image, name, t, s);
                 memcpy(&image[offset + FILENAMEOFFSET], name, 16);
+                int size = count_blocks(type, image, t, s);
+                image[offset + FILEBLOCKSHIOFFSET] = size / 256;
+                image[offset + FILEBLOCKSLOOFFSET] = size % 256;
                 modified = 1;
             }
         }
@@ -3881,7 +3909,7 @@ add_wild_to_dir(image_type type, unsigned char* image, int* atab)
 
 /* search for wild valid chains of unallocated sectors */
 static int
-undelete_wild(image_type type, unsigned char* image, int* atab)
+undelete_wild(image_type type, unsigned char* image, int* atab, int mode)
 {
     int num_undeleted = 0;
     int max_bam_sector = (type == IMAGE_D81) ? 2 : 0;
@@ -3904,7 +3932,29 @@ undelete_wild(image_type type, unsigned char* image, int* atab)
                     atab[chained_block] = ALLOCATED; /* overwrite FILESTART */
                 } else if(error == NO_ERROR) {
                     if(last_track == t && last_sector == s) {
-                        atab[b] = UNALLOCATED; /* TODO: validate single block files */
+                        if(mode == 4) {
+                            /* single block files should have all 0 after file end */
+                            bool valid = false;
+                            int last_byte = image[last_block * BLOCKSIZE + SECTORLINKOFFSET];
+                            if(image[last_block * BLOCKSIZE + TRACKLINKOFFSET] == 0 && last_byte >= 2) {
+                                valid = true;
+                                for(int i = last_byte + 1; i <= 255; i++) {
+                                    if(image[last_block * BLOCKSIZE + i] != 0) {
+                                        valid = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            if(valid) {
+                                atab[b] = FILESTART;
+                                num_undeleted++;
+                            } else {
+                                atab[b] = UNALLOCATED;
+                            }
+                            atab[b] = valid ? FILESTART : UNALLOCATED;
+                        } else {
+                            atab[b] = UNALLOCATED;
+                        }
                     } else {
                         mark_sector_chain(type, image, atab, t, s, last_track, last_sector, ALLOCATED);
                         atab[b] = FILESTART;
@@ -3963,7 +4013,7 @@ undelete_fix_wild(image_type type, unsigned char* image, int* atab)
 
 /* Tries to restore any deleted or formatted files */
 static void
-restore(image_type type, unsigned char* image, int level)
+restore(image_type type, unsigned char* image, int mode)
 {
     int num_undeleted = 0;
     /* create block allocation table */
@@ -3973,18 +4023,21 @@ restore(image_type type, unsigned char* image, int level)
         exit(-1);
     }
     init_atab(type, image, atab);
-    if(level == 4) {
-        num_undeleted += undelete(type, image, atab, 4);
+    if(mode == 5) {
+        num_undeleted += undelete(type, image, atab, 5);
     } else {
         num_undeleted += undelete(type, image, atab, 0);
-        if(level > 0) {
-            num_undeleted += undelete_wild(type, image, atab);
+        if(mode > 0) {
+            num_undeleted += undelete_wild(type, image, atab, 1);
         }
-        if(level > 1) {
+        if(mode > 1) {
             num_undeleted += undelete(type, image, atab, 2);
         }
-        if(level > 2) {
+        if(mode > 2) {
             num_undeleted += undelete_fix_wild(type, image, atab);
+        }
+        if(mode > 3) {
+            num_undeleted += undelete_wild(type, image, atab, 4);
         }
     }
     free(atab);
@@ -4348,8 +4401,8 @@ main(int argc, char* argv[])
                 fprintf(stderr, "ERROR: Error parsing argument for -R\n");
                 return -1;
             }
-            if(restore_level < 0 || restore_level > 4) {
-                fprintf(stderr, "ERROR: Argument must be between 0 and 4 for -R\n");
+            if(restore_level < 0 || restore_level > 5) {
+                fprintf(stderr, "ERROR: Argument must be between 0 and 5 for -R\n");
                 return -1;
             }
         } else if (strcmp(argv[j], "-5") == 0) {
