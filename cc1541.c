@@ -1387,8 +1387,8 @@ new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, i
     int b = linear_sector(type, dirtrack(type), last_sector) * BLOCKSIZE;
     image[b + TRACKLINKOFFSET] = dirtrack(type);
     image[b + SECTORLINKOFFSET] = next_sector;
-    mark_sector(type, image, dirtrack(type), next_sector, 0 /* not free */);
 
+    mark_sector(type, image, dirtrack(type), next_sector, 0 /* not free */);
     b = linear_sector(type, dirtrack(type), next_sector) * BLOCKSIZE;
     memset(image + b, 0, BLOCKSIZE);
     image[b + SECTORLINKOFFSET] = 255;
@@ -3764,7 +3764,7 @@ write_atab(image_type type, unsigned char* image, char* atab)
             int free = (atab[b] == UNALLOCATED);
             if(!free) {
                 /* keep allocated BAM entries, only add new ones */
-                mark_sector(type, image, t, s, free);
+                mark_sector(type, image, t, s, 0);
             }
         }
     }
@@ -3805,7 +3805,9 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
         }
         return true;
     }
-    mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, UNALLOCATED);
+    if(error != FIRST_BROKEN) {
+        mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, UNALLOCATED);
+    }
     return false;
 }
 
@@ -3834,6 +3836,7 @@ undelete(image_type type, unsigned char* image, char* atab, int level)
         final_dt = dt;
         final_ds = ds;
         int db = linear_sector(type, dt, ds);
+        mark_sector(type, image, dt, ds, 0); /* needs to be updated in BAM, so that dir allocation works correctly later */
         atab[db] = ALLOCATED;
         int dirblock = db * BLOCKSIZE;
         int filetype = image[dirblock + offset + FILETYPEOFFSET];
@@ -3868,8 +3871,7 @@ undelete(image_type type, unsigned char* image, char* atab, int level)
                 image[block_offset + TRACKLINKOFFSET] = 0;
                 final_dt = dt;
                 final_ds = ds;
-                /* mark dir sector in BAM and atab */
-                mark_sector(type, image, dt, ds, 0);
+                mark_sector(type, image, dt, ds, 0); /* needs to be updated in BAM, so that dir allocation works correctly later */
                 atab[db] = ALLOCATED;
             }
         }
@@ -3966,13 +3968,17 @@ undelete_wild(image_type type, unsigned char* image, char* atab, int level)
                         num_undeleted++;
                     }
                 } else {
-                    mark_sector_chain(type, image, atab, t, s, last_track, last_sector, UNALLOCATED);
+                    if(error != FIRST_BROKEN) {
+                        mark_sector_chain(type, image, atab, t, s, last_track, last_sector, UNALLOCATED);
+                    }
                 }
             }
         }
     }
-    write_atab(type, image, atab);
-    add_wild_to_dir(type, image, atab);
+    if(num_undeleted) {
+        write_atab(type, image, atab);
+        add_wild_to_dir(type, image, atab);
+    }
     return num_undeleted;
 }
 
@@ -4006,13 +4012,17 @@ undelete_fix_wild(image_type type, unsigned char* image, char* atab)
                     image[last_block * BLOCKSIZE + SECTORLINKOFFSET] = 255;
                     num_undeleted++;
                 } else {
-                    mark_sector_chain(type, image, atab, t, s, last_track, last_sector, UNALLOCATED);
+                    if(error != FIRST_BROKEN) {
+                        mark_sector_chain(type, image, atab, t, s, last_track, last_sector, UNALLOCATED);
+                    }
                 }
             }
         }
     }
-    write_atab(type, image, atab);
-    add_wild_to_dir(type, image, atab);
+    if(num_undeleted) {
+        write_atab(type, image, atab);
+        add_wild_to_dir(type, image, atab);
+    }
     return num_undeleted;
 }
 
