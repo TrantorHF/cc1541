@@ -323,7 +323,7 @@ usage()
     printf("              level 2: Also add wild sector chains with valid t/s chains.\n");
     printf("              level 3: Also fix dir entries with invalid t/s chains.\n");
     printf("              level 4: Also add and fix wild invalid t/s chains.\n");
-    printf("              level 5: Also include single block files.\n");
+    printf("              level 5: Also add reasonable wild single blocks.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
     printf("-U mapping    Print PETSCII as Unicode (requires Unicode 13.0 font, e.g.\n");
     printf("              UNSCII). Use mapping 0 for ASCII output, 1 for upper case, 2 for\n");
