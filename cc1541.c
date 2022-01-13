@@ -528,20 +528,27 @@ pstrlen(const unsigned char* string)
     return len;
 }
 
-/* Writes number into PETSCII string, returns required number of characters */
-static int
+/* Writes 2 digit decimal number into PETSCII string */
+static void
 pputnum(unsigned char* string, unsigned int num)
 {
-    char buffer[17];
-    sprintf(buffer, "%d", num);
+    char buffer[3];
+    sprintf(buffer, "%02d", num);
     unsigned int len;
     for(len = 0; len < strlen(buffer); len++) {
-        if(buffer[len] == 0) {
-            break;
-        }
-        string[len] = buffer[len];
+        string[len] = a2p(buffer[len]);
     }
-    return len;
+}
+
+/* Writes 4 digit hex number into PETSCII string */
+static void
+pputhex(unsigned char* string, unsigned int num)
+{
+    char buffer[5];
+    sprintf(buffer, "%04x", num);
+    for(int len = 0; len < 4; len++) {
+        string[len] = a2p(buffer[len]);
+    }
 }
 
 /* Converts a two digit hex string to an int */
@@ -3607,7 +3614,7 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
 /* Generates a unique filename, either based on the proposed name, or using track and sector.
    Returns true, if the proposed name was changed */
 static bool
-generate_unique_filename(image_type type, unsigned char *image, unsigned char *name, int track, int sector)
+generate_unique_filename(image_type type, unsigned char *image, unsigned char *name, int track, int sector, int start)
 {
     int t, s, o, i;
     bool changed = false;
@@ -3615,10 +3622,12 @@ generate_unique_filename(image_type type, unsigned char *image, unsigned char *n
         /* no name provided, create one */
         changed = true;
         name[0] = a2p('t');
-        int tl = pputnum(name+1, track);
-        name[tl+1] = a2p('s');
-        int sl = pputnum(name+tl+2, sector);
-        for(int pos = sl+tl+2; pos < FILENAMEMAXSIZE; pos++) {
+        pputnum(name+1, track);
+        name[3] = a2p('s');
+        pputnum(name+4, sector);
+        name[6] = a2p('$');
+        pputhex(name+7, start);
+        for(int pos = 11; pos < FILENAMEMAXSIZE; pos++) {
             name[pos] = 0xa0;
         }
     }
@@ -3788,7 +3797,9 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
         /* restore dir entry */
         memcpy(&name, &image[dirblock + offset + FILENAMEOFFSET], 16);
         name[16] = 0;
-        generate_unique_filename(type, image, name, track, sector);
+        int b = linear_sector(type, track, sector);
+        int address = image[b * BLOCKSIZE + 2] + 256 * image[b * BLOCKSIZE + 3];
+        generate_unique_filename(type, image, name, track, sector, address);
         memcpy(&image[dirblock + offset + FILENAMEOFFSET], &name, 16);
         image[dirblock + offset + FILETYPEOFFSET] = 0x82; /* original file type is lost, use closed PRG instead */
         mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, ALLOCATED);
@@ -3896,7 +3907,8 @@ add_wild_to_dir(image_type type, unsigned char* image, char* atab)
                 image[offset + FILETRACKOFFSET] = t;
                 image[offset + FILESECTOROFFSET] = s;
                 image[offset + FILENAMEOFFSET] = 0xa0; /* no proposed filename */
-                generate_unique_filename(type, image, name, t, s);
+                int address = image[b * BLOCKSIZE + 2] + 256 * image[b * BLOCKSIZE + 3];
+                generate_unique_filename(type, image, name, t, s, address);
                 memcpy(&image[offset + FILENAMEOFFSET], name, 16);
                 int size = count_blocks(type, image, t, s);
                 image[offset + FILEBLOCKSHIOFFSET] = size / 256;
