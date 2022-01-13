@@ -3736,10 +3736,6 @@ init_atab(image_type type, unsigned char* image, char* atab)
 
     do {
         int db = linear_sector(type, dt, ds);
-        if(is_sector_free(type, image, dt, ds, 0, 0)) {
-            /* used dir block is not marked in BAM, we need to fix this */
-            modified = 1;
-        }
         atab[db] = ALLOCATED;
         int filetype = image[db * BLOCKSIZE + offset + FILETYPEOFFSET] & 0xf;
         if(filetype != FILETYPEDEL) {
@@ -3754,7 +3750,6 @@ init_atab(image_type type, unsigned char* image, char* atab)
                 printf(" seems corrupt (%s)\n", error_name[error]);
             }
             mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, ALLOCATED);
-            modified = 1;
         }
     } while(next_dir_entry(type, image, &dt, &ds, &offset));
 }
@@ -3844,7 +3839,6 @@ undelete(image_type type, unsigned char* image, char* atab, int level)
         int filetype = image[dirblock + offset + FILETYPEOFFSET];
         if(filetype == FILETYPEDEL && image[dirblock + offset + FILENAMEOFFSET] != 0 && undelete_file(type, image, dt, ds, offset, atab, level)) { /* filename starting with 0 means that likely there was no file */
             num_undeleted++;
-            modified = 1;
         }
     } while(next_dir_entry(type, image, &dt, &ds, &offset));
 
@@ -3860,7 +3854,6 @@ undelete(image_type type, unsigned char* image, char* atab, int level)
                 }
             }
             if(found) {
-                modified = 1;
                 num_undeleted += 8;
                 if(!quiet) {
                     printf("Relinking directory sector %d\n", ds);
@@ -3913,7 +3906,6 @@ add_wild_to_dir(image_type type, unsigned char* image, char* atab)
                 int size = count_blocks(type, image, t, s);
                 image[offset + FILEBLOCKSHIOFFSET] = size / 256;
                 image[offset + FILEBLOCKSLOOFFSET] = size % 256;
-                modified = 1;
             }
         }
     }
