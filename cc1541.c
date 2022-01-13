@@ -3784,28 +3784,12 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
                 int block_offset = linear_sector(type, last_track, last_sector) * BLOCKSIZE;
                 image[block_offset + TRACKLINKOFFSET] = 0;
             }
-            if(!quiet) {
-                printf("Partially restoring scratched file ");
-            }
-        } else {
-            if(!quiet) {
-                printf("Restoring scratched file ");
-            }
         }
         /* restore dir entry */
-        if(!quiet) {
-            print_filename(stdout, &image[dirblock + offset + FILENAMEOFFSET]);
-        }
         memcpy(&name, &image[dirblock + offset + FILENAMEOFFSET], 16);
         name[16] = 0;
-        if(generate_unique_filename(type, image, name, track, sector) && !quiet) {
-            printf(" as ");
-            print_filename(stdout, name);
-        }
+        generate_unique_filename(type, image, name, track, sector);
         memcpy(&image[dirblock + offset + FILENAMEOFFSET], &name, 16);
-        if(!quiet) {
-            printf("\n");
-        }
         image[dirblock + offset + FILETYPEOFFSET] = 0x82; /* original file type is lost, use closed PRG instead */
         mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, ALLOCATED);
         if(level != RESTORE_DIR_ONLY) {
