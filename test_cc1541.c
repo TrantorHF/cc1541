@@ -1597,6 +1597,29 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Wild valid single sector should have correct size for -R 5";
+    ++test;
+    create_value_file("1.prg", 1 * 113, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 2] = 0; /* scratch file */
+    image[track_offset[17] + 256 + 3] = 0; /* delete track pointer */
+    image[track_offset[17] + 256 + 4] = 0; /* delete sector pointer */
+    image[track_offset[17] + 256 + 30] = (unsigned char)0xff; /* overwrite file size */
+    image[track_offset[17] + 256 + 31] = (unsigned char)0xff;
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-R 5 ", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if((unsigned char)image[track_offset[17] + 256 + 2] == 0x82 && image[track_offset[17] + 256 + 30] == 1 && image[track_offset[17] + 256 + 31] == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
 #if 0
     description = "Recursive DIR sector chain should not run into endless loop";
     ++test;

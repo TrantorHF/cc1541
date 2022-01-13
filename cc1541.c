@@ -3887,9 +3887,11 @@ add_wild_to_dir(image_type type, unsigned char* image, char* atab)
                 unsigned char name[17];
                 name[0] = 0xa0;
                 int dir_index, dir_sector, dir_offset;
-                new_dir_slot(type, image, (type == IMAGE_D81 ? 1 : 3), 0, &dir_index, &dir_sector, &dir_offset);
-                /* TODO: handle full directory more gracefully */
-                int offset = linear_sector(type, dirtrack(type), dir_sector) * BLOCKSIZE + dir_offset;
+                atab[b] = ALLOCATED;
+                new_dir_slot(type, image, (type == IMAGE_D81 ? 1 : 3), 0, &dir_index, &dir_sector, &dir_offset); /* TODO: handle full directory more gracefully */
+                int db = linear_sector(type, dirtrack(type), dir_sector);
+                atab[db] = ALLOCATED; /* make sure that potentially new dir block is marked as used */
+                int offset = db * BLOCKSIZE + dir_offset;
                 image[offset + FILETYPEOFFSET] = 0x82; /* closed PRG */
                 image[offset + FILETRACKOFFSET] = t;
                 image[offset + FILESECTOROFFSET] = s;
