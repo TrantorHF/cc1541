@@ -104,7 +104,8 @@
 #define UNALLOCATED            0 /* unused as of now */
 #define ALLOCATED              1 /* part of a valid sector chain */
 #define FILESTART              2 /* analysed to be the start of a sector chain */
-#define POTENTIALLYALLOCATED   3 /* currently being analysed */
+#define FILESTART_TRUNCATED    3 /* analysed to be the start of a sector chain, was truncated */
+#define POTENTIALLYALLOCATED   4 /* currently being analysed */
 /* error codes for sector chain validation */
 #define NO_ERROR               0 /* valid chain */
 #define ILLEGAL_TRACK          1 /* ends with illegal track pointer */
@@ -112,7 +113,8 @@
 #define LOOP                   3 /* loop in current chain */
 #define COLLISION              4 /* collision with other file */
 #define CHAINED                5 /* ends at another file start */
-#define FIRST_BROKEN           6 /* issue already in first sector */
+#define CHAINED_TRUNCATED      6 /* ends at start of a truncated file */
+#define FIRST_BROKEN           7 /* issue already in first sector */
 /* undelete levels */
 #define RESTORE_DIR_ONLY        0 /* Only restore all dir entries without touching any t/s links */
 #define RESTORE_VALID_FILES     1 /* Fix dir entries for files with valid t/s chains */
@@ -528,14 +530,24 @@ pstrlen(const unsigned char* string)
     return len;
 }
 
-/* Writes 2 digit decimal number into PETSCII string */
+/* Writes digit decimal number into PETSCII string */
 static void
 pputnum(unsigned char* string, unsigned int num)
 {
+    char buffer[17];
+    sprintf(buffer, "%d", num);
+    for(unsigned int len = 0; len < strlen(buffer); len++) {
+        string[len] = a2p(buffer[len]);
+    }
+}
+
+/* Writes 2 digit decimal number into PETSCII string */
+static void
+pputnum2(unsigned char* string, unsigned int num)
+{
     char buffer[3];
     sprintf(buffer, "%02d", num);
-    unsigned int len;
-    for(len = 0; len < strlen(buffer); len++) {
+    for(unsigned int len = 0; len < strlen(buffer); len++) {
         string[len] = a2p(buffer[len]);
     }
 }
@@ -3611,44 +3623,57 @@ generate_uniformat_g64(unsigned char* image, const char *imagepath)
     return 0;
 }
 
-/* Generates a unique filename, either based on the proposed name, or using track and sector.
-   Returns true, if the proposed name was changed */
-static bool
-generate_unique_filename(image_type type, unsigned char *image, unsigned char *name, int track, int sector, int start)
+/* Generates a unique filename, either based on the proposed name, or using track and sector. */
+static void
+generate_unique_filename(image_type type, unsigned char *image, unsigned char *name, int track, int sector, int start, char marker)
 {
-    int t, s, o, i;
-    bool changed = false;
+    int i, t, s, o;
     if(name[0] == 0xa0 || name[0] == 0) {
         /* no name provided, create one */
-        changed = true;
         name[0] = a2p('t');
-        pputnum(name+1, track);
+        pputnum2(name+1, track);
         name[3] = a2p('s');
-        pputnum(name+4, sector);
+        pputnum2(name+4, sector);
         name[6] = a2p('$');
         pputhex(name+7, start);
         for(int pos = 11; pos < FILENAMEMAXSIZE; pos++) {
             name[pos] = 0xa0;
         }
     }
-    int appendix = 1;
-    int appendix_pos = pstrlen(name);
-    if(appendix_pos > FILENAMEMAXSIZE-3) {
-        appendix_pos = FILENAMEMAXSIZE-3;
+    int marker_pos = pstrlen(name);
+    if(marker_pos > FILENAMEMAXSIZE-1) {
+        marker_pos = FILENAMEMAXSIZE-1;
     }
+    if(marker) {
+        name[marker_pos] = marker;
+    } else {
+        marker_pos++;
+    }
+    int appendix = 1;
+    int appendix_len = 2;
+    int namelen = pstrlen(name);
     while(find_existing_file(type, image, name, &i, &t, &s, &o)) {
-        changed = true;
-        appendix++;
-        if(appendix == 10) {
-            appendix_pos--;
+        marker_pos = namelen + appendix_len;
+        if(marker_pos > FILENAMEMAXSIZE-1) {
+            marker_pos = FILENAMEMAXSIZE-1;
+            if(!marker) {
+                marker_pos++;
+            }
         }
-        if(appendix == 100) {
-            appendix_pos--;
+        if(marker) {
+            name[marker_pos] = marker;
         }
+        int appendix_pos = marker_pos - appendix_len;
         name[appendix_pos] = '.';
         pputnum(name + appendix_pos + 1, appendix);
+        appendix++;
+        if(appendix == 10) {
+            appendix_len++;
+        }
+        if(appendix == 100) {
+            appendix_len++;
+        }
     }
-    return changed;
 }
 
 /* Count number of blocks in file, assumes valid t/s chain */
@@ -3719,6 +3744,8 @@ validate_sector_chain(image_type type, unsigned char* image, char* atab, unsigne
             return COLLISION;
         case FILESTART:
             return CHAINED;
+        case FILESTART_TRUNCATED:
+            return CHAINED_TRUNCATED;
         }
         track = next_track;
         sector = next_sector;
@@ -3776,6 +3803,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
 {
     unsigned int last_track;
     int last_sector;
+    char marker = 0;
     int dirblock = linear_sector(type, dt, ds) * BLOCKSIZE;
     int track = image[dirblock + offset + FILETRACKOFFSET];
     int sector = image[dirblock + offset + FILESECTOROFFSET];
@@ -3787,6 +3815,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
                 /* terminate chain */
                 int block_offset = linear_sector(type, last_track, last_sector) * BLOCKSIZE;
                 image[block_offset + TRACKLINKOFFSET] = 0;
+                marker = '<';
             }
         }
         /* restore dir entry */
@@ -3794,7 +3823,7 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
         name[16] = 0;
         int b = linear_sector(type, track, sector);
         int address = image[b * BLOCKSIZE + 2] + 256 * image[b * BLOCKSIZE + 3];
-        generate_unique_filename(type, image, name, track, sector, address);
+        generate_unique_filename(type, image, name, track, sector, address, marker);
         memcpy(&image[dirblock + offset + FILENAMEOFFSET], &name, 16);
         image[dirblock + offset + FILETYPEOFFSET] = 0x82; /* original file type is lost, use closed PRG instead */
         mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, ALLOCATED);
@@ -3889,7 +3918,8 @@ add_wild_to_dir(image_type type, unsigned char* image, char* atab)
     for(unsigned int t = 1; t <= image_num_tracks(type); t++) {
         for(int s = 0; s < num_sectors(type, t); s++) {
             int b = linear_sector(type, t, s);
-            if(atab[b] == FILESTART) {
+            if(atab[b] == FILESTART || atab[b] == FILESTART_TRUNCATED) {
+                char marker = atab[b] == FILESTART ? 0 : '<';
                 unsigned char name[17];
                 name[0] = 0xa0;
                 int dir_index, dir_sector, dir_offset;
@@ -3903,7 +3933,7 @@ add_wild_to_dir(image_type type, unsigned char* image, char* atab)
                 image[offset + FILESECTOROFFSET] = s;
                 image[offset + FILENAMEOFFSET] = 0xa0; /* no proposed filename */
                 int address = image[b * BLOCKSIZE + 2] + 256 * image[b * BLOCKSIZE + 3];
-                generate_unique_filename(type, image, name, t, s, address);
+                generate_unique_filename(type, image, name, t, s, address, marker);
                 memcpy(&image[offset + FILENAMEOFFSET], name, 16);
                 int size = count_blocks(type, image, t, s);
                 image[offset + FILEBLOCKSHIOFFSET] = size / 256;
@@ -3929,9 +3959,9 @@ undelete_wild(image_type type, unsigned char* image, char* atab, int level)
                 int last_sector;
                 int error = validate_sector_chain(type, image, atab, t, s, &last_track, &last_sector);
                 int last_block = linear_sector(type, last_track, last_sector);
-                if(error == CHAINED) {
+                if(error == CHAINED || error == CHAINED_TRUNCATED) {
                     mark_sector_chain(type, image, atab, t, s, last_track, last_sector, ALLOCATED);
-                    atab[b] = FILESTART;
+                    atab[b] = (error == CHAINED) ? FILESTART : CHAINED_TRUNCATED;
                     int chained_track = image[last_block * BLOCKSIZE + TRACKLINKOFFSET];
                     int chained_sector = image[last_block * BLOCKSIZE + SECTORLINKOFFSET];
                     int chained_block = linear_sector(type, chained_track, chained_sector);
@@ -3998,16 +4028,16 @@ undelete_fix_wild(image_type type, unsigned char* image, char* atab)
                 int last_sector;
                 int error = validate_sector_chain(type, image, atab, t, s, &last_track, &last_sector);
                 int last_block = linear_sector(type, last_track, last_sector);
-                if(error == CHAINED) {
+                if(error == CHAINED || error == CHAINED_TRUNCATED) {
                     mark_sector_chain(type, image, atab, t, s, last_track, last_sector, ALLOCATED);
-                    atab[b] = FILESTART;
+                    atab[b] = (error == CHAINED) ? FILESTART : FILESTART_TRUNCATED;
                     int chained_track = image[last_block * BLOCKSIZE + TRACKLINKOFFSET];
                     int chained_sector = image[last_block * BLOCKSIZE + SECTORLINKOFFSET];
                     int chained_block = linear_sector(type, chained_track, chained_sector);
                     atab[chained_block] = ALLOCATED; /* overwrite FILESTART */
                 } else if(t != last_track || s != last_sector) {
                     mark_sector_chain(type, image, atab, t, s, last_track, last_sector, ALLOCATED);
-                    atab[b] = FILESTART;
+                    atab[b] = FILESTART_TRUNCATED;
                     image[last_block * BLOCKSIZE + TRACKLINKOFFSET] = 0;
                     image[last_block * BLOCKSIZE + SECTORLINKOFFSET] = 255;
                     num_undeleted++;
@@ -4060,7 +4090,11 @@ restore(image_type type, unsigned char* image, int level)
         modified = 1;
     }
     if(!quiet) {
-        printf("%d files undeleted\n", num_undeleted);
+        printf("%d files undeleted", num_undeleted);
+        if(num_undeleted) {
+            printf(", '<' at filename end marks truncated files");
+        }
+        printf("\n");
     }
 }
 
