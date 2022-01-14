@@ -107,7 +107,7 @@
 #define FILESTART_TRUNCATED    3 /* analysed to be the start of a sector chain, was truncated */
 #define POTENTIALLYALLOCATED   4 /* currently being analysed */
 /* error codes for sector chain validation */
-#define NO_ERROR               0 /* valid chain */
+#define VALID                  0 /* valid chain */
 #define ILLEGAL_TRACK          1 /* ends with illegal track pointer */
 #define ILLEGAL_SECTOR         2 /* ends with illegal sector pointer */
 #define LOOP                   3 /* loop in current chain */
@@ -3732,7 +3732,7 @@ validate_sector_chain(image_type type, unsigned char* image, char* atab, unsigne
         unsigned int next_track = image[block_offset + TRACKLINKOFFSET];
         int next_sector = image[block_offset + SECTORLINKOFFSET];
         if (next_track == 0) {
-            return NO_ERROR; /* end of valid chain */
+            return VALID; /* end of valid chain */
         }
         if (next_track > image_num_tracks(type)) {
             return ILLEGAL_TRACK;
@@ -3774,7 +3774,7 @@ init_atab(image_type type, unsigned char* image, char* atab)
             unsigned int last_track;
             int last_sector;
             int error = validate_sector_chain(type, image, atab, track, sector, &last_track, &last_sector);
-            if(error != NO_ERROR) {
+            if(error != VALID) {
                 printf("WARNING: file ");
                 print_filename(stdout, &image[db * BLOCKSIZE + offset + FILENAMEOFFSET]);
                 printf(" seems corrupt (%s)\n", error_name[error]);
@@ -3811,9 +3811,9 @@ undelete_file(image_type type, unsigned char* image, int dt, int ds, int offset,
     int track = image[dirblock + offset + FILETRACKOFFSET];
     int sector = image[dirblock + offset + FILESECTOROFFSET];
     int error = validate_sector_chain(type, image, atab, track, sector, &last_track, &last_sector);
-    if(error == NO_ERROR || ((level == RESTORE_DIR_ONLY || level >= RESTORE_INVALID_FILES) && error != FIRST_BROKEN)) {
+    if(error == VALID || ((level == RESTORE_DIR_ONLY || level >= RESTORE_INVALID_FILES) && error != FIRST_BROKEN)) {
         unsigned char name[17];
-        if(error != NO_ERROR) {
+        if(error != VALID) {
             if(level != RESTORE_DIR_ONLY) {
                 /* terminate chain */
                 int block_offset = linear_sector(type, last_track, last_sector) * BLOCKSIZE;
@@ -3969,7 +3969,7 @@ undelete_wild(image_type type, unsigned char* image, char* atab, int level)
                     int chained_sector = image[last_block * BLOCKSIZE + SECTORLINKOFFSET];
                     int chained_block = linear_sector(type, chained_track, chained_sector);
                     atab[chained_block] = ALLOCATED; /* overwrite FILESTART */
-                } else if(error == NO_ERROR) {
+                } else if(error == VALID) {
                     if(last_track == t && last_sector == s) {
                         if(level == RESTORE_INVALID_SINGLES) {
                             /* single block files should have all 0 after file end */
