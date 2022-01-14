@@ -222,7 +222,7 @@ static const char *filetypename_lc[] = {
 };
 
 static const char *error_name[] = {
-    "no error", "illegal track", "illegal sector", "loop", "collision", "chained", "first block broken"
+    "no error", "illegal track", "illegal sector", "loop", "collision", "chained", "chained", "first block broken"
 };
 
 static const int
@@ -1321,6 +1321,9 @@ next_dir_entry(image_type type, const unsigned char* image, int *track, int *sec
         *track = image[linear_sector(type, *track, *sector) * BLOCKSIZE + TRACKLINKOFFSET];
         if (*track == 0) {
             /* this was the last DIR sector */
+            return false;
+        } else if(*track > (int)image_num_tracks(type)) {
+            printf("WARNING: illegal track in directory sector chain\n");
             return false;
         } else {
             /* follow the t/s link */
