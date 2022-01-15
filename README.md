@@ -46,6 +46,7 @@ v3.4
   files
 * Improved verbose allocation printout
 * Added support for underscore in PETSCII filenames
+* Bugfix: no endless loops for cyclic directory chains anymore
 
 v3.3
 

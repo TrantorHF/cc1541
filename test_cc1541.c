@@ -1711,7 +1711,6 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
-#if 0
     description = "Recursive DIR sector chain should not run into endless loop";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);
@@ -1723,19 +1722,32 @@ main(int argc, char* argv[])
     write_file("image.d64", size, image);
     if (run_binary_cleanup(binary, "-f 2 -w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if((unsigned char)image[track_offset[17] + 256 + 32 + 2] == 0x82) {
+    } else {
         result = TEST_PASS;
         ++passed;
-    } else {
-        result = TEST_FAIL;
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
-#endif
+
+    description = "Recursive file sector chain should not run into endless loop for overwriting";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[10 * 256 + 0] = 1; /* t/s link points to first block */
+    image[10 * 256 + 1] = 0;
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else {
+        result = TEST_PASS;
+        ++passed;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
 
     /* ideas for tests:
-       - first broken, illegal sector, chain, loop
-
        - test -V
        - test filename hash collision with different -M values
        - check -g in more detail?

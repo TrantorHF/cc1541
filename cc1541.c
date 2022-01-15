@@ -786,79 +786,6 @@ linear_sector(image_type type, int track, int sector)
     return linear_sector;
 }
 
-/* Finds all filenames with the given hash */
-static int
-count_hashes(image_type type, const unsigned char* image, unsigned int hash, bool print)
-{
-    int num = 0;
-
-    int dirsector = (type == IMAGE_D81) ? 3 : 1;
-    do {
-        int dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
-
-        for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
-            int entryOffset = i * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET] & 0xf;
-            if (filetype != FILETYPEDEL) {
-                unsigned char *filename = (unsigned char *) image + dirblock + entryOffset + FILENAMEOFFSET;
-                if (hash == filenamehash(filename)) {
-                    ++num;
-
-                    if (print) {
-                        printf(" [$%04x] ", filenamehash(filename));
-                        print_filename(stdout, filename);
-                        printf("\n");
-                    }
-                }
-            }
-        }
-
-        if (image[dirblock + TRACKLINKOFFSET] == dirtrack(type)) {
-            dirsector = image[dirblock + SECTORLINKOFFSET];
-        } else {
-            dirsector = 0;
-        }
-    } while (dirsector > 0);
-
-    return num;
-}
-
-/* Checks if multiple filenames have the same hash */
-static bool
-check_hashes(image_type type, const unsigned char* image)
-{
-    bool collision = false;
-
-    printf("\n");
-    int dirsector = 1;
-    do {
-        int dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
-
-        for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
-            int entryOffset = i * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
-            if (filetype != FILETYPEDEL) {
-                unsigned char *filename = (unsigned char *) image + dirblock + entryOffset + FILENAMEOFFSET;
-                if (count_hashes(type, image, filenamehash(filename), false /* print */) > 1) {
-                    collision = 1;
-                    fprintf(stderr, "Hash of filename ");
-                    print_filename(stderr, filename);
-                    fprintf(stderr, " [$%04x] is not unique\n", filenamehash(filename));
-                    count_hashes(type, image, filenamehash(filename), true /* print */);
-                }
-            }
-        }
-
-        if (image[dirblock + TRACKLINKOFFSET] == dirtrack(type)) {
-            dirsector = image[dirblock + SECTORLINKOFFSET];
-        } else {
-            dirsector = 0;
-        }
-    } while (dirsector > 0);
-
-    return collision;
-}
-
 /* Returns the image offset of the bam entry for a given track */
 static int
 get_bam_offset(image_type type, unsigned int track)
@@ -1302,22 +1229,20 @@ wipe_file(image_type type, unsigned char* image, imagefile* file)
         int block_offset = linear_sector(type, track, sector) * BLOCKSIZE;
         int next_track = image[block_offset + TRACKLINKOFFSET];
         int next_sector = image[block_offset + SECTORLINKOFFSET];
-        memset(image + block_offset, 0, BLOCKSIZE);
+        memset(image + block_offset, 0, BLOCKSIZE); /* this also fixes any cyclic t/s chain */
         mark_sector(type, image, track, sector, 1 /* free */);
-        /* TODO: detect loops */
         track = next_track;
         sector = next_sector;
     }
 }
 
 /* Sets image offset to the next DIR entry, returns false when the DIR end was reached */
-/* TODO: detect loops */
 static bool
-next_dir_entry(image_type type, const unsigned char* image, int *track, int *sector, int *offset)
+next_dir_entry(image_type type, const unsigned char* image, int *track, int *sector, int *offset, char *blockmap)
 {
+    blockmap[linear_sector(type, *track, *sector)] = 1;
     if (*offset % BLOCKSIZE == 7 * DIRENTRYSIZE) {
         /* last entry in sector */
-
         *track = image[linear_sector(type, *track, *sector) * BLOCKSIZE + TRACKLINKOFFSET];
         if (*track == 0) {
             /* this was the last DIR sector */
@@ -1329,11 +1254,86 @@ next_dir_entry(image_type type, const unsigned char* image, int *track, int *sec
             /* follow the t/s link */
             *sector = image[linear_sector(type, *track, *sector) * BLOCKSIZE + SECTORLINKOFFSET];
             *offset = 0;
+            int b = linear_sector(type, *track, *sector);
+            if(blockmap[b]) {
+                printf("WARNING: cyclic directory sector chain\n");
+                return false;
+            }
         }
     } else {
         *offset += DIRENTRYSIZE;
     }
     return true;
+}
+
+/* Finds all filenames with the given hash */
+static int
+count_hashes(image_type type, const unsigned char* image, unsigned int hash, bool print)
+{
+    int num = 0;
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
+
+    int ds = (type == IMAGE_D81) ? 3 : 1;
+    int dt = dirtrack(type);
+    int offset = 0;
+    do {
+        int dirblock = linear_sector(type, dt, ds) * BLOCKSIZE + offset;
+        int filetype = image[dirblock + FILETYPEOFFSET];
+
+        if (filetype != FILETYPEDEL) {
+            unsigned char *filename = (unsigned char *) image + dirblock + FILENAMEOFFSET;
+            if (hash == filenamehash(filename)) {
+                ++num;
+
+                if (print) {
+                    printf(" [$%04x] ", filenamehash(filename));
+                    print_filename(stdout, filename);
+                    printf("\n");
+                }
+            }
+        }
+    } while (next_dir_entry(type, image, &dt, &ds, &offset, blockmap));
+    free(blockmap);
+
+    return num;
+}
+
+/* Checks if multiple filenames have the same hash */
+static bool
+check_hashes(image_type type, const unsigned char* image)
+{
+    bool collision = false;
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
+    printf("\n");
+
+    int ds = (type == IMAGE_D81) ? 3 : 1;
+    int dt = dirtrack(type);
+    int offset = 0;
+    do {
+        int dirblock = linear_sector(type, dt, ds) * BLOCKSIZE + offset;
+        int filetype = image[dirblock + FILETYPEOFFSET];
+
+        if (filetype != FILETYPEDEL) {
+            unsigned char *filename = (unsigned char *) image + dirblock + FILENAMEOFFSET;
+            if (count_hashes(type, image, filenamehash(filename), false /* print */) > 1) {
+                collision = 1;
+                fprintf(stderr, "Hash of filename ");
+                print_filename(stderr, filename);
+                fprintf(stderr, " [$%04x] is not unique\n", filenamehash(filename));
+                count_hashes(type, image, filenamehash(filename), true /* print */);
+            }
+        }
+    } while (next_dir_entry(type, image, &dt, &ds, &offset, blockmap));
+    free(blockmap);
+    return collision;
 }
 
 /* Searches for an existing DIR entry with the given name, returns false if it does not exist */
@@ -1344,6 +1344,12 @@ find_existing_file(image_type type, unsigned char* image, unsigned char* filenam
     *sector = (type == IMAGE_D81) ? 3 : 1;
     *offset = 0;
     *index = 0;
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
+
     do {
         int b = linear_sector(type, *track, *sector) * BLOCKSIZE + *offset;
         int filetype = image[b + FILETYPEOFFSET] & 0xf;
@@ -1365,7 +1371,8 @@ find_existing_file(image_type type, unsigned char* image, unsigned char* filenam
             break;
         }
         ++(*index);
-    } while (next_dir_entry(type, image, track, sector, offset));
+    } while (next_dir_entry(type, image, track, sector, offset, blockmap));
+    free(blockmap);
     return false;
 }
 
@@ -1377,13 +1384,20 @@ new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, i
     *dirsector = (type == IMAGE_D81) ? 3 : 1;
     *entry_offset = 0;
     *index = 0;
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
+
     do {
         int b = linear_sector(type, track, *dirsector) * BLOCKSIZE + *entry_offset;
         if (image[b + FILETYPEOFFSET] == FILETYPEDEL) {
             return; /* found an empty slot */
         }
         ++(*index);
-    } while (next_dir_entry(type, image, &track, dirsector, entry_offset));
+    } while (next_dir_entry(type, image, &track, dirsector, entry_offset, blockmap));
+    free(blockmap);
 
     /* allocate new dir block */
     int last_sector = *dirsector;
@@ -1540,6 +1554,11 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
         int t = dirtrack(type);
         int s = (type == IMAGE_D81) ? 3 : 1;
         int o = 0;
+        char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+        if(blockmap == NULL) {
+            fprintf(stderr, "ERROR: Memory allocation error\n");
+            exit(-1);
+        }
 
         do {
             int b = linear_sector(type, t, s) * BLOCKSIZE + o;
@@ -1600,7 +1619,8 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
             default:
                 break;
             }
-        } while (next_dir_entry(type, image, &t, &s, &o));
+        } while (next_dir_entry(type, image, &t, &s, &o, blockmap));
+        free(blockmap);
         files = existing_files;
     }
 
@@ -2008,6 +2028,11 @@ static void
 print_directory(image_type type, unsigned char* image, int blocks_free)
 {
     unsigned char* bam = image + linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
 
     printf("\n0 ");
     reverse_print_on();
@@ -2022,33 +2047,26 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
     }
     printf("\n");
 
-    int dirsector = (type == IMAGE_D81) ? 3 : 1;
+    int ds = (type == IMAGE_D81) ? 3 : 1;
+    int dt = dirtrack(type);
+    int offset = 0;
     do {
-        int dirblock = linear_sector(type, dirtrack(type), dirsector) * BLOCKSIZE;
+        int dirblock = linear_sector(type, dt, ds) * BLOCKSIZE + offset;
+        int filetype = image[dirblock + FILETYPEOFFSET];
+        int blocks = image[dirblock + FILEBLOCKSLOOFFSET] + 256 * image[dirblock + FILEBLOCKSHIOFFSET];
 
-        for (int i = 0; i < DIRENTRIESPERBLOCK; ++i) {
-            int entryOffset = i * DIRENTRYSIZE;
-            int filetype = image[dirblock + entryOffset + FILETYPEOFFSET];
-            int blocks = image[dirblock + entryOffset + FILEBLOCKSLOOFFSET] + 256 * image[dirblock + entryOffset + FILEBLOCKSHIOFFSET];
-
-            if (filetype != FILETYPEDEL) {
-                unsigned char* filename = (unsigned char*)image + dirblock + entryOffset + FILENAMEOFFSET;
-                printf("%-3d  ", blocks);
-                print_dirfilename(filename);
-                print_filetype(filetype);
-                if (verbose) {
-                    printf(" [$%04x]", filenamehash(filename));
-                }
-                printf("\n");
+        if (filetype != FILETYPEDEL) {
+            unsigned char* filename = (unsigned char*)image + dirblock + FILENAMEOFFSET;
+            printf("%-3d  ", blocks);
+            print_dirfilename(filename);
+            print_filetype(filetype);
+            if (verbose) {
+                printf(" [$%04x]", filenamehash(filename));
             }
+            printf("\n");
         }
-
-        if (image[dirblock + TRACKLINKOFFSET] == dirtrack(type)) {
-            dirsector = image[dirblock + SECTORLINKOFFSET];
-        } else {
-            dirsector = 0;
-        }
-    } while (dirsector > 0);
+    } while (next_dir_entry(type, image, &dt, &ds, &offset, blockmap));
+    free(blockmap);
     if(unicode == 1) {
         printf("%d BLOCKS FREE.\n", blocks_free);
     } else {
@@ -3310,6 +3328,12 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     /* Set track/sector of Transwarp file entries to Transwarp bootfile */
     int transwarp_boot_track = 0;
     int transwarp_boot_sector = 0;
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
+
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
         if (file->filetype == FILETYPETRANSWARP) {
@@ -3349,7 +3373,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                     transwarp_boot_sector = filesector;
 
                     break;
-                } while (next_dir_entry(type, image, &t, &s, &o));
+                } while (next_dir_entry(type, image, &t, &s, &o, blockmap));
             }
 
             if (transwarp_boot_track == 0) {
@@ -3363,6 +3387,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             image[b + FILESECTOROFFSET] = transwarp_boot_sector;
         }
     }
+    free(blockmap);
 
     /* update loop files */
     for (int i = 0; i < num_files; i++) {
@@ -3763,6 +3788,11 @@ init_atab(image_type type, unsigned char* image, char* atab)
     int dt = dirtrack(type);
     int ds = (type == IMAGE_D81) ? 3 : 1;
     int offset = 0;
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
 
     do {
         int db = linear_sector(type, dt, ds);
@@ -3781,7 +3811,8 @@ init_atab(image_type type, unsigned char* image, char* atab)
             }
             mark_sector_chain(type, image, atab, track, sector, last_track, last_sector, ALLOCATED);
         }
-    } while(next_dir_entry(type, image, &dt, &ds, &offset));
+    } while(next_dir_entry(type, image, &dt, &ds, &offset, blockmap));
+    free(blockmap);
 }
 
 /* Write atab into BAM */
@@ -3853,6 +3884,11 @@ undelete(image_type type, unsigned char* image, char* atab, int level)
     int offset = 0;
     int num_undeleted = 0;
     int final_dt, final_ds; /* last linked directory sector and track */
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
 
     bool* searched = calloc(nsectors, sizeof(bool));
     if(searched == NULL) {
@@ -3875,7 +3911,8 @@ undelete(image_type type, unsigned char* image, char* atab, int level)
         if(filetype == FILETYPEDEL && image[dirblock + offset + FILENAMEOFFSET] != 0 && undelete_file(type, image, dt, ds, offset, atab, level)) { /* filename starting with 0 means that likely there was no file */
             num_undeleted++;
         }
-    } while(next_dir_entry(type, image, &dt, &ds, &offset));
+    } while(next_dir_entry(type, image, &dt, &ds, &offset, blockmap));
+    free(blockmap);
 
     /* search for unlinked dir sectors */
     dt = dirtrack(type);
