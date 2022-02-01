@@ -996,7 +996,7 @@ main(int argc, char* argv[])
     description = "Protect flag should be set for transwarp file for -P";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);
-    if (run_binary_cleanup(binary, "-P -f file1 -W 1.prg -w transwarp\\ v0.84.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-P -f file1 -W 1.prg -w ./transwarp\\ v0.84.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (image[track_offset[17] + 256 + 2] == (char)0xc2) {
         result = TEST_PASS;
@@ -1024,7 +1024,7 @@ main(int argc, char* argv[])
     description = "Open flag should be set for transcode file for -O";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);
-    if (run_binary_cleanup(binary, "-O -f file1 -W 1.prg -w transwarp\\ v0.84.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-O -f file1 -W 1.prg -w ./transwarp\\ v0.84.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (image[track_offset[17] + 256 + 2] == (char)0x02) {
         result = TEST_PASS;
