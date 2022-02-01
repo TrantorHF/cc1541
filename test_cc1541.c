@@ -979,6 +979,76 @@ main(int argc, char* argv[])
     remove("1.prg");
     remove("2.prg");
 
+    description = "Protect flag should be set for -P";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-P -f file1 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 256 + 2] == (char)0xc2) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Protect flag should be set for transwarp file for -P";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-P -f file1 -W 1.prg -w transwarp\\ v0.84.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 256 + 2] == (char)0xc2) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Open flag should be set for -O";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-O -f file1 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 256 + 2] == (char)0x02) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Open flag should be set for transcode file for -O";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-O -f file1 -W 1.prg -w transwarp\\ v0.84.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 256 + 2] == (char)0x02) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "After having set type, open and protected flag next file should go back to normal PRG as default";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-T USR -P -O -f file1 -w 1.prg -f file2 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 256 + 32 + 2] == (char)0x82) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
     description = "After having set type, open and protected flag next file should go back to normal PRG as default";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);

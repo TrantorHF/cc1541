@@ -68,6 +68,7 @@
 #define FILETYPEUSR            3
 #define FILETYPEREL            4
 #define FILETYPETRANSWARP      (0x180 | FILETYPEUSR)
+#define FILETYPETRANSWARPMASK  0x100
 #define FILETRACKOFFSET        3
 #define FILESECTOROFFSET       4
 #define FILENAMEOFFSET         5
@@ -1483,8 +1484,8 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
 
         int file_entry_offset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
         image[file_entry_offset + FILETYPEOFFSET] = file->filetype;
-        if (file->filetype == FILETYPETRANSWARP) {
-            image[file_entry_offset + FILETYPEOFFSET] = (unsigned char) ((file->have_key != 0) ? FILETYPETRANSWARP : (0x80 | FILETYPEPRG));
+        if (file->filetype & FILETYPETRANSWARPMASK) {
+            image[file_entry_offset + FILETYPEOFFSET] = (unsigned char) ((file->have_key != 0) ? FILETYPETRANSWARP : (file->filetype & 0xff));
             if (verbose) {
                 printf(" [Transwarp]");
             }
@@ -1492,7 +1493,7 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         memcpy(image + file_entry_offset + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE);
 
         if (is_transwarp_bootfile(image, file_entry_offset)) {
-            if (file->filetype == FILETYPETRANSWARP) {
+            if (file->filetype & FILETYPETRANSWARPMASK) {
                 if (verbose) {
                     printf("\n");
                 }
@@ -1643,7 +1644,7 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
             continue;
         }
 
-        if (files[i].filetype == FILETYPETRANSWARP) {
+        if (files[i].filetype & FILETYPETRANSWARPMASK) {
             int transwarp_blocks;
             int nonredundant_blocks;
             int redundant_blocks;
@@ -2945,7 +2946,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 track = DIRTRACK_D41_D71;
             }
 
-            unsigned char* filedata = (unsigned char*)calloc(fileSize + ((file->filetype == FILETYPETRANSWARP) ? (21 * TRANSWARPBLOCKSIZE) : 0), sizeof(unsigned char));
+            unsigned char* filedata = (unsigned char*)calloc(fileSize + ((file->filetype & FILETYPETRANSWARPMASK) ? (21 * TRANSWARPBLOCKSIZE) : 0), sizeof(unsigned char));
             if (filedata == NULL) {
                 fprintf(stderr, "ERROR: Memory allocation error\n");
 
@@ -2963,7 +2964,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             }
             fclose(f);
 
-            if ((file->filetype != FILETYPETRANSWARP)
+            if ((!(file->filetype & FILETYPETRANSWARPMASK))
                     && ((file->mode & MODE_MIN_TRACK_MASK) > 0)) {
                 int minTrack = (file->mode & MODE_MIN_TRACK_MASK) >> MODE_MIN_TRACK_SHIFT;
                 if (lastMinTrack != minTrack) {
@@ -2996,7 +2997,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 sector = (file->mode & MODE_BEGINNING_SECTOR_MASK) - 1;
             }
 
-            if ((file->filetype != FILETYPETRANSWARP)
+            if ((!(file->filetype & FILETYPETRANSWARPMASK))
                     && (((file->mode & MODE_SAVETOEMPTYTRACKS) != 0)
                         || ((file->mode & MODE_FITONSINGLETRACK) != 0))) {
 
@@ -3101,7 +3102,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             int bytesLeft = fileSize;
 
             unsigned long long key0 = 0;
-            if (file->filetype == FILETYPETRANSWARP) {
+            if (file->filetype & FILETYPETRANSWARPMASK) {
                 key0 = write_transwarp_file(type, image, file, filedata, &fileSize, transwarp_version, transwarp_bootfile_fits_on_dir_track);
 
                 bytesLeft = 0;
@@ -3240,7 +3241,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 file->nrSectors++;
             } /* while bytes left */
 
-            if (file->filetype != FILETYPETRANSWARP) {
+            if (!(file->filetype & FILETYPETRANSWARPMASK)) {
                 image[lastOffset + 0] = 0x00;
                 image[lastOffset + 1] = bytes_to_write + 1;
             }
@@ -3250,7 +3251,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
             image[entryOffset + FILETRACKOFFSET] = file->track;
             image[entryOffset + FILESECTOROFFSET] = file->sector;
 
-            if (file->filetype == FILETYPETRANSWARP) {
+            if (file->filetype & FILETYPETRANSWARPMASK) {
                 image[entryOffset + FILETRACKOFFSET] = 0;
                 image[entryOffset + FILESECTOROFFSET] = 0;
 
@@ -3336,7 +3337,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
-        if (file->filetype == FILETYPETRANSWARP) {
+        if (file->filetype & FILETYPETRANSWARPMASK) {
             if (transwarp_boot_track == 0) {
                 /* find Transwarp bootfile */
 
@@ -4415,9 +4416,13 @@ main(int argc, char* argv[])
             files[num_files].filetype = filetype;
 
             if (strcmp(argv[j], "-W") == 0) {
+                if((filetype & 0xf) != FILETYPEPRG) {
+                    fprintf(stderr, "ERROR: Transwarp files must have file type PRG\n");
+                    return -1;
+                }
                 transwarp_set = true;
 
-                files[num_files].filetype = FILETYPETRANSWARP;
+                files[num_files].filetype = filetype | FILETYPETRANSWARPMASK;
                 files[num_files].sectorInterleave = 1;
             }
 
