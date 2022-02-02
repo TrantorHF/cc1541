@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2008-2021 JackAsser, Krill, Claus, Björn Esser
+* Copyright (c) 2008-2021 JackAsser, Krill, Claus, Bjšrn Esser
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -67,7 +67,6 @@
 #define FILETYPEPRG            2
 #define FILETYPEUSR            3
 #define FILETYPEREL            4
-#define FILETYPETRANSWARP      (0x180 | FILETYPEUSR)
 #define FILETYPETRANSWARPMASK  0x100
 #define FILETRACKOFFSET        3
 #define FILESECTOROFFSET       4
@@ -1483,12 +1482,9 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         }
 
         int file_entry_offset = linear_sector(type, dirtrack(type), file->direntrysector) * BLOCKSIZE + file->direntryoffset;
-        image[file_entry_offset + FILETYPEOFFSET] = file->filetype;
-        if (file->filetype & FILETYPETRANSWARPMASK) {
-            image[file_entry_offset + FILETYPEOFFSET] = (unsigned char) ((file->have_key != 0) ? FILETYPETRANSWARP : (file->filetype & 0xff));
-            if (verbose) {
-                printf(" [Transwarp]");
-            }
+        image[file_entry_offset + FILETYPEOFFSET] = file->filetype & 0xff;
+        if (verbose && (file->filetype & FILETYPETRANSWARPMASK)) {
+            printf(" [Transwarp]");
         }
         memcpy(image + file_entry_offset + FILENAMEOFFSET, file->pfilename, FILENAMEMAXSIZE);
 
@@ -1576,7 +1572,7 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
                 existing_files[num_files].nrSectors = image[b + FILEBLOCKSLOOFFSET] + 256 * image[b + FILEBLOCKSHIOFFSET];
 
                 if (is_transwarp_file(image, b)) {
-                    existing_files[num_files].filetype = FILETYPETRANSWARP;
+                    existing_files[num_files].filetype = filetype | FILETYPETRANSWARPMASK;
                     existing_files[num_files].sectorInterleave = 1;
 
                     int start_track;
@@ -4267,6 +4263,7 @@ main(int argc, char* argv[])
     int restore_level = -1;
     int ignore_collision = 0;
     int filetype = 0x82; /* default is closed PRG */
+    bool filetype_set = false;
 
     /* flags to detect illegal settings for Transwarp or D81 */
     int transwarp_set = 0;
@@ -4384,6 +4381,7 @@ main(int argc, char* argv[])
                 fprintf(stderr, "ERROR: Error parsing argument for -T\n");
                 return -1;
             }
+            filetype_set = true;
             j++;
         } else if (strcmp(argv[j], "-O") == 0) {
             filetype &= 0x7f;
@@ -4416,13 +4414,12 @@ main(int argc, char* argv[])
             files[num_files].filetype = filetype;
 
             if (strcmp(argv[j], "-W") == 0) {
-                if((filetype & 0xf) != FILETYPEPRG) {
-                    fprintf(stderr, "ERROR: Transwarp files must have file type PRG\n");
-                    return -1;
-                }
                 transwarp_set = true;
-
-                files[num_files].filetype = filetype | FILETYPETRANSWARPMASK;
+                if(!filetype_set && files[num_files].have_key) {
+                    files[num_files].filetype = (filetype & 0xf0) | FILETYPEUSR | FILETYPETRANSWARPMASK;
+                } else {
+                    files[num_files].filetype = filetype | FILETYPETRANSWARPMASK;
+                }
                 files[num_files].sectorInterleave = 1;
             }
 
@@ -4431,6 +4428,7 @@ main(int argc, char* argv[])
             sectorInterleave = 0;
             nrSectorsShown = -1;
             filetype = 0x82;
+            filetype_set = false;
             num_files++;
             modified = 1;
             j++;
@@ -4460,6 +4458,7 @@ main(int argc, char* argv[])
             sectorInterleave = 0;
             nrSectorsShown = -1;
             filetype = 0x82;
+            filetype_set = false;
             num_files++;
             modified = 1;
             j++;
