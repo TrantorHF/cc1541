@@ -15,3 +15,6 @@ Makefile*       text eol=lf
 # Declare files that will always have CRLF line endings on checkout.
 *.sln           text eol=crlf
 *.vcxproj*      text eol=crlf
+
+# All files should be UTF-8 encoded.
+*               working-tree-encoding=UTF-8
