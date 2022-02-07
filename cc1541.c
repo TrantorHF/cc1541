@@ -200,7 +200,8 @@ enum mode {
     MODE_FITONSINGLETRACK        = 0x2000,
     MODE_SAVECLUSTEROPTIMIZED    = 0x4000,
     MODE_LOOPFILE                = 0x8000,
-    MODE_TRANSWARPBOOTFILE       = 0x10000
+    MODE_TRANSWARPBOOTFILE       = 0x10000,
+    MODE_NOFILE                  = 0x20000
 };
 
 typedef enum {
@@ -284,6 +285,8 @@ usage()
     printf("-N            Force creation of a new directory entry, even if a file with the\n");
     printf("              same name exists already.\n");
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
+    printf("              disk, set filename with -f.\n");
+    printf("-L            Add dir entry without writing file (track and sector will be 0)\n");
     printf("              disk, set filename with -f.\n");
     printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
     printf("              the next file.\n");
@@ -2906,7 +2909,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
         int file_usedirtrack = usedirtrack;
         int file_numdirblocks = numdirblocks;
 
-        if ((file->filetype & 0xf) == FILETYPEDEL) {
+        if ((file->mode & MODE_NOFILE)) {
             if (file->nrSectorsShown == -1) {
                 file->nrSectorsShown = file->nrSectors;
             }
@@ -4462,6 +4465,24 @@ main(int argc, char* argv[])
             num_files++;
             modified = 1;
             j++;
+        } else if (strcmp(argv[j], "-L") == 0) {
+            if (filename == NULL) {
+                fprintf(stderr, "ERROR: Writing no file using -L requires disk filename set with -f\n");
+                return -1;
+            }
+            evalhexescape(filename, files[num_files].pfilename, FILENAMEMAXSIZE, FILENAMEEMPTYCHAR);
+            files[num_files].nrSectorsShown = nrSectorsShown;
+            files[num_files].filetype = filetype;
+            files[num_files].mode |= MODE_NOFILE;
+
+            first_sector_new_track = default_first_sector_new_track;
+            filename = NULL;
+            sectorInterleave = 0;
+            nrSectorsShown = -1;
+            filetype = 0x82;
+            filetype_set = false;
+            num_files++;
+            modified = 1;
         } else if (strcmp(argv[j], "-x") == 0) {
             dirtracksplit = 0;
         } else if (strcmp(argv[j], "-t") == 0) {

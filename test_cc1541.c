@@ -181,7 +181,7 @@ main(int argc, char* argv[])
         "FAIL",
         "UNRESOLVED"
     };
-    const int test_pad = 2; /* Decimal digits of the test counter */
+    const int test_pad = 3; /* Decimal digits of the test counter */
 
     if (argc != 2) {
         printf("Test suite for cc1541\n");
@@ -280,7 +280,6 @@ main(int argc, char* argv[])
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
-
 
     description = "Diskname should be found in track 18 sector 0 offset $90";
     ++test;
@@ -889,12 +888,25 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
-    description = "Writing a DEL should not allocate any block";
+    description = "Writing a DEL should result in first two blocks allocated";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);
     if (run_binary_cleanup(binary, "-T DEL -F 0 -S 1 -f FILE -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (image[track_offset[17] + 5] == (char)0xff) {
+    } else if (image[track_offset[17] + 5] == (char)0xfc) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Writing no file with -L should create dir entry, but not allocate any block";
+    ++test;
+    if (run_binary_cleanup(binary, "-F 0 -S 1 -f FILE -L", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if ((image[track_offset[17] + 256 + 2] == (char)0x82) && image[track_offset[17] + 5] == (char)0xff) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -960,7 +972,7 @@ main(int argc, char* argv[])
     remove("1.prg");
     remove("2.prg");
 
-    description = "Overwriting a PRG with a DEL should not allocate any block";
+    description = "Overwriting a PRG with a DEL should result in only first block allocated";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);
     create_value_file("2.prg", 1 * 254, 2);
@@ -969,7 +981,7 @@ main(int argc, char* argv[])
     }
     if (run_binary_cleanup(binary, "-T DEL -F 0 -S 1 -f FILE -w 2.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (image[track_offset[17] + 5] == (char)0xff) {
+    } else if (image[track_offset[17] + 5] == (char)0xfe) {
         result = TEST_PASS;
         ++passed;
     } else {
