@@ -4207,7 +4207,7 @@ convert_to_commandline(image_type type, unsigned char* image)
         fprintf(stderr, "ERROR: Memory allocation error\n");
         exit(-1);
     }
-    printf("\nCommandline to create directory art: -U 1 -m -N -n \"");
+    printf("\nCommandline to create directory art: -U 1 -m -n \"");
     unsigned int bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
     print_filename_with_escapes(image + bam + get_header_offset(type), FILENAMEMAXSIZE);
     printf("\" -i \"");
@@ -4229,7 +4229,7 @@ convert_to_commandline(image_type type, unsigned char* image)
                 printf("-B %d ", size);
             }
             unsigned char *filename = (unsigned char *) image + dirblock + FILENAMEOFFSET;
-            printf("-f \"");
+            printf("-N -f \"");
             print_filename_with_escapes(filename, FILENAMEMAXSIZE);
             printf("\" -L ");
         }
