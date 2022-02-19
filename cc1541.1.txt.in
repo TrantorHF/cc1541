@@ -51,7 +51,7 @@ include arbitrary PETSCII characters (e.g. -f "START#a0,8,1").
 
 *-T filetype*::
   Filetype for next file, allowed parameters are PRG, SEQ, USR, REL
-and DEL. For DEL, the input file is ignored.  Default is PRG.
+and DEL, or a decimal number between 0 and 255. Default is PRG.
 
 *-P*::
   Set write protect flag for next file.
@@ -144,6 +144,10 @@ level 5: Also add reasonable wild single blocks.
     
 *-g filename*::
   Write additional g64 output file with given name.
+
+*-a*::            
+Print commandline options that would create the same directory as the 
+one in the given image (for directory art import).
 
 *-U mapping*::
   Print PETSCII as Unicode (requires Unicode 13.0 font, e.g. UNSCII).

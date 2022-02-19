@@ -31,8 +31,8 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 * "cc1541 -f game -W game.prg -f 'transwarp v0.82' -w transwarp.prg
   Transwarp-Game.d64" creates a Transwarp disk image with the
   required boot file.
-* "cc1541 -f start -w start.prg -N -T DEL -f ---------------- -l
-  start" creates a DEL entry as separator.
+* "cc1541 -T DEL -f ---------------- -L" creates a DEL entry as 
+  separator.
 
 ## Version history ##
 
@@ -41,6 +41,13 @@ v3.4
 * Support for Transwarp 0.86 and later
 * Commandline option -R added for restoring deleted or formatted 
   files
+* -L switch added to create files with invisible directory 
+  entries
+* -a switch added to print a cc1541 commandline that re-creates
+  the directory art of the given disk image
+* -T now also allows a number as parameter
+* Files with file type DEL will now actually be written, use
+  -L if you do not want that
 * Improved verbose allocation printout
 * Added support for underscore in PETSCII filenames
 * Bugfix: no endless loops for cyclic directory chains anymore
