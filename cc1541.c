@@ -288,7 +288,7 @@ usage()
     printf("-o            Do not overwrite if file with same name exists already.\n");
     printf("-V            Do not modify image unless it is in valid CBM DOS format.\n");
     printf("-T filetype   Filetype for next file, allowed parameters are PRG, SEQ, USR, REL\n");
-    printf("              and DEL. For DEL, the input file is ignored. Default is PRG.\n");
+    printf("              and DEL, or a decimal number between 0 and 255. Default is PRG.\n");
     printf("-P            Set write protect flag for next file.\n");
     printf("-O            Set open flag for next file.\n");
     printf("-N            Force creation of a new directory entry, even if a file with the\n");
@@ -339,6 +339,8 @@ usage()
     printf("              level 4: Also add and fix wild invalid t/s chains.\n");
     printf("              level 5: Also add reasonable wild single blocks.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
+    printf("-a            Print commandline options that would create the same directory as the\n");
+    printf("              one in the given image (for directory art import).\n");
     printf("-U mapping    Print PETSCII as Unicode (requires Unicode 13.0 font, e.g.\n");
     printf("              UNSCII). Use mapping 0 for ASCII output, 1 for upper case, 2 for\n");
     printf("              lower case, default is 0.\n");
@@ -528,6 +530,31 @@ ascii2petscii(const unsigned char* ascii, unsigned char* petscii, int len)
     while (pos < len) {
         petscii[pos] = FILENAMEEMPTYCHAR;
         ++pos;
+    }
+}
+
+/* Prints a PETSCII filename as ASCII with escapes */
+static void
+print_filename_with_escapes(const unsigned char* petscii, int len)
+{
+    /* find end of petscii string */
+    while(len > 1 && petscii[len-1] == 0xa0) {
+        len--;
+    }
+    for(int ppos = 0; ppos < len; ppos++) {
+        unsigned char c = petscii[ppos];
+        if((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 32) {
+            switch (c & 0xe0) {
+            case 0x40:
+            case 0x60:
+                putchar(c ^ 0x20);
+                break;
+            default:
+                putchar(c);
+            }
+        } else {
+            printf("#%02x", c);
+        }
     }
 }
 
@@ -4171,6 +4198,46 @@ restore(image_type type, unsigned char* image, int level)
     }
 }
 
+/* Prints a commandline to create dir art like the given image */
+static void
+convert_to_commandline(image_type type, unsigned char* image)
+{
+    char *blockmap = calloc(image_num_blocks(type), sizeof(char));
+    if(blockmap == NULL) {
+        fprintf(stderr, "ERROR: Memory allocation error\n");
+        exit(-1);
+    }
+    printf("\nCommandline to create directory art: -U 1 -m -N -n \"");
+    unsigned int bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
+    print_filename_with_escapes(image + bam + get_header_offset(type), FILENAMEMAXSIZE);
+    printf("\" -i \"");
+    print_filename_with_escapes(image + bam + get_id_offset(type), 5);
+    printf("\" ");
+
+    int ds = (type == IMAGE_D81) ? 3 : 1;
+    int dt = dirtrack(type);
+    int offset = 0;
+    do {
+        int dirblock = linear_sector(type, dt, ds) * BLOCKSIZE + offset;
+        int filetype = image[dirblock + FILETYPEOFFSET];
+        if (filetype) {
+            if(filetype != 0x82) {
+                printf("-T %d ", filetype);
+            }
+            int size = image[dirblock + FILEBLOCKSLOOFFSET] + 256 * image[dirblock + FILEBLOCKSHIOFFSET];
+            if(size != 0) {
+                printf("-B %d ", size);
+            }
+            unsigned char *filename = (unsigned char *) image + dirblock + FILENAMEOFFSET;
+            printf("-f \"");
+            print_filename_with_escapes(filename, FILENAMEMAXSIZE);
+            printf("\" -L ");
+        }
+    } while (next_dir_entry(type, image, &dt, &ds, &offset, blockmap));
+    free(blockmap);
+    printf("\n\n");
+}
+
 /* Performs strict CBM DOS validation on the image */
 static void
 validate(image_type type, unsigned char* image)
@@ -4300,6 +4367,7 @@ main(int argc, char* argv[])
     int ignore_collision = 0;
     int filetype = 0x82; /* default is closed PRG */
     bool filetype_set = false;
+    bool print_art_commandline = false;
 
     /* flags to detect illegal settings for Transwarp or D81 */
     int transwarp_set = 0;
@@ -4414,8 +4482,12 @@ main(int argc, char* argv[])
             } else if (strcmp(argv[j + 1], "REL") == 0) {
                 filetype = (filetype & 0xf0) | FILETYPEREL;
             } else {
-                fprintf(stderr, "ERROR: Error parsing argument for -T\n");
-                return -1;
+                char* dummy;
+                filetype = strtol(argv[j + 1], &dummy, 10);
+                if(dummy == argv[j + 1] || *dummy != 0 || filetype < 0 || filetype > 255) {
+                    fprintf(stderr, "ERROR: Error parsing argument for -T\n");
+                    return -1;
+                }
             }
             filetype_set = true;
             j++;
@@ -4555,6 +4627,8 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-5") == 0) {
             type = IMAGE_D64_EXTENDED_DOLPHIN_DOS;
             modified = 1;
+        } else if (strcmp(argv[j], "-a") == 0) {
+            print_art_commandline = true;
         } else if(strcmp(argv[j], "-g") == 0) {
             if (argc < j + 2) {
                 fprintf(stderr, "ERROR: Error parsing argument for -g\n");
@@ -4699,6 +4773,11 @@ main(int argc, char* argv[])
         if (set_header) {
             update_directory(type, image, header, id, shadowdirtrack);
         }
+    }
+
+    /* Print commandline before adding anything to the image */
+    if(print_art_commandline) {
+        convert_to_commandline(type, image);
     }
 
     /* Create directory entries */
