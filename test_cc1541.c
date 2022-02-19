@@ -1829,6 +1829,58 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Should not return error for illegal t/s link in DIR chain";
+    ++test;
+    create_value_file("1.prg", 254 + 11, 1);
+    if (run_binary_cleanup(binary, "-w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 0] = 18;  /* legal track */
+    image[track_offset[17] + 256 + 1] = 127; /* illegal sector */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "", "image.d64", &image, &size, true) == NO_ERROR) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Should not return error for illegal t/s pointer in DIR";
+    ++test;
+    create_value_file("1.prg", 254 + 11, 1);
+    if (run_binary_cleanup(binary, "-w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 4] = 127; /* illegal sector */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "", "image.d64", &image, &size, true) == NO_ERROR) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Verbose output should not return error for illegal t/s pointer in DIR";
+    ++test;
+    create_value_file("1.prg", 254 + 11, 1);
+    if (run_binary_cleanup(binary, "-w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 4] = 127; /* illegal sector */
+    write_file("image2.d64", size, image);
+    if (run_binary(binary, "-v", "image2.d64", &image, &size, true) == NO_ERROR) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
     /* ideas for tests:
        - test -V
        - test filename hash collision with different -M values
