@@ -1389,26 +1389,13 @@ find_existing_file(image_type type, unsigned char* image, unsigned char* filenam
 
     do {
         int b = linear_sector(type, *track, *sector) * BLOCKSIZE + *offset;
-        int filetype = image[b + FILETYPEOFFSET] & 0xf;
-        switch (filetype) {
-        case FILETYPESEQ:
-        case FILETYPEPRG:
-        case FILETYPEUSR:
-        case FILETYPEREL:
-            if (memcmp(image + b + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
-                return true;
-            }
-            break;
-        case FILETYPEDEL:
-            if (image[b + FILETYPEOFFSET] != 0 && memcmp(image + b + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
-                return true;
-            }
-            break;
-        default:
-            break;
+        int filetype = image[b + FILETYPEOFFSET];
+        if(filetype != 0 && memcmp(image + b + FILENAMEOFFSET, filename, FILENAMEMAXSIZE) == 0) {
+            return true;
         }
         ++(*index);
     } while (next_dir_entry(type, image, track, sector, offset, blockmap));
+
     free(blockmap);
     return false;
 }
