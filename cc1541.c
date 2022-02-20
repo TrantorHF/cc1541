@@ -331,7 +331,7 @@ usage()
     printf("-c            Save next file cluster-optimized (d71 only).\n");
     printf("-4            Use tracks 35-40 with SPEED DOS BAM formatting.\n");
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
-    printf("-R mode       Try to restore deleted and formatted files.\n");
+    printf("-R level      Try to restore deleted and formatted files.\n");
     printf("              level 0: Only restore all dir entries without touching any t/s links.\n");
     printf("              level 1: Fix dir entries for files with valid t/s chains.\n");
     printf("              level 2: Also add wild sector chains with valid t/s chains.\n");
