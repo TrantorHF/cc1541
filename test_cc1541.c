@@ -1046,7 +1046,7 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
-    description = "Open flag should be set for transcode file for -O";
+    description = "Open flag should be set for transwarp file for -O";
     ++test;
     create_value_file("1.prg", 2 * 254, 1);
     if (run_binary_cleanup(binary, "-O -f file1 -W 1.prg -w \"transwarp v0.84.prg\"", "image.d64", &image, &size, false) != NO_ERROR) {
