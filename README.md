@@ -39,7 +39,7 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 v3.4
 
 * Support for Transwarp 0.86 and later
-* Commandline option -R added for restoring deleted or formatted 
+* Commandline option -R added for restoring deleted or formatted
   files
 * -L switch added to create files with invisible directory 
   entries
