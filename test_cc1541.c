@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2018-2021 Claus, Björn Esser
+* Copyright (c) 2018-2022 Claus, Björn Esser
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -1885,6 +1885,11 @@ main(int argc, char* argv[])
     remove("1.prg");
 
     /* ideas for tests:
+       - test writing of transwarp files
+       - test encryption of transwarp files
+       - test allocation for transwarp files (like CBM DOS: from 17 downwards, then from 19 upwards)
+       - test -r for transwarp
+       - test reasonable behaviour of -e, -E, -s and -b for transwarp (should they all be rejected?)
        - test -V
        - test filename hash collision with different -M values
        - check -g in more detail?
