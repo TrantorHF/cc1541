@@ -901,6 +901,20 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Writing two files with type 0 should result in first two blocks allocated";
+    ++test;
+    create_value_file("1.prg", 1 * 254, 1);
+    if (run_binary_cleanup(binary, "-T 0 -S 0 -F 0 -f 1 -w 1.prg -T 0 -f 2 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 5] == (char)0xfc) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
     description = "Writing no file with -L should create dir entry, but not allocate any block";
     ++test;
     if (run_binary_cleanup(binary, "-F 0 -S 1 -f FILE -L", "image.d64", &image, &size, false) != NO_ERROR) {

@@ -1402,12 +1402,13 @@ find_existing_file(image_type type, unsigned char* image, unsigned char* filenam
 
 /* Returns an empty DIR slot, allocates a new DIR sector if required */
 static void
-new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset)
+new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset, imagefile files[])
 {
     int track = dirtrack(type);
     *dirsector = (type == IMAGE_D81) ? 3 : 1;
     *entry_offset = 0;
-    *index = 0;
+    int lindex = 0;
+
     char *blockmap = calloc(image_num_blocks(type), sizeof(char));
     if(blockmap == NULL) {
         fprintf(stderr, "ERROR: Memory allocation error\n");
@@ -1417,9 +1418,21 @@ new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, i
     do {
         int b = linear_sector(type, track, *dirsector) * BLOCKSIZE + *entry_offset;
         if (image[b + FILETYPEOFFSET] == FILETYPEDEL) {
-            return; /* found an empty slot */
+            /* Check if the apparently free slot is used by a new filetype 0 file */
+            bool used = false;
+            for(int f = 0; f < num_files; f++) {
+                if(files[f].direntryindex == lindex) {
+                    used = true;
+                    break;
+                }
+            }
+            if(!used) {
+                *index = lindex;
+                free(blockmap);
+                return; /* found an empty slot */
+            }
         }
-        ++(*index);
+        ++lindex;
     } while (next_dir_entry(type, image, &track, dirsector, entry_offset, blockmap));
     free(blockmap);
 
@@ -1458,17 +1471,18 @@ new_dir_slot(image_type type, unsigned char* image, int dir_sector_interleave, i
         memset(image + b, 0, BLOCKSIZE);
         image[b + SECTORLINKOFFSET] = 255;
     }
+    *index = lindex;
 }
 
 /* Returns suitable index and offset for given filename (either existing slot when overwriting, first free slot or slot in newly allocated segment) */
 static bool
-find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset)
+find_dir_slot(image_type type, unsigned char* image, unsigned char* filename, int dir_sector_interleave, int shadowdirtrack, int *index, int *dirsector,  int *entry_offset, imagefile files[])
 {
     int track;
     if(find_existing_file(type, image, filename, index, &track, dirsector, entry_offset)) {
         return true;
     }
-    new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, index, dirsector, entry_offset);
+    new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, index, dirsector, entry_offset, files);
     return false;
 }
 
@@ -1494,8 +1508,8 @@ create_dir_entries(image_type type, unsigned char* image, imagefile* files, int 
         }
 
         if(file->force_new) {
-            new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset);
-        } else if (find_dir_slot(type, image, file->pfilename, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset)) {
+            new_dir_slot(type, image, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset, files);
+        } else if (find_dir_slot(type, image, file->pfilename, dir_sector_interleave, shadowdirtrack, &file->direntryindex, &file->direntrysector, &file->direntryoffset, files)) {
             if (nooverwrite) {
                 fprintf(stderr, "ERROR: Filename exists on disk image already and -o was set\n");
                 exit(-1);
@@ -3999,7 +4013,7 @@ undelete(image_type type, unsigned char* image, char* atab, int level)
 
 /* add new DIR entries for wild chains */
 static void
-add_wild_to_dir(image_type type, unsigned char* image, char* atab)
+add_wild_to_dir(image_type type, unsigned char* image, char* atab, imagefile files[])
 {
     /* create a DIR entry for each FILESTART */
     for(unsigned int t = 1; t <= image_num_tracks(type); t++) {
@@ -4011,7 +4025,7 @@ add_wild_to_dir(image_type type, unsigned char* image, char* atab)
                 name[0] = 0xa0;
                 int dir_index, dir_sector, dir_offset;
                 atab[b] = ALLOCATED;
-                new_dir_slot(type, image, (type == IMAGE_D81 ? 1 : 3), 0, &dir_index, &dir_sector, &dir_offset); /* TODO: handle full directory more gracefully */
+                new_dir_slot(type, image, (type == IMAGE_D81 ? 1 : 3), 0, &dir_index, &dir_sector, &dir_offset, files); /* TODO: handle full directory more gracefully */
                 int db = linear_sector(type, dirtrack(type), dir_sector);
                 atab[db] = ALLOCATED; /* make sure that potentially new dir block is marked as used */
                 int offset = db * BLOCKSIZE + dir_offset;
@@ -4032,7 +4046,7 @@ add_wild_to_dir(image_type type, unsigned char* image, char* atab)
 
 /* search for wild valid chains of unallocated sectors */
 static int
-undelete_wild(image_type type, unsigned char* image, char* atab, int level)
+undelete_wild(image_type type, unsigned char* image, char* atab, int level, imagefile files[])
 {
     int num_undeleted = 0;
     int max_bam_sector = (type == IMAGE_D81) ? 2 : 0;
@@ -4094,14 +4108,14 @@ undelete_wild(image_type type, unsigned char* image, char* atab, int level)
     }
     if(num_undeleted) {
         write_atab(type, image, atab);
-        add_wild_to_dir(type, image, atab);
+        add_wild_to_dir(type, image, atab, files);
     }
     return num_undeleted;
 }
 
 /* search for wild invalid chains of unallocated sectors and fix them */
 static int
-undelete_fix_wild(image_type type, unsigned char* image, char* atab)
+undelete_fix_wild(image_type type, unsigned char* image, char* atab, imagefile files[])
 {
     int num_undeleted = 0;
     int max_bam_sector = (type == IMAGE_D81) ? 2 : 0;
@@ -4138,14 +4152,14 @@ undelete_fix_wild(image_type type, unsigned char* image, char* atab)
     }
     if(num_undeleted) {
         write_atab(type, image, atab);
-        add_wild_to_dir(type, image, atab);
+        add_wild_to_dir(type, image, atab, files);
     }
     return num_undeleted;
 }
 
 /* Tries to restore any deleted or formatted files */
 static void
-restore(image_type type, unsigned char* image, int level)
+restore(image_type type, unsigned char* image, int level, imagefile files[])
 {
     int num_undeleted = 0;
     /* create block allocation table */
@@ -4160,16 +4174,16 @@ restore(image_type type, unsigned char* image, int level)
     } else {
         num_undeleted += undelete(type, image, atab, RESTORE_VALID_FILES);
         if(level >= RESTORE_VALID_CHAINS) {
-            num_undeleted += undelete_wild(type, image, atab, RESTORE_VALID_CHAINS);
+            num_undeleted += undelete_wild(type, image, atab, RESTORE_VALID_CHAINS, files);
         }
         if(level >= RESTORE_INVALID_FILES) {
             num_undeleted += undelete(type, image, atab, RESTORE_INVALID_FILES);
         }
         if(level >= RESTORE_INVALID_CHAINS) {
-            num_undeleted += undelete_fix_wild(type, image, atab);
+            num_undeleted += undelete_fix_wild(type, image, atab, files);
         }
         if(level >= RESTORE_INVALID_SINGLES) {
-            num_undeleted += undelete_wild(type, image, atab, RESTORE_INVALID_SINGLES);
+            num_undeleted += undelete_wild(type, image, atab, RESTORE_INVALID_SINGLES, files);
         }
     }
     free(atab);
@@ -4507,6 +4521,7 @@ main(int argc, char* argv[])
             files[num_files].first_sector_new_track = first_sector_new_track;
             files[num_files].nrSectorsShown = nrSectorsShown;
             files[num_files].filetype = filetype;
+            files[num_files].direntryindex = -1;
 
             if (strcmp(argv[j], "-W") == 0) {
                 transwarp_set = true;
@@ -4549,6 +4564,7 @@ main(int argc, char* argv[])
             first_sector_new_track = default_first_sector_new_track;
             files[num_files].nrSectorsShown = nrSectorsShown;
             files[num_files].filetype = filetype;
+            files[num_files].direntryindex = -1;
             filename = NULL;
             sectorInterleave = 0;
             nrSectorsShown = -1;
@@ -4565,6 +4581,7 @@ main(int argc, char* argv[])
             evalhexescape(filename, files[num_files].pfilename, FILENAMEMAXSIZE, FILENAMEEMPTYCHAR);
             files[num_files].nrSectorsShown = nrSectorsShown;
             files[num_files].filetype = filetype;
+            files[num_files].direntryindex = -1;
             files[num_files].mode |= MODE_NOFILE;
 
             first_sector_new_track = default_first_sector_new_track;
@@ -4755,7 +4772,7 @@ main(int argc, char* argv[])
             validate(type, image);
         }
         if (restore_level >= 0) {
-            restore(type, image, restore_level);
+            restore(type, image, restore_level, files);
         }
         if (set_header) {
             update_directory(type, image, header, id, shadowdirtrack);
