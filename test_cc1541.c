@@ -1889,7 +1889,35 @@ main(int argc, char* argv[])
     }
     image[track_offset[17] + 256 + 4] = 127; /* illegal sector */
     write_file("image.d64", size, image);
-    if (run_binary_cleanup(binary, "-v", "image2.d64", &image, &size, true) == NO_ERROR) {
+    if (run_binary_cleanup(binary, "-v", "image.d64", &image, &size, true) == NO_ERROR) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+    
+    description = "Adding a transwarp v0.84 file should allocate track 1 completely";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-r 1 -f file1 -W 1.prg -w \"transwarp v0.84.prg\"", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 4] == 0 && image[track_offset[17] + 5] == 0 && image[track_offset[17] + 6] == 0 && image[track_offset[17] + 7] == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+
+    description = "Adding a transwarp v0.86 file should allocate track 1 completely";
+    ++test;
+    create_value_file("1.prg", 2 * 254, 1);
+    if (run_binary_cleanup(binary, "-r 1 -f file1 -W 1.prg -w \"transwarp v0.86.prg\"", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17] + 4] == 0 && image[track_offset[17] + 5] == 0 && image[track_offset[17] + 6] == 0 && image[track_offset[17] + 7] == 0) {
         result = TEST_PASS;
         ++passed;
     } else {
