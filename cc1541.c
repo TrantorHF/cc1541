@@ -295,8 +295,8 @@ usage()
     printf("              same name exists already.\n");
     printf("-l filename   Write loop file (an additional dir entry) to existing file to\n");
     printf("              disk, set filename with -f.\n");
-    printf("-L            Add dir entry without writing file (track and sector will be 0)\n");
-    printf("              disk, set filename with -f.\n");
+    printf("-L            Add dir entry without writing file (track and sector will be 0),\n");
+    printf("              requires a filename given with -f.\n");
     printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
     printf("              the next file.\n");
     printf("-M numchars   Hash computation maximum filename length, this must\n");

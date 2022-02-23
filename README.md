@@ -41,8 +41,8 @@ v3.4
 * Support for Transwarp 0.86 and later
 * Commandline option -R added for restoring deleted or formatted
   files
-* -L switch added to create files with invisible directory 
-  entries
+* -L switch added to create directory entries without writing a 
+  file
 * -a switch added to print a cc1541 commandline that re-creates
   the directory art of the given disk image
 * -T now also allows a number as parameter

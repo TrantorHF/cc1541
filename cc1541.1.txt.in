@@ -67,6 +67,10 @@ and DEL, or a decimal number between 0 and 255. Default is PRG.
   Write loop file (an additional dir entry) to existing file to disk,
 set filename with -f.
 
+*-L*::
+  Add dir entry without writing file (track and sector will be 0),
+requires a filename given with -f.
+
 *-B numblocks*::
   Write the given value as file size in blocks to the directory for
 the next file.
