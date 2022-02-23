@@ -20,7 +20,7 @@ INSTALL ?= install
 
 VERSION := $(shell grep 'define VERSION' cc1541.c | cut -d\" -f2)
 
-CC1541_SRC := Makefile transwarp\ v0.84.prg $(wildcard *.c *.h *.in *.sln *.vcxproj* LICENSE* README*)
+CC1541_SRC := Makefile transwarp\ v0.84.prg transwarp\ v0.86.prg $(wildcard *.c *.h *.in *.sln *.vcxproj* LICENSE* README*)
 
 all: $(ALL_TARGETS)
 
