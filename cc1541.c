@@ -570,33 +570,36 @@ pstrlen(const unsigned char* string)
 }
 
 /* Writes digit decimal number into PETSCII string */
+#define PPUTNUM_BUF_LEN 17
 static void
 pputnum(unsigned char* string, unsigned int num)
 {
-    char buffer[17];
-    sprintf(buffer, "%d", num);
+    char buffer[PPUTNUM_BUF_LEN];
+    snprintf(buffer, PPUTNUM_BUF_LEN, "%d", num);
     for(unsigned int len = 0; len < strlen(buffer); len++) {
         string[len] = a2p(buffer[len]);
     }
 }
 
 /* Writes 2 digit decimal number into PETSCII string */
+#define PPUTNUM2_BUF_LEN 3
 static void
 pputnum2(unsigned char* string, unsigned int num)
 {
-    char buffer[3];
-    sprintf(buffer, "%02d", num);
+    char buffer[PPUTNUM2_BUF_LEN];
+    snprintf(buffer, PPUTNUM2_BUF_LEN, "%02d", num);
     for(unsigned int len = 0; len < strlen(buffer); len++) {
         string[len] = a2p(buffer[len]);
     }
 }
 
 /* Writes 4 digit hex number into PETSCII string */
+#define PPUTHEX_BUF_LEN 5
 static void
 pputhex(unsigned char* string, unsigned int num)
 {
-    char buffer[5];
-    sprintf(buffer, "%04x", num);
+    char buffer[PPUTHEX_BUF_LEN];
+    snprintf(buffer, PPUTHEX_BUF_LEN, "%04x", num);
     for(int len = 0; len < 4; len++) {
         string[len] = a2p(buffer[len]);
     }
