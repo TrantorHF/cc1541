@@ -49,6 +49,7 @@ v3.4
 * Files with file type DEL will now actually be written, use
   -L if you do not want that
 * Improved verbose allocation printout
+* More robustness against invalid t/s links
 * Added support for underscore in PETSCII filenames
 * Bugfix: no endless loops for cyclic directory chains anymore
 
