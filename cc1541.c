@@ -284,7 +284,7 @@ usage()
     printf("-K key        Set an encryption key for Transwarp files, a string of up to 29\n");
     printf("              characters.\n");
     printf("-f filename   Use filename as name when writing next file, use prefix # to\n");
-    printf("              include arbitrary PETSCII characters (e.g. -f \"START#a0,8,1\").\n");
+    printf("              include arbitrary PETSCII characters (e.g. -f \"start#a0,8,1\").\n");
     printf("-o            Do not overwrite if file with same name exists already.\n");
     printf("-V            Do not modify image unless it is in valid CBM DOS format.\n");
     printf("-T filetype   Filetype for next file, allowed parameters are PRG, SEQ, USR, REL\n");
@@ -315,7 +315,7 @@ usage()
     printf("              default. Not applicable for D81.\n");
     printf("-S value      Default sector interleave, default=10.\n");
     printf("              At track end, reduces this by 1 to accomodate large tail gap.\n");
-    printf("              If negative, no special treatment of tail gap.  Not applicable for\n");
+    printf("              If negative, no special treatment of tail gap. Not applicable for\n");
     printf("              D81.\n");
     printf("-s value      Next file sector interleave, valid after each file.\n");
     printf("              At track end, reduces this by 1 to accomodate large tail gap.\n");
@@ -332,15 +332,15 @@ usage()
     printf("-4            Use tracks 35-40 with SPEED DOS BAM formatting.\n");
     printf("-5            Use tracks 35-40 with DOLPHIN DOS BAM formatting.\n");
     printf("-R level      Try to restore deleted and formatted files.\n");
-    printf("              level 0: Only restore all dir entries without touching any t/s links.\n");
+    printf("              level 0: Only restore dir entries without touching any t/s links.\n");
     printf("              level 1: Fix dir entries for files with valid t/s chains.\n");
     printf("              level 2: Also add wild sector chains with valid t/s chains.\n");
     printf("              level 3: Also fix dir entries with invalid t/s chains.\n");
     printf("              level 4: Also add and fix wild invalid t/s chains.\n");
     printf("              level 5: Also add reasonable wild single blocks.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
-    printf("-a            Print commandline options that would create the same directory as the\n");
-    printf("              one in the given image (for directory art import).\n");
+    printf("-a            Print commandline options that would create the same directory as\n");
+    printf("              the one in the given image (for directory art import).\n");
     printf("-U mapping    Print PETSCII as Unicode (requires Unicode 13.0 font, e.g.\n");
     printf("              UNSCII). Use mapping 0 for ASCII output, 1 for upper case, 2 for\n");
     printf("              lower case, default is 0.\n");
