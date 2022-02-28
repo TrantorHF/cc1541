@@ -88,13 +88,13 @@ results in an error.
 valid BAM).
 
 *-t*::
-  Use dirtrack to also store files (makes -x useless) (default no).
+  Use directory track to also store files (makes -x useless) (default no).
 
 *-u numblocks*::
   When using -t, amount of dir blocks to leave free (default=2).
 
 *-x*::
-  Don't split files over dirtrack hole (default split files).
+  Don't split files over directory track hole (default split files).
 
 *-F*::
   Next file first sector on a new track (default=0).  Any negative
@@ -104,12 +104,12 @@ for D81.
 
 *-S value*::
   Default sector interleave, default=10.  At track end, reduces this
-by 1 to accomodate large tail gap.  If negative, no special treatment
+by 1 to accommodate large tail gap.  If negative, no special treatment
 of tail gap.  Not applicable for D81.
 
 *-s value*::
   Next file sector interleave, valid after each file.  At track end,
-reduces this by 1 to accomodate large tail gap.  If negative, no
+reduces this by 1 to accommodate large tail gap.  If negative, no
 special treatment of tail gap.  The interleave value falls back to
 the default value set by -S after the first sector of the next file.
 Not applicable for D81.
@@ -150,7 +150,7 @@ level 5: Also add reasonable wild single blocks.
   Write additional g64 output file with given name.
 
 *-a*::            
-Print commandline options that would create the same directory as the 
+Print command line options that would create the same directory as the 
 one in the given image (for directory art import).
 
 *-U mapping*::
@@ -165,7 +165,7 @@ default is 0.
   Be verbose.
 
 *-h*::
-  Print commandline help.
+  Print command line help.
 
 == Exit status
 

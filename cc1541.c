@@ -268,7 +268,7 @@ static int unicode         = 0;      /* which unicode mapping to use: 0 = none, 
 static int modified        = 0;      /* image needs to be written */
 static int dir_error       = DIR_OK; /* directory has an error */
 
-/* Prints the commandline help */
+/* Prints the command line help */
 static void
 usage()
 {
@@ -306,19 +306,20 @@ usage()
     printf("              results in an error.\n");
     printf("-d track      Maintain a shadow directory (copy of the actual directory without\n");
     printf("              a valid BAM).\n");
-    printf("-t            Use dirtrack to also store files (makes -x useless) (default no).\n");
+    printf("-t            Use directory track to also store files (makes -x useless)\n");
+    printf("              (default no).\n");
     printf("-u numblocks  When using -t, amount of dir blocks to leave free (default=2).\n");
-    printf("-x            Don't split files over dirtrack hole (default split files).\n");
+    printf("-x            Don't split files over directory track hole (default split files).\n");
     printf("-F            Next file first sector on a new track (default=0).\n");
     printf("              Any negative value assumes aligned tracks and uses current\n");
     printf("              sector + interleave. After each file, the value falls back to the\n");
     printf("              default. Not applicable for D81.\n");
     printf("-S value      Default sector interleave, default=10.\n");
-    printf("              At track end, reduces this by 1 to accomodate large tail gap.\n");
+    printf("              At track end, reduces this by 1 to accommodate large tail gap.\n");
     printf("              If negative, no special treatment of tail gap. Not applicable for\n");
     printf("              D81.\n");
     printf("-s value      Next file sector interleave, valid after each file.\n");
-    printf("              At track end, reduces this by 1 to accomodate large tail gap.\n");
+    printf("              At track end, reduces this by 1 to accommodate large tail gap.\n");
     printf("              If negative, no special treatment of tail gap.\n");
     printf("              The interleave value falls back to the default value set by -S\n");
     printf("              after the first sector of the next file. Not applicable for D81.\n");
@@ -339,14 +340,14 @@ usage()
     printf("              level 4: Also add and fix wild invalid t/s chains.\n");
     printf("              level 5: Also add reasonable wild single blocks.\n");
     printf("-g filename   Write additional g64 output file with given name.\n");
-    printf("-a            Print commandline options that would create the same directory as\n");
+    printf("-a            Print command line options that would create the same directory as\n");
     printf("              the one in the given image (for directory art import).\n");
     printf("-U mapping    Print PETSCII as Unicode (requires Unicode 13.0 font, e.g.\n");
     printf("              UNSCII). Use mapping 0 for ASCII output, 1 for upper case, 2 for\n");
     printf("              lower case, default is 0.\n");
     printf("-q            Be quiet.\n");
     printf("-v            Be verbose.\n");
-    printf("-h            Print this commandline help.\n");
+    printf("-h            Print this command line help.\n");
     printf("\n");
 
     exit(-1);
@@ -2958,7 +2959,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
     for (int i = 0; i < num_files; i++) {
         imagefile *file = files + i;
         if (type == IMAGE_D81) {
-            file->sectorInterleave = 1; /* caught in commandline parsing anyway, but does not hurt */
+            file->sectorInterleave = 1; /* caught in command line parsing anyway, but does not hurt */
         }
 
         int file_usedirtrack = usedirtrack;
@@ -4202,7 +4203,7 @@ restore(image_type type, unsigned char* image, int level, imagefile files[])
     }
 }
 
-/* Prints a commandline to create dir art like the given image */
+/* Prints a command line to create dir art like the given image */
 static void
 convert_to_commandline(image_type type, unsigned char* image)
 {
@@ -4658,7 +4659,7 @@ main(int argc, char* argv[])
         } else if (strcmp(argv[j], "-h") == 0) {
             usage();
         } else {
-            fprintf(stderr, "ERROR: Error parsing commandline at \"%s\"\n", argv[j]);
+            fprintf(stderr, "ERROR: Error parsing command line at \"%s\"\n", argv[j]);
             printf("Use -h for help.\n");
             return -1;
         }
@@ -4782,7 +4783,7 @@ main(int argc, char* argv[])
         }
     }
 
-    /* Print commandline before adding anything to the image */
+    /* Print command line before adding anything to the image */
     if(print_art_commandline) {
         convert_to_commandline(type, image);
     }

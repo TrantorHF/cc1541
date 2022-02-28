@@ -43,7 +43,7 @@ v3.4
   files
 * -L switch added to create directory entries without writing a 
   file
-* -a switch added to print a cc1541 commandline that re-creates
+* -a switch added to print a cc1541 command line that re-creates
   the directory art of the given disk image
 * -T now also allows a number as parameter
 * Files with file type DEL will now actually be written, use
@@ -64,7 +64,7 @@ v3.3
 * Output file is not touched when no change is requested
 * Bugfix: Fixed crash on write protected output file
 * Bugfix: Spacing in directory printout was not correct when
-  filesize is more than 999 blocks
+  file size is more than 999 blocks
 
 v3.2
 
@@ -86,7 +86,7 @@ v3.1
   free slot in the directory before the file to overwrite
 * Bugfix: Filetype, open and protected flags were not reset after
   writing a file
-* Bugfix: default disk name and id were wrong in commandline help
+* Bugfix: default disk name and id were wrong in command line help
 
 v3.0
 
@@ -105,7 +105,7 @@ v3.0
 * -T switch added to allow setting the file type
 * -O switch added to allow setting the open flag
 * -P switch added to allow setting the protected flag
-* Hex escapes are now also allowed for diskname and ID
+* Hex escapes are now also allowed for disk name and ID
 * When no disk file name is provided, only the base name of the input
   file is used as disk file name instead of the full path
 * Bugfix: fixed memory access issue for filenames with 16 letters
@@ -121,7 +121,7 @@ v2.0
 
 * The first version with a release number
 * All existing modifications consolidated (hopefully)
-* G64 output dependent on output file name instead of a souce code
+* G64 output dependent on output file name instead of a source code
   define
 * Converted to ANSI C99
 * MSVC build files added
