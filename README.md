@@ -28,7 +28,7 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 * "cc1541 -s 4 -f program -w program.prg image.d64" writes a file
   with a dedicated sector interleave for a fastloader (the best
   value depends on the used fastloader and its configuration)
-* "cc1541 -f game -W game.prg -f 'transwarp v0.82' -w transwarp.prg
+* "cc1541 -f game -W game.prg -f 'transwarp v0.86' -w transwarp.prg
   Transwarp-Game.d64" creates a Transwarp disk image with the
   required boot file.
 * "cc1541 -T DEL -f ---------------- -L" creates a DEL entry as 
