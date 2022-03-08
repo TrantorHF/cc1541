@@ -31,8 +31,8 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 * "cc1541 -f game -W game.prg -f 'transwarp v0.86' -w transwarp.prg
   Transwarp-Game.d64" creates a Transwarp disk image with the
   required boot file.
-* "cc1541 -T DEL -f ---------------- -L" creates a DEL entry as 
-  separator.
+* "cc1541 -T DEL -f ---------------- -L image.d64" creates a DEL 
+  entry as separator.
 
 ## Version history ##
 
