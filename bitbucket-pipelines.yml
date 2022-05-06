@@ -40,7 +40,6 @@ pipelines:
                 - make -j2 cc1541 test_cc1541
                   CC=x86_64-w64-mingw32-gcc
                   ENABLE_WERROR=1
-                - mv test_cc1541 test_cc1541.exe
                 - wine ./test_cc1541.exe ./cc1541.exe
               artifacts:
                 - cc1541.exe
