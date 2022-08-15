@@ -437,12 +437,12 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
-    description = "Setting minimum sector to negative for second track should fill track 2 sector 7";
+    description = "Setting minimum sector to negative for second track should fill track 2 sector 10";
     ++test;
     create_value_file("1.prg", 254 * 22, 1);
-    if (run_binary_cleanup(binary, "-F -1 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-F -3 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 21 + 7, 1)) {
+    } else if (block_is_filled(image, 21 + 10, 1)) {
         result = TEST_PASS;
         ++passed;
     } else {

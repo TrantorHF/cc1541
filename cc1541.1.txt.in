@@ -77,7 +77,7 @@ the next file.
 
 *-M numchars*::
   Hash computation maximum filename length, this must match loader
-option FILENAME_MAXLENGTH in Krill's Loader.  Default is 16.
+option FILENAME_MAXLENGTH in Krill's loader.  Default is 16.
 
 *-m*::
   Ignore filename hash collisions, without this switch a collision
@@ -98,7 +98,7 @@ valid BAM).
 
 *-F*::
   Next file first sector on a new track (default=0).  Any negative
-value assumes aligned tracks and uses current sector + interleave.
+value assumes aligned tracks and uses current sector + interleave - value.
 After each file, the value falls back to the default.  Not applicable
 for D81.
 

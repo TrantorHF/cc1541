@@ -310,10 +310,10 @@ usage()
     printf("              (default no).\n");
     printf("-u numblocks  When using -t, amount of dir blocks to leave free (default=2).\n");
     printf("-x            Don't split files over directory track hole (default split files).\n");
-    printf("-F sector     Next file first sector on a new track (default=0).\n");
+    printf("-F value      Next file first sector on a new track (default=0).\n");
     printf("              Any negative value assumes aligned tracks and uses current\n");
-    printf("              sector + interleave. After each file, the value falls back to the\n");
-    printf("              default. Not applicable for D81.\n");
+    printf("              sector + interleave - value. After each file, the value falls\n");
+    printf("              back to the default. Not applicable for D81.\n");
     printf("-S value      Default sector interleave, default=10.\n");
     printf("              At track end, reduces this by 1 to accommodate large tail gap.\n");
     printf("              If negative, no special treatment of tail gap. Not applicable for\n");
@@ -1748,7 +1748,7 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
                 int expected_next_sector = ((sector + abs(files[i].sectorInterleave)) % num_sectors(type, track));
                 if (expected_next_sector > 0) {
                     --expected_next_sector;
-                }
+                }                
                 bool on_nonempty_firsttrack = (expected_next_sector < next_sector) && firsttrack && (firstsector != 0);
                 if ((expected_next_sector != next_sector) && (!on_nonempty_firsttrack)) {
                     while ((expected_next_sector < next_sector) && fileblocks[expected_next_sector]) {
@@ -3199,7 +3199,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         if (type == IMAGE_D81) {
                             sector = 0;
                         } else if (file->first_sector_new_track < 0) {
-                            sector += seek_delay - 1;
+                            sector -= file->first_sector_new_track;
                         } else if ((file->sectorInterleave < 0)
                                    && ((file->mode & MODE_TRANSWARPBOOTFILE) == 0)) {
                             sector += seek_delay;
