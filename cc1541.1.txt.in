@@ -103,16 +103,12 @@ After each file, the value falls back to the default.  Not applicable
 for D81.
 
 *-S value*::
-  Default sector interleave, default=10.  At track end, reduces this
-by 1 to accommodate large tail gap.  If negative, no special treatment
-of tail gap.  Not applicable for D81.
+  Default sector interleave, default=10. Not applicable for D81.
 
 *-s value*::
-  Next file sector interleave, valid after each file.  At track end,
-reduces this by 1 to accommodate large tail gap.  If negative, no
-special treatment of tail gap.  The interleave value falls back to
-the default value set by -S after the first sector of the next file.
-Not applicable for D81.
+  Next file sector interleave, valid after each file. The interleave value 
+falls back to the default value set by -S after the first sector of the 
+next file. Not applicable for D81.
 
 *-e*::
   Start next file on an empty track (default start sector is current

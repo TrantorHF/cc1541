@@ -314,13 +314,8 @@ usage()
     printf("              Any negative value assumes aligned tracks and uses current\n");
     printf("              sector + interleave - value. After each file, the value falls\n");
     printf("              back to the default. Not applicable for D81.\n");
-    printf("-S value      Default sector interleave, default=10.\n");
-    printf("              At track end, reduces this by 1 to accommodate large tail gap.\n");
-    printf("              If negative, no special treatment of tail gap. Not applicable for\n");
-    printf("              D81.\n");
+    printf("-S value      Default sector interleave, default=10. Not applicable for D81.\n");
     printf("-s value      Next file sector interleave, valid after each file.\n");
-    printf("              At track end, reduces this by 1 to accommodate large tail gap.\n");
-    printf("              If negative, no special treatment of tail gap.\n");
     printf("              The interleave value falls back to the default value set by -S\n");
     printf("              after the first sector of the next file. Not applicable for D81.\n");
     printf("-e            Start next file on an empty track (default start sector is\n");
@@ -1746,9 +1741,6 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
             } else if ((next_sector < sector) && (next_track != 0)) {
                 /* sector wrap */
                 int expected_next_sector = ((sector + abs(files[i].sectorInterleave)) % num_sectors(type, track));
-                if (expected_next_sector > 0) {
-                    --expected_next_sector;
-                }                
                 bool on_nonempty_firsttrack = (expected_next_sector < next_sector) && firsttrack && (firstsector != 0);
                 if ((expected_next_sector != next_sector) && (!on_nonempty_firsttrack)) {
                     while ((expected_next_sector < next_sector) && fileblocks[expected_next_sector]) {
@@ -3290,12 +3282,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                 }
 
                 sector += abs(file->sectorInterleave);
-                if (sector >= num_sectors(type, track)) {
-                    sector -= num_sectors(type, track);
-                    if ((file->sectorInterleave >= 0) && (sector > 0)) {
-                        --sector; /* subtract one after wrap (supposedly due to large tail gap) */
-                    }
-                }
+                sector %= num_sectors(type, track);
 
                 file->nrSectors++;
             } /* while bytes left */
@@ -4427,10 +4414,18 @@ main(int argc, char* argv[])
                 fprintf(stderr, "ERROR: Error parsing argument for -S\n");
                 return -1;
             }
+            if(defaultSectorInterleave < 1 || defaultSectorInterleave > 21) {
+                fprintf(stderr, "ERROR: Illegal value for -S\n");
+                return -1;
+            }
             default_sector_interleave_set = 1;
         } else if (strcmp(argv[j], "-s") == 0) {
             if ((argc < j + 2) || !sscanf(argv[++j], "%d", &sectorInterleave)) {
                 fprintf(stderr, "ERROR: Error parsing argument for -s\n");
+                return -1;
+            }
+            if(sectorInterleave < 1 || sectorInterleave > 21) {
+                fprintf(stderr, "ERROR: Illegal value for -s\n");
                 return -1;
             }
             sector_interleave_set = 1;

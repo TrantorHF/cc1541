@@ -442,7 +442,7 @@ main(int argc, char* argv[])
     create_value_file("1.prg", 254 * 22, 1);
     if (run_binary_cleanup(binary, "-F -3 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 21 + 10, 1)) {
+    } else if (block_is_filled(image, 21 + 4, 1)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -500,20 +500,6 @@ main(int argc, char* argv[])
     ++test;
     create_value_file("1.prg", 254 * 2, 37);
     if (run_binary_cleanup(binary, "-F 3 -s 20 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
-        result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 1, 37)) {
-        result = TEST_PASS;
-        ++passed;
-    } else {
-        result = TEST_FAIL;
-    }
-    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
-    remove("1.prg");
-
-    description = "File with sector interleave -20 should fill sector 3 and 2 on track 1";
-    ++test;
-    create_value_file("1.prg", 254 * 2, 37);
-    if (run_binary_cleanup(binary, "-F 3 -s -20 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (block_is_filled(image, 3, 37) && block_is_filled(image, 2, 37)) {
         result = TEST_PASS;
@@ -620,7 +606,7 @@ main(int argc, char* argv[])
     create_value_file("2.prg", 1 * 254, 2);
     if (run_binary_cleanup(binary, "-w 1.prg -E -w 2.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 19, 2)) {
+    } else if (block_is_filled(image, 11, 2)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -636,7 +622,7 @@ main(int argc, char* argv[])
     create_value_file("2.prg", 2 * 254, 2);
     if (run_binary_cleanup(binary, "-w 1.prg -E -w 2.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if (block_is_filled(image, 19, 0)) {
+    } else if (block_is_filled(image, 11, 0)) {
         result = TEST_PASS;
         ++passed;
     } else {
@@ -917,7 +903,7 @@ main(int argc, char* argv[])
     description = "Writing two files with type 0 should result in first two blocks allocated";
     ++test;
     create_value_file("1.prg", 1 * 254, 1);
-    if (run_binary_cleanup(binary, "-T 0 -S 0 -F 0 -f 1 -w 1.prg -T 0 -f 2 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-T 0 -S 1 -F 0 -f 1 -w 1.prg -T 0 -f 2 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (image[track_offset[17] + 5] == (char)0xfc) {
         result = TEST_PASS;
@@ -1693,17 +1679,17 @@ main(int argc, char* argv[])
     description = "Wild sector chain with conflict should be fixed for -R 4";
     ++test;
     create_value_file("1.prg", 3 * 254, 1);
-    if (run_binary_cleanup(binary, "-f 1 -w 1.prg -f 2 -w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
+    if (run_binary/*_cleanup*/(binary, "-f 1 -w 1.prg -f 2 -w 1.prg ", "image2.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     }
-    image[18*256+1] = 10; /* make t/s link point to second sector of first file */
+    image[19*256+1] = 10; /* make t/s link point to second sector of first file */
     image[track_offset[17] + 256 + 1*32 + 2] = 0; /* scratch second file */
     image[track_offset[17] + 256 + 1*32 + 3] = 0; /* delete track pointer */
     image[track_offset[17] + 256 + 1*32 + 4] = 0; /* delete sector pointer */
     write_file("image.d64", size, image);
     if (run_binary_cleanup(binary, "-R 4 ", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
-    } else if((unsigned char)image[track_offset[17] + 256 + 1*32 + 2] == 0x82 && image[18*256] == 0 && (unsigned char)image[18*256+1] == 0xff) {
+    } else if((unsigned char)image[track_offset[17] + 256 + 1*32 + 2] == 0x82 && image[19*256] == 0 && (unsigned char)image[19*256+1] == 0xff) {
         result = TEST_PASS;
         ++passed;
     } else {
