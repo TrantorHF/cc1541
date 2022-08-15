@@ -310,7 +310,7 @@ usage()
     printf("              (default no).\n");
     printf("-u numblocks  When using -t, amount of dir blocks to leave free (default=2).\n");
     printf("-x            Don't split files over directory track hole (default split files).\n");
-    printf("-F            Next file first sector on a new track (default=0).\n");
+    printf("-F sector     Next file first sector on a new track (default=0).\n");
     printf("              Any negative value assumes aligned tracks and uses current\n");
     printf("              sector + interleave. After each file, the value falls back to the\n");
     printf("              default. Not applicable for D81.\n");
