@@ -395,7 +395,7 @@ main(int argc, char* argv[])
 
     description = "Setting minimum sector to 7 should fill track 1 sector 7";
     ++test;
-    create_value_file("1.prg", 254 * 21, 1);
+    create_value_file("1.prg", 254 * 1, 1);
     if (run_binary_cleanup(binary, "-F 7 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (block_is_filled(image, 7, 1)) {
