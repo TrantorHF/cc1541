@@ -1679,7 +1679,7 @@ main(int argc, char* argv[])
     description = "Wild sector chain with conflict should be fixed for -R 4";
     ++test;
     create_value_file("1.prg", 3 * 254, 1);
-    if (run_binary/*_cleanup*/(binary, "-f 1 -w 1.prg -f 2 -w 1.prg ", "image2.d64", &image, &size, false) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-f 1 -w 1.prg -f 2 -w 1.prg ", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     }
     image[19*256+1] = 10; /* make t/s link point to second sector of first file */
@@ -1928,7 +1928,7 @@ main(int argc, char* argv[])
     description = "Sector on new track should not be limited to number of sectors on old track";
     ++test;
     create_value_file("1.prg", 254 * 20, 1); /* track 24 has 19 blocks, track 25 only 18 */
-    if (run_binary/*_cleanup*/(binary, "-r 24 -F 18 -w 1.prg", "image2.d64", &image, &size, false) != NO_ERROR) {
+    if (run_binary_cleanup(binary, "-r 24 -F 18 -w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
         result = TEST_UNRESOLVED;
     } else if (block_is_filled(image, track_offset[24]/256, 1)) {
         result = TEST_PASS;
@@ -1938,7 +1938,38 @@ main(int argc, char* argv[])
     }
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
-    
+
+    description = "Last file block should set unused bytes to zero";
+    ++test;
+    create_value_file("1.prg", 254 * 1, 1);
+    create_value_file("2.prg", 1, 2);
+    if (run_binary_cleanup(binary, "-w 1.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    image[track_offset[17] + 256 + 2] = 0; /* scratched */
+    image[track_offset[17] + 5] = (char)0xff; /* deallocated in BAM */
+    write_file("image.d64", size, image);
+    if (run_binary_cleanup(binary, "-w 2.prg", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    }
+    if(result != TEST_UNRESOLVED) {
+        result = TEST_PASS;
+        if(image[2] != 2) {
+            result = TEST_FAIL;
+        }
+        for(int b = 3; b < 256; b++) {
+            if(image[b] != 0) {
+                result = TEST_FAIL;
+            }
+        }
+        if(result == TEST_PASS) {
+            ++passed;
+        }
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+    remove("2.prg");
+
     /* ideas for tests:
        - test writing of transwarp files
        - test encryption of transwarp files

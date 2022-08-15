@@ -3261,6 +3261,7 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
                 /* write sector */
                 bytes_to_write = min(BLOCKSIZE - BLOCKOVERHEAD, bytesLeft);
+                memset(image + offset + 2, 0, 254);
                 memcpy(image + offset + 2, filedata + byteOffset, bytes_to_write);
 
                 bytesLeft -= bytes_to_write;
