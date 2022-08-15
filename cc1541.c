@@ -298,7 +298,7 @@ usage()
     printf("-L            Add dir entry without writing file (track and sector will be 0),\n");
     printf("              requires a filename given with -f.\n");
     printf("-B numblocks  Write the given value as file size in blocks to the directory for\n");
-    printf("              the next file.\n");
+    printf("              the next file. Not applicable for Transwarp files.\n");
     printf("-M numchars   Hash computation maximum filename length, this must\n");
     printf("              match loader option FILENAME_MAXLENGTH in Krill's loader.\n");
     printf("              Default is 16.\n");
@@ -4528,6 +4528,10 @@ main(int argc, char* argv[])
             files[num_files].direntryindex = -1;
 
             if (strcmp(argv[j], "-W") == 0) {
+                if(nrSectorsShown != -1) {
+                    fprintf(stderr, "ERROR: -B cannot be used for Transwarp files\n");
+                    return -1;
+                }
                 transwarp_set = true;
                 if(!filetype_set && files[num_files].have_key) {
                     files[num_files].filetype = (filetype & 0xf0) | FILETYPEUSR | FILETYPETRANSWARPMASK;
