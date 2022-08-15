@@ -1925,6 +1925,20 @@ main(int argc, char* argv[])
     printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
     remove("1.prg");
 
+    description = "Sector on new track should not be limited to number of sectors on old track";
+    ++test;
+    create_value_file("1.prg", 254 * 20, 1); /* track 24 has 19 blocks, track 25 only 18 */
+    if (run_binary/*_cleanup*/(binary, "-r 24 -F 18 -w 1.prg", "image2.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (block_is_filled(image, track_offset[24]/256, 1)) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+    remove("1.prg");
+    
     /* ideas for tests:
        - test writing of transwarp files
        - test encryption of transwarp files

@@ -260,7 +260,7 @@ sectors_per_track_extended[] = {
     /* 76-80 */ 17,17,17,17,17
 };
 
-static int quiet           = 0;  /* global quiet flag */
+static int quiet           = 0;      /* global quiet flag */
 static int verbose         = 0;      /* global verbose flag */
 static int num_files       = 0;      /* number of files to be written provided by the user */
 static int max_hash_length = 16;     /* number of bytes of the filenames to calculate the hash over */
@@ -3176,7 +3176,6 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
 
                     if (!blockfound) {
                         /* find next track, use some magic to make up for track seek delay */
-                        int prev_track = track;
                         int seek_delay = 1;
                         if (file->mode & MODE_SAVECLUSTEROPTIMIZED) {
                             if (track > D64NUMTRACKS) {
@@ -3198,8 +3197,8 @@ write_files(image_type type, unsigned char *image, imagefile *files, int num_fil
                         } else {
                             sector = file->first_sector_new_track;
                         }
-                        sector += num_sectors(type, prev_track);
-                        sector %= num_sectors(type, prev_track);
+                        sector %= num_sectors(type, track);
+                        findSector = sector;
 
                         while ((!file_usedirtrack)
                                 && ((track == dirtrack(type))
