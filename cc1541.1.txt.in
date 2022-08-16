@@ -28,6 +28,10 @@ DOLPHIN DOS BAM-formatting.
 *-i id*::
   Disk ID, default='00 2a'.
 
+*-H message*::
+  Hidden BAM message. Only for D64 (up to 85 chars) or SPEED DOS
+(up to 20 chars).
+
 *-w localname*::
   Write local file to disk, if filename is not set then the local
 name is used.  After file written, the filename is unset.
@@ -106,8 +110,8 @@ for D81.
   Default sector interleave, default=10. Not applicable for D81.
 
 *-s value*::
-  Next file sector interleave, valid after each file. The interleave value 
-falls back to the default value set by -S after the first sector of the 
+  Next file sector interleave, valid after each file. The interleave value
+falls back to the default value set by -S after the first sector of the
 next file. Not applicable for D81.
 
 *-e*::
@@ -145,8 +149,8 @@ level 5: Also add reasonable wild single blocks.
 *-g filename*::
   Write additional g64 output file with given name.
 
-*-a*::            
-Print command line options that would create the same directory as the 
+*-a*::
+Print command line options that would create the same directory as the
 one in the given image (for directory art import).
 
 *-U mapping*::

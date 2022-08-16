@@ -1970,6 +1970,30 @@ main(int argc, char* argv[])
     remove("1.prg");
     remove("2.prg");
 
+    description = "BAM message for D64 should be limited to 85 chars";
+    ++test;
+    if (run_binary_cleanup(binary, "-H 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17]+0xab] == '0' && image[track_offset[17]+255] == '4' && image[track_offset[17]+256] == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+
+    description = "BAM message for SPEED DOS should be limited to 20 chars";
+    ++test;
+    if (run_binary_cleanup(binary, "-4 -H 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789", "image.d64", &image, &size, false) != NO_ERROR) {
+        result = TEST_UNRESOLVED;
+    } else if (image[track_offset[17]+0xab] == '0' && image[track_offset[17]+0xab+19] == '9' && image[track_offset[17]+0xab+20] == 0) {
+        result = TEST_PASS;
+        ++passed;
+    } else {
+        result = TEST_FAIL;
+    }
+    printf("%0*d:  %s:  %s\n", test_pad, test, result_str[result], description);
+
     /* ideas for tests:
        - test writing of transwarp files
        - test encryption of transwarp files

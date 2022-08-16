@@ -73,6 +73,8 @@
 #define FILENAMEOFFSET         5
 #define FILENAMEMAXSIZE        16
 #define FILENAMEEMPTYCHAR      (' ' | 0x80)
+#define BAMMESSAGEOFFSET       0xab
+#define BAMMESSAGEMAXSIZE      0x100-BAMMESSAGEOFFSET
 #define TRANSWARPSIGNATROFFSLO 21
 #define TRANSWARPSIGNATURELO   'T'
 #define TRANSWARPSIGNATROFFSHI 22
@@ -95,8 +97,8 @@
 #define D64NUMTRACKS_EXTENDED  (D64NUMTRACKS + 5)
 #define D71NUMTRACKS           (D64NUMTRACKS * 2)
 #define D81NUMTRACKS           80
-#define BAM_OFFSET_SPEED_DOS   0xac
-#define BAM_OFFSET_DOLPHIN_DOS 0xc0
+#define BAM_OFFSET_SPEED_DOS   0xc0
+#define BAM_OFFSET_DOLPHIN_DOS 0xac
 #define DIRSLOTEXISTS          0
 #define DIRSLOTFOUND           1
 #define DIRSLOTNOTFOUND        2
@@ -276,6 +278,8 @@ usage()
     printf("Usage: cc1541 [options] image.[d64|d71|d81]\n\n");
     printf("-n diskname   Disk name, default='cc1541'.\n");
     printf("-i id         Disk ID, default='00 2a'.\n");
+    printf("-H message    Hidden BAM message. Only for D64 (up to 85 chars) or SPEED DOS\n");
+    printf("              (up to 20 chars).\n");
     printf("-w localname  Write local file to disk, if filename is not set then the\n");
     printf("              local name is used. After file written, the filename is unset.\n");
     printf("-W localname  Like -w, but encode file in Transwarp format.\n");
@@ -878,7 +882,7 @@ is_sector_free(image_type type, const unsigned char* image, int track, int secto
         bitmap = image + bam + (track - D64NUMTRACKS - 1) * 3;
     } else {
         if (((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) && (track > D64NUMTRACKS)) {
-            track -= D64NUMTRACKS;
+            track -= D64NUMTRACKS+1;
             bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE + ((type == IMAGE_D64_EXTENDED_SPEED_DOS) ? BAM_OFFSET_SPEED_DOS : BAM_OFFSET_DOLPHIN_DOS);
         } else {
             bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
@@ -953,7 +957,7 @@ mark_sector(image_type type, unsigned char* image, int track, int sector, int fr
             }
         } else {
             if (((type == IMAGE_D64_EXTENDED_SPEED_DOS) || (type == IMAGE_D64_EXTENDED_DOLPHIN_DOS)) && (track > D64NUMTRACKS)) {
-                track -= D64NUMTRACKS;
+                track -= D64NUMTRACKS+1;
                 bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE + ((type == IMAGE_D64_EXTENDED_SPEED_DOS) ? BAM_OFFSET_SPEED_DOS : BAM_OFFSET_DOLPHIN_DOS);
             } else {
                 bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
@@ -1008,9 +1012,9 @@ get_id_offset(image_type type)
     return offset;
 }
 
-/* Updates the directory with the given header and id */
+/* Updates the directory with the given header, id and BAM message */
 static void
-update_directory(image_type type, unsigned char* image, unsigned char* header, unsigned char* id, int shadowdirtrack)
+update_directory(image_type type, unsigned char* image, unsigned char* header, unsigned char* id, unsigned char *bam_message, int shadowdirtrack)
 {
     unsigned int bam = linear_sector(type, dirtrack(type), 0) * BLOCKSIZE;
 
@@ -1025,6 +1029,17 @@ update_directory(image_type type, unsigned char* image, unsigned char* header, u
     evalhexescape(id, pid, 5, FILENAMEEMPTYCHAR);
     memcpy(image + bam + get_header_offset(type), pheader, FILENAMEMAXSIZE);
     memcpy(image + bam + get_id_offset(type), pid, 5);
+
+    /* Set BAM message */
+    if(bam_message != NULL) {
+        unsigned char pbam_message[BAMMESSAGEMAXSIZE];
+        int bam_message_len = BAMMESSAGEMAXSIZE;
+        if(type == IMAGE_D64_EXTENDED_SPEED_DOS) {
+            bam_message_len = 0xbf - BAMMESSAGEOFFSET; /* avoid conflict with extended BAM and allow for a 0 at the end*/
+        }
+        evalhexescape(bam_message, pbam_message, bam_message_len, 0);
+        memcpy(image + bam + BAMMESSAGEOFFSET, pbam_message, bam_message_len);
+    }
 
     if (type == IMAGE_D81) {
         unsigned int bam = linear_sector(type, dirtrack(type), 1 /* sector */) * BLOCKSIZE;
@@ -1046,7 +1061,7 @@ update_directory(image_type type, unsigned char* image, unsigned char* header, u
 
 /* Writes an empty directory and BAM */
 static void
-initialize_directory(image_type type, unsigned char* image, unsigned char* header, unsigned char* id, int shadowdirtrack)
+initialize_directory(image_type type, unsigned char* image, unsigned char* header, unsigned char* id, unsigned char * bam_message, int shadowdirtrack)
 {
     unsigned int dir = linear_sector(type, dirtrack(type), 0 /* sector */) * BLOCKSIZE;
 
@@ -1122,7 +1137,7 @@ initialize_directory(image_type type, unsigned char* image, unsigned char* heade
         mark_sector(type, image, shadowdirtrack, (type == IMAGE_D81) ? 3 : 1 /* sector */, 0 /* not free */);
     }
 
-    update_directory(type, image, header, id, shadowdirtrack);
+    update_directory(type, image, header, id, bam_message, shadowdirtrack);
 }
 
 /* Computes Transwarp dirdata checksum */
@@ -1679,7 +1694,6 @@ print_file_allocation(image_type type, const unsigned char* image, imagefile* fi
         printf(" (SL: %d)", files[i].sectorInterleave);
 
         if ((files[i].mode & MODE_LOOPFILE) && (files[i].sectorInterleave != 0)) {
-            printf("\n");
 
             continue;
         }
@@ -2119,6 +2133,19 @@ print_directory(image_type type, unsigned char* image, int blocks_free)
         printf("%d BLOCKS FREE.\n", blocks_free);
     } else {
         printf("%d blocks free.\n", blocks_free);
+    }
+
+    /* detect and print bam message */
+    if((type == IMAGE_D64 || type == IMAGE_D64_EXTENDED_SPEED_DOS) && bam[BAMMESSAGEOFFSET] != 0) {
+        printf("\nBAM message: \"");
+        /* only checking the first byte and hoping for the best... */
+        int b = BAMMESSAGEOFFSET;
+        unsigned char c;
+        while(b < 256 && ((c = bam[b]) != 0)) {
+            putp(c, stdout);
+            b++;
+        }
+        printf("\"\n");
     }
 }
 
@@ -4340,6 +4367,7 @@ main(int argc, char* argv[])
     char* filename_g64 = NULL;
     unsigned char* header  = (unsigned char*)"cc1541";
     unsigned char* id      = (unsigned char*)"00 2a";
+    unsigned char* bam_message = NULL;
     int dirtracksplit = 1;
     int usedirtrack = 0;
     unsigned int shadowdirtrack = 0;
@@ -4390,6 +4418,14 @@ main(int argc, char* argv[])
                 return -1;
             }
             id = (unsigned char*)argv[++j];
+            set_header = 1;
+            modified = 1;
+        } else if (strcmp(argv[j], "-H") == 0) {
+            if (argc < j + 2) {
+                fprintf(stderr, "ERROR: Error parsing argument for -H\n");
+                return -1;
+            }
+            bam_message = (unsigned char*)argv[++j];
             set_header = 1;
             modified = 1;
         } else if (strcmp(argv[j], "-M") == 0) {
@@ -4686,6 +4722,11 @@ main(int argc, char* argv[])
         }
     }
 
+    if(bam_message != NULL && type != IMAGE_D64 && type != IMAGE_D64_EXTENDED_SPEED_DOS) {
+        fprintf(stderr, "ERROR: Bam message only supported for D64 and SPEED DOS images\n");
+        return -1;
+    }
+
     if(shadowdirtrack > image_num_tracks(type) || (int)shadowdirtrack == dirtrack(type) || (type == IMAGE_D71 && (int)shadowdirtrack == dirtrack(type) + D64NUMTRACKS)) {
         fprintf(stderr, "ERROR: Invalid shadow directory track\n");
         return -1;
@@ -4748,7 +4789,7 @@ main(int argc, char* argv[])
         if (!quiet) {
             printf("Adding %d files to new image %s\n", num_files, basename((unsigned char*)imagepath));
         }
-        initialize_directory(type, image, header, id, shadowdirtrack);
+        initialize_directory(type, image, header, id, bam_message, shadowdirtrack);
     } else {
         if (!quiet) {
             printf("Adding %d files to existing image %s\n", num_files, basename((unsigned char*)imagepath));
@@ -4778,7 +4819,7 @@ main(int argc, char* argv[])
             restore(type, image, restore_level, files);
         }
         if (set_header) {
-            update_directory(type, image, header, id, shadowdirtrack);
+            update_directory(type, image, header, id, bam_message, shadowdirtrack);
         }
     }
 
