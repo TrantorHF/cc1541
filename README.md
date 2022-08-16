@@ -36,6 +36,21 @@ https://bitbucket.org/PTV_Claus/cc1541/src/master/
 
 ## Version history ##
 
+v4.0
+
+* The default handling for large tail gaps has been removed, as it
+  does not provide any advantage and was only there to be as close
+  as possible to CBM DOS behaviour. In fact, it actually slows down 
+  fast loaders. This warrants a major version number increase.
+* -H switch added to set BAM messages at BAM offset $ab
+* -F with negative values now specifies a track skew
+* -B cannot be used with transwarp files anymore, as the loader
+  relies on correct block sizes in the directory
+* Bugfix: the BAM allocation for SPEED DOS and DOLPHIN DOS was 
+  wrong (mixed up between the two and also shifted by 4 bytes)
+* Bugfix: Data from unused blocks could leak into the last block 
+  of a new file behind the actual file data
+
 v3.4
 
 * Support for Transwarp 0.86 and later
